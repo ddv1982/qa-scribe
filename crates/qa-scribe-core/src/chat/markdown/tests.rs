@@ -147,6 +147,23 @@ fn a_code_block_in_a_checklist_item_keeps_its_trailing_blank_lines() {
     );
 }
 
+/// Images are blocks, so a managed image in a flattened table row splits the row's paragraph.
+#[test]
+fn a_managed_image_in_a_table_cell_is_not_nested_in_a_paragraph() {
+    let image = json!({"type":"image","attrs":{"src":"qa-scribe-attachment://att-1","alt":"shot.png","attachmentId":"att-1"}});
+    let nodes = super::parse_with_images(
+        "| Step | Shot |\n| --- | --- |\n| Login | ![shot.png](qa-scribe-attachment://att-1) |",
+        std::slice::from_ref(&image),
+    )
+    .unwrap();
+    for block in &nodes {
+        for child in block["content"].as_array().into_iter().flatten() {
+            assert_ne!(child["type"], "image", "{nodes:?}");
+        }
+    }
+    assert!(nodes.contains(&image), "{nodes:?}");
+}
+
 #[test]
 fn a_checklist_item_starting_with_an_image_gets_its_leading_paragraph() {
     let image = json!({"type":"image","attrs":{"src":"qa-scribe-attachment://att-1","alt":"shot.png","attachmentId":"att-1"}});

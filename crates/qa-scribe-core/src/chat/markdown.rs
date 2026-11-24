@@ -148,7 +148,8 @@ fn known_image(known: &[Value], source: &str) -> Result<Value> {
         .ok_or_else(|| validation("The suggestion refers to an image that is not in this content"))
 }
 
-/// Images are blocks in the editor, so an image inside a paragraph or heading splits it.
+/// Images are blocks in the editor, so an image inside a paragraph, heading or flattened table
+/// row splits it.
 fn without_inline_images(kind: &str, attrs: Option<Value>, nodes: Vec<Value>) -> Vec<Value> {
     let mut result = vec![];
     let mut run = vec![];
@@ -254,7 +255,7 @@ fn finish(mut frame: Frame<'_>) -> Vec<Value> {
             if frame.nodes.last().is_some_and(|n| n["text"] == " | ") {
                 frame.nodes.pop();
             }
-            vec![node("paragraph", frame.nodes)]
+            without_inline_images("paragraph", None, frame.nodes)
         }
         Tag::TableCell => {
             frame.nodes.push(json!({"type":"text","text":" | "}));
