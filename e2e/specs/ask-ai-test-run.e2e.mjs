@@ -1,17 +1,14 @@
 import assert from 'node:assert/strict'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { contextResponse } from '../fixtures/ask-ai-context-provider.mjs'
 
 const artifacts = process.env.QA_SCRIBE_E2E_ARTIFACTS
 const fixture = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
 assert.ok(artifacts && fixture, 'the e2e runner names the evidence and fixture directories')
 mkdirSync(artifacts, { recursive: true })
-/** Where the reviewer looks at the run screen; skipped when it does not exist on this machine. */
-const reviewCopies = '/private/tmp/claude-501/-Users-vriesd-projects-qa-scribe/b2064c17-7765-4812-9d9b-b79967c65790/scratchpad'
 const sessionTitle = 'E2E Ask AI on a test run'
 const draftTitle = 'Checkout payments'
-const cases = ['Pay by card', 'Pay with a gift card']
+const cases = ['Pay by card', 'Pay with a gift card', 'Pay with a saved card']
 const remark = 'The gift card was refused.'
 const panel = '.ask-ai-panel:not([hidden])'
 const composer = `${panel} textarea`
@@ -63,13 +60,6 @@ async function send(text) {
   return payload
 }
 
-/** The report the conversation sent, decoded from the instructions. */
-function report(payload) {
-  const match = payload.instructions.match(/\nTEST_RUN_REPORT_JSON\n("(?:[^"\\]|\\.)*")/)
-  assert.ok(match, 'the instructions carry the test run report')
-  return JSON.parse(match[1])
-}
-
 async function waitForStored(predicate, message) {
   await browser.waitUntil(async () => {
     const [summary] = await native('list_test_runs', { sessionId: session.id })
@@ -80,7 +70,7 @@ async function waitForStored(predicate, message) {
 let session
 
 describe('Ask AI on a test run in the built native application', () => {
-  it('sends the current run report, offers no change and closes with the run', async () => {
+  it('suggests two results, appends notes, supports Undo and detects a manual edit', async () => {
     const before = (await native('list_sessions')).length
     await click('button=New Session')
     await browser.waitUntil(async () => (await native('list_sessions')).length === before + 1, { timeoutMsg: 'the new Session was not created' })
@@ -92,7 +82,7 @@ describe('Ask AI on a test run in the built native application', () => {
       return Boolean(session)
     }, { timeoutMsg: 'the Session title did not autosave' })
 
-    // A manual QA cases draft with two test cases.
+    // A manual QA cases draft with three test cases.
     await click('[role="tab"]*=Test cases')
     await click('button=Create test cases')
     const title = await $('[aria-label="Test case title"]')
@@ -101,18 +91,17 @@ describe('Ask AI on a test run in the built native application', () => {
     const body = await $('[aria-label="Creation draft body"][contenteditable="true"]')
     await body.setValue('Checkout')
     await blockStyle(body, 'h2')
-    for (const [text, style] of [[cases[0], 'h3'], ['Order is placed.', 'p'], [cases[1], 'h3'], ['Gift card is charged.', 'p']]) {
+    for (const [text, style] of [[cases[0], 'h3'], ['Order is placed.', 'p'], [cases[1], 'h3'], ['Gift card is charged.', 'p'], [cases[2], 'h3'], ['Saved card is charged.', 'p']]) {
       assert.ok(await browser.execute((text) => document.execCommand('insertParagraph', false) && document.execCommand('insertText', false, text), text))
       await blockStyle(body, style)
     }
     await click('button=Save test cases')
     await $('button=Edit').waitForDisplayed()
 
-    // A Passed and a Failed result with result notes and a screenshot.
+    // Capture previous notes and a screenshot before any suggestions.
     await click('button=Start test run')
     await $(`section[aria-label="${cases[0]}"]`).waitForDisplayed()
     await click(resultButton(cases[0], 'Passed'))
-    await click(resultButton(cases[1], 'Failed'))
     await click(`button[aria-label="Add result notes for ${cases[1]}"]`)
     const notes = await $(`[aria-label="Result notes for ${cases[1]}"][contenteditable="true"]`)
     await notes.waitForDisplayed()
@@ -124,7 +113,7 @@ describe('Ask AI on a test run in the built native application', () => {
       transfer.items.add(new File([bytes], 'proof.png', { type: 'image/png' }))
       editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }))
     }, notes)
-    await waitForStored((run) => run.cases[0].result === 'passed' && run.cases[1].result === 'failed'
+    await waitForStored((run) => run.cases[0].result === 'passed' && run.cases[1].result === 'not_run'
       && run.cases[1].notes?.text === remark && run.cases[1].notes.imageCount === 1, 'the result notes and screenshot were not saved')
 
     // Ask AI sits before Copy report and opens the panel beside the run with the composer focused.
@@ -139,47 +128,50 @@ describe('Ask AI on a test run in the built native application', () => {
     assert.equal(await $(runAction('Ask AI')).getAttribute('aria-expanded'), 'true')
     const source = await $(`${panel} [aria-label="Chat source"]`).getText()
     assert.match(source, /^Test run\s*Checkout payments, /)
-    assert.ok(await (await $(panel)).$('p*=Results cannot be changed from here.').isDisplayed())
-    save('opened', { source })
+    const payload = await send('TC 2 failed with a 500, TC 3 passed')
+    save('suggestions', { report: payload.report, messages: payload.messages })
+    assert.match(payload.report, /^## Test run: Checkout payments\n/)
+    assert.ok(payload.report.includes('1 passed, 0 failed, 0 blocked, 2 not run'), payload.report)
+    assert.ok(payload.report.includes(`Result notes:\n    ${remark}\n  Evidence: 1 image`), payload.report)
+    assert.doesNotMatch(JSON.stringify(payload), /data:image|qa-scribe-attachment:/)
+    assert.deepEqual(payload.messages.map((message) => message.context.kind), ['session'])
+    const card = await inPanel('[aria-label="Suggested results"]')
+    await card.waitForDisplayed()
+    const rows = await card.$$('[role="group"]')
+    assert.equal(rows.length, 2)
+    assert.match(await rows[0].getText(), /Proposed Result\s*Failed/)
+    assert.match(await rows[1].getText(), /Proposed Result\s*Passed/)
+    await waitForStored((run) => run.cases.slice(1).every((testCase) => testCase.result === 'not_run'), 'suggestions must leave results untouched')
+    await (await card.$('button=Apply all')).click()
+    await (await inPanel(`button[aria-label="Undo update for ${cases[2]}"]`)).waitForClickable()
+    await click(`${panel} button[aria-label="Close Ask AI"]`)
+    await waitForStored((run) => run.cases[1].result === 'failed'
+      && run.cases[1].notes?.text.includes(remark) && run.cases[1].notes.text.includes('HTTP 500')
+      && run.cases[1].notes.imageCount === 1 && run.cases[2].result === 'passed'
+      && run.cases[2].notes?.text === 'The payment flow passed.', 'both Results and notes should be saved')
+    assert.equal(await $(resultButton(cases[1], 'Failed')).getAttribute('aria-pressed'), 'true')
+    assert.equal(await $(resultButton(cases[2], 'Passed')).getAttribute('aria-pressed'), 'true')
+    assert.match(await notes.getText(), /HTTP 500/)
+    assert.match(await notes.getText(), /The gift card was refused/)
 
-    const first = await send('Summarize this test run for the ticket.')
-    const firstReport = report(first)
-    save('first-turn', { report: firstReport, messages: first.messages })
-    assert.match(firstReport, /^## Test run: Checkout payments\n/)
-    assert.ok(firstReport.includes('1 passed, 1 failed, 0 blocked, 0 not run'), firstReport)
-    assert.ok(firstReport.includes(`### Checkout\n- Passed: ${cases[0]}\n- Failed: ${cases[1]}\n  Result notes:\n    ${remark}\n  Evidence: 1 image`), firstReport)
-    assert.ok(first.instructions.includes('Results and result notes cannot be changed from this conversation'))
-    assert.doesNotMatch(JSON.stringify(first), /data:image|qa-scribe-attachment:/)
-    assert.ok(first.instructions.includes('"purpose":{"kind":"conversation"}'), 'a run conversation never asks for a refinement')
-    assert.deepEqual(first.messages.map((message) => message.context.kind), ['session'])
-    assert.ok(await (await $(panel)).$(`p*=${contextResponse.slice(0, 30)}`).isDisplayed())
+    await click(runAction('Ask AI'))
+    const undo = await inPanel(`button[aria-label="Undo update for ${cases[2]}"]`)
+    await undo.waitForClickable()
+    await undo.click()
+    await waitForStored((run) => run.cases[2].result === 'not_run' && !run.cases[2].notes, 'Undo should restore TC 3')
+    await click(`${panel} button[aria-label="Close Ask AI"]`)
+    await click(resultButton(cases[2], 'Blocked'))
+    await waitForStored((run) => run.cases[2].result === 'blocked', 'the manual edit should save')
 
-    // A changed result reaches the next turn.
-    await click(resultButton(cases[0], 'Blocked'))
-    await waitForStored((run) => run.cases[0].result === 'blocked', 'the changed result was not saved')
-    const second = await send('And now?')
-    const secondReport = report(second)
-    save('second-turn', { report: secondReport })
-    assert.ok(secondReport.includes('0 passed, 1 failed, 1 blocked, 0 not run'), secondReport)
-    assert.ok(secondReport.includes(`- Blocked: ${cases[0]}`), secondReport)
+    await click(runAction('Ask AI'))
+    const stale = await inPanel(`[role="group"][aria-label="${cases[2]}"]`)
+    await stale.waitForDisplayed()
+    assert.match(await stale.getText(), /Out of date/)
+    assert.equal(await (await stale.$('button=Update')).isEnabled(), false)
+    await browser.saveScreenshot(join(artifacts, 'run-ask-ai.png'))
 
-    // No change is ever offered for a run.
-    assert.equal((await $$(`${panel} .chat-proposal`)).length, 0)
-    assert.equal(await (await $(panel)).$('button*=Update').isExisting(), false)
-    assert.equal((await native('get_test_run', { runId: (await native('list_test_runs', { sessionId: session.id }))[0].id })).cases[1].result, 'failed')
-
-    await browser.pause(600)
-    const shot = join(artifacts, 'run-ask-ai.png')
-    await browser.saveScreenshot(shot)
-    try {
-      mkdirSync(reviewCopies, { recursive: true })
-      copyFileSync(shot, join(reviewCopies, 'run-ask-ai.png'))
-    } catch (cause) {
-      save('review-copy-skipped', { error: String(cause) })
-    }
-
+    await click(`${panel} button[aria-label="Close Ask AI"]`)
     await click(runAction('Back to test cases'))
-    await $(panel).waitForExist({ reverse: true, timeoutMsg: 'the panel stayed open after going back' })
-    save('closed', { panelOpen: await $(panel).isExisting() })
+    await $(panel).waitForExist({ reverse: true })
   }).timeout(150_000)
 })

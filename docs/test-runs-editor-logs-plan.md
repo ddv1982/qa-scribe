@@ -161,7 +161,9 @@ Goal: the tester says what happened; Ask AI drafts Results and notes additions f
 - [x] Apply and Undo run through the case's save queue: drain pending writes and image imports, refuse while a save has failed, suspend case edits until the command settles, then install the returned case in `CaseSaveQueue` and the open notes editor. Vitest: pending save, failed save, an image read at the flush boundary, typing after Apply keeps both texts.
 - [x] Card UI: a row per case with current and proposed Result, rationale and notes; states Suggested, Applied with Undo, Out of date; "Apply all". Vitest.
   - On narrow windows, closing Ask AI is necessary to reach the run. Reopening the latest conversation with suggestions keeps Update and Undo available. The test run options let the tester start a new conversation. This adds one optional history field and reuses the existing confirmation dialog.
-- [ ] Rewrite `e2e/specs/ask-ai-test-run.e2e.mjs`, replacing its "no proposal" assertion deliberately: "TC 2 failed with a 500, TC 3 passed" gives two rows; Apply all shows both Results and notes, earlier notes kept; Undo on TC 3 restores it; a manual edit makes a row out of date. Spec id added to the gate list at `scripts/run-e2e.mjs:101` (it is not there today).
+- [x] Rewrite `e2e/specs/ask-ai-test-run.e2e.mjs`, replacing its "no proposal" assertion deliberately: "TC 2 failed with a 500, TC 3 passed" gives two rows; Apply all shows both Results and notes, earlier notes kept; Undo on TC 3 restores it; a manual edit makes a row out of date. Spec id added to the gate list at `scripts/run-e2e.mjs:101` (it is not there today).
+
+- [x] Describe suggested Results, appended Result notes, Apply all and Undo in the Unreleased changelog and Getting started.
 
 Acceptance: the E2E passes, and a Rust test rejects a row for a case of another test run.
 

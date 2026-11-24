@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { emit, jsonLines, parseTranscript, record, reserveInvocation, waitForFile } from './chat-authorization-common.mjs'
 import { authorizationTurn } from './chat-authorization-providers.mjs'
 import { catalogObservation } from './chat-authorization-catalog.mjs'
+import { inspectTestRunInput } from './ask-ai-test-run-provider.mjs'
 import { inspectContextInput } from './ask-ai-context-provider.mjs'
 import { inspectRefinementInput } from './ask-ai-refinement-provider.mjs'
 import { inspectImageInput } from './chat-images-provider.mjs'
@@ -21,10 +22,11 @@ export function codexAppServer(argv) {
   const routingFixture = ['ask-ai-conversation-routing.e2e.mjs', 'ask-ai-conversation-isolation.e2e.mjs'].includes(process.env.QA_SCRIBE_E2E_SPEC)
   const jiraFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-jira-draft.e2e.mjs'
   const refinementFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-refinement.e2e.mjs'
-  const contextFixture = ['ask-ai-context.e2e.mjs', 'ask-ai-test-run.e2e.mjs'].includes(process.env.QA_SCRIBE_E2E_SPEC)
+  const contextFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-context.e2e.mjs'
+  const testRunFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-test-run.e2e.mjs'
   const readmeFixture = process.env.QA_SCRIBE_E2E_SPEC === 'readme-screenshots.mjs'
   const editorFixture = process.env.QA_SCRIBE_E2E_SPEC === 'editor-rich-content.e2e.mjs'
-  const images = process.env.QA_SCRIBE_E2E_CHAT_IMAGES === '1' || contextFixture || refinementFixture || jiraFixture || routingFixture || editorFixture
+  const images = process.env.QA_SCRIBE_E2E_CHAT_IMAGES === '1' || contextFixture || testRunFixture || refinementFixture || jiraFixture || routingFixture || editorFixture
   const scope = () => ({ threadId, turnId })
   const complete = (text, emittedPrefix = 0) => {
     emit({ method: 'item/agentMessage/delta', params: { ...scope(), itemId: 'assistant', delta: text.slice(emittedPrefix) } })
@@ -49,7 +51,7 @@ export function codexAppServer(argv) {
     } else if (request.method === 'turn/start') {
       if (!threadId || request.params.threadId !== threadId || active) throw new Error('Invalid Chat turn scope')
       active = true
-      const imageInput = isolationFixture ? inspectMinimalInput(request.params.input) : routingFixture ? inspectRoutingInput(request.params.input) : jiraFixture ? inspectJiraInput(request.params.input) : refinementFixture ? inspectRefinementInput(request.params.input) : contextFixture ? inspectContextInput(request.params.input) : editorFixture ? inspectEditorRichContentInput(request.params.input) : readmeFixture ? inspectReadmeInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
+      const imageInput = isolationFixture ? inspectMinimalInput(request.params.input) : routingFixture ? inspectRoutingInput(request.params.input) : jiraFixture ? inspectJiraInput(request.params.input) : refinementFixture ? inspectRefinementInput(request.params.input) : testRunFixture ? inspectTestRunInput(request.params.input) : contextFixture ? inspectContextInput(request.params.input) : editorFixture ? inspectEditorRichContentInput(request.params.input) : readmeFixture ? inspectReadmeInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
       if (imageInput?.contract?.localEdit && (playbackPolicy.sandbox !== 'read-only' || playbackPolicy.approvalPolicy !== 'never'
         || !argv.includes('features.shell_tool=false') || !argv.includes('mcp_servers.fixture_server.enabled=false'))) {
         throw new Error('Local refinement must start with tools disabled')
