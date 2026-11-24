@@ -1,5 +1,5 @@
 pub(super) const SCHEMA: &str = "
-CREATE TABLE chat_test_run_sources (
+CREATE TABLE IF NOT EXISTS chat_test_run_sources (
   message_id TEXT NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
   turn_id TEXT NOT NULL,
   case_id TEXT NOT NULL REFERENCES test_run_cases(id) ON DELETE CASCADE,
@@ -7,10 +7,10 @@ CREATE TABLE chat_test_run_sources (
   focused INTEGER NOT NULL DEFAULT 0 CHECK (focused IN (0, 1)),
   PRIMARY KEY (message_id, turn_id, case_id)
 );
-CREATE INDEX idx_chat_test_run_sources_case ON chat_test_run_sources(case_id);
-CREATE UNIQUE INDEX idx_chat_test_run_sources_focus ON chat_test_run_sources(message_id, turn_id) WHERE focused = 1;
+CREATE INDEX IF NOT EXISTS idx_chat_test_run_sources_case ON chat_test_run_sources(case_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_test_run_sources_focus ON chat_test_run_sources(message_id, turn_id) WHERE focused = 1;
 
-CREATE TABLE chat_test_run_suggestions (
+CREATE TABLE IF NOT EXISTS chat_test_run_suggestions (
   id TEXT PRIMARY KEY,
   assistant_message_id TEXT NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
   case_id TEXT NOT NULL REFERENCES test_run_cases(id) ON DELETE CASCADE,
@@ -27,9 +27,9 @@ CREATE TABLE chat_test_run_suggestions (
   CHECK (result IS NULL OR length(trim(rationale)) > 0),
   CHECK ((applied_fingerprint IS NULL) = (previous_result IS NULL))
 );
-CREATE INDEX idx_chat_test_run_suggestions_case ON chat_test_run_suggestions(case_id);
+CREATE INDEX IF NOT EXISTS idx_chat_test_run_suggestions_case ON chat_test_run_suggestions(case_id);
 
-CREATE TRIGGER chat_test_run_source_owner BEFORE INSERT ON chat_test_run_sources
+CREATE TRIGGER IF NOT EXISTS chat_test_run_source_owner BEFORE INSERT ON chat_test_run_sources
 WHEN NOT EXISTS (
   SELECT 1 FROM chat_messages m
   JOIN chat_drafts d ON d.id = m.draft_id
@@ -40,7 +40,7 @@ WHEN NOT EXISTS (
 )
 BEGIN SELECT RAISE(ABORT, 'Attempt source must belong to the test run'); END;
 
-CREATE TRIGGER chat_test_run_suggestion_owner BEFORE INSERT ON chat_test_run_suggestions
+CREATE TRIGGER IF NOT EXISTS chat_test_run_suggestion_owner BEFORE INSERT ON chat_test_run_suggestions
 WHEN NOT EXISTS (
   SELECT 1 FROM chat_messages a
   JOIN chat_messages u ON u.draft_id = a.draft_id AND u.turn_id = a.turn_id AND u.role = 'user'
