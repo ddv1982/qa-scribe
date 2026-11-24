@@ -98,7 +98,7 @@ fn parse_components(
         .into_iter()
         .filter_map(|resource_id| {
             let (owner, resource_group, name) = application_insights_id_parts(&resource_id)?;
-            if owner != subscription || !seen.insert(resource_id.to_ascii_lowercase()) {
+            if owner != subscription || !seen.insert(resource_id.to_lowercase()) {
                 return None;
             }
             Some(ApplicationInsightsComponent {
@@ -168,11 +168,13 @@ mod tests {
         let subscription = subscription_id("11111111-1111-4111-8111-111111111111").unwrap();
         let prefix = format!("/subscriptions/{subscription}/resourceGroups");
         let first = format!("{prefix}/qa/providers/Microsoft.Insights/components/checkout");
-        let second = format!("{prefix}/prod/providers/Microsoft.Insights/components/checkout");
+        let second =
+            format!("{prefix}/Équipe/providers/Microsoft.Insights/components/Café checkout");
         let bytes = serde_json::to_vec(&[
             first.clone(),
             first.to_ascii_uppercase(),
             second.clone(),
+            second.to_uppercase(),
             first.replace(
                 &subscription.to_string(),
                 "22222222-2222-4222-8222-222222222222",

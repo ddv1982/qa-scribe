@@ -49,7 +49,7 @@ pub(crate) fn validate_application_log_sources(
     let mut ids = HashSet::new();
     let mut labels = HashSet::new();
     for source in &sources {
-        if !ids.insert(source.resource_id.to_ascii_lowercase())
+        if !ids.insert(source.resource_id.to_lowercase())
             || !labels.insert(source.label.to_lowercase())
         {
             return Err(validation(
@@ -76,22 +76,26 @@ pub fn application_insights_id_parts(value: &str) -> Option<(uuid::Uuid, &str, &
     else {
         return None;
     };
-    let is_name = |part: &str| {
-        !part.is_empty()
-            && part.len() <= 260
-            && !matches!(part, "." | "..")
-            && part.bytes().all(|ch| {
-                ch.is_ascii_alphanumeric() || matches!(ch, b'_' | b'-' | b'.' | b'(' | b')')
-            })
-    };
+    // Azure defines different naming rules for resource groups and Insights components.
+    let valid_group = !group.is_empty()
+        && group.chars().count() <= 90
+        && !group.ends_with('.')
+        && group
+            .chars()
+            .all(|ch| ch.is_alphanumeric() || matches!(ch, '_' | '-' | '.' | '(' | ')'));
+    let valid_name = !name.is_empty()
+        && name.chars().count() <= 260
+        && !name.ends_with([' ', '.'])
+        && !name.contains(['%', '&', '\\', '?', '/'])
+        && !name.chars().any(char::is_control);
     if subscriptions.eq_ignore_ascii_case("subscriptions")
         && subscription.len() == 36
         && groups.eq_ignore_ascii_case("resourceGroups")
-        && is_name(group)
+        && valid_group
         && providers.eq_ignore_ascii_case("providers")
         && provider.eq_ignore_ascii_case("microsoft.insights")
         && components.eq_ignore_ascii_case("components")
-        && is_name(name)
+        && valid_name
     {
         Some((uuid::Uuid::try_parse(subscription).ok()?, group, name))
     } else {
@@ -120,9 +124,10 @@ impl ApplicationLogQuery {
         self,
         configured: &[ApplicationLogSource],
     ) -> Result<ValidatedApplicationLogQuery> {
+        let target_id = self.target_id.to_lowercase();
         let target = configured
             .iter()
-            .find(|source| source.resource_id.eq_ignore_ascii_case(&self.target_id))
+            .find(|source| source.resource_id.to_lowercase() == target_id)
             .filter(|source| application_insights_id_parts(&source.resource_id).is_some())
             .cloned()
             .ok_or_else(|| validation("Select a configured Application Insights query target."))?;
@@ -214,6 +219,35 @@ mod tests {
         assert_eq!(validated.kql, input.kql);
         assert_eq!(validated.start, "2026-11-24T09:00:00.123Z");
         assert_eq!(validated.end, "2026-11-24T09:15:00.456Z");
+    }
+
+    #[test]
+    fn accepts_azure_names_with_unicode_and_component_spaces() {
+        let resource_id = TARGET
+            .replace("/qa/", "/Équipe/")
+            .replace("/checkout", "/Café checkout");
+        let source = ApplicationLogSource {
+            resource_id: resource_id.clone(),
+            ..target()
+        };
+        assert!(source.clone().validated().is_ok());
+        assert_eq!(
+            ApplicationLogQuery {
+                target_id: resource_id.to_lowercase(),
+                ..query()
+            }
+            .validate(std::slice::from_ref(&source))
+            .unwrap()
+            .target,
+            source
+        );
+        for invalid in [
+            resource_id.replace("Équipe", "QA team"),
+            format!("{resource_id}."),
+            format!("{resource_id}%2Fextra"),
+        ] {
+            assert!(application_insights_id_parts(&invalid).is_none());
+        }
     }
 
     #[test]
