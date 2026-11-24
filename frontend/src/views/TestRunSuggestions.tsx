@@ -84,6 +84,7 @@ function SuggestionRow({ row, testCase, applied, outOfDate, disabled, update }: 
   const id = useId()
   const title = testCase?.title ?? 'Test case unavailable'
   const notes = parseRichEditorDocument(row.notesJson)
+  const captures = row.captureIds?.length ?? 0
   return <div role="group" aria-label={title} className="test-run-suggestion-row">
     <div className="test-run-suggestion-heading">
       <h4>{title}</h4>
@@ -95,6 +96,7 @@ function SuggestionRow({ row, testCase, applied, outOfDate, disabled, update }: 
     </dl>
     {row.rationale ? <p>{row.rationale}</p> : null}
     {notes ? <RichTextEditor value={notes} ariaLabel={`Result notes to append for ${title}`} readOnly /> : null}
+    {captures > 0 ? <p>{captures === 1 ? '1 log capture' : `${captures} log captures`} {applied ? 'included in the update.' : 'to attach.'}</p> : null}
     {outOfDate ? <p id={id} className="chat-help">The test case changed. Ask AI again to get a fresh suggestion.</p> : null}
     <div>
       <ActionButton variant="quiet" disabled={disabled || outOfDate} aria-describedby={outOfDate ? id : undefined}

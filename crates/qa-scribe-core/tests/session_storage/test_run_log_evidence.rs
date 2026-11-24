@@ -16,7 +16,12 @@ fn v26_migration_preserves_runs_and_keeps_log_captures_local_and_immutable() {
 
     let legacy = rusqlite::Connection::open(&path).unwrap();
     legacy
-        .execute_batch("DROP TABLE test_run_log_captures; PRAGMA user_version = 26;")
+        .execute_batch("DROP TRIGGER chat_log_attachment_detached;
+             DROP TRIGGER chat_log_unattached_delete;
+             DROP TABLE chat_suggestion_log_captures;
+             DROP TABLE chat_log_capture_shares;
+             DROP TABLE test_run_log_captures;
+             PRAGMA user_version = 26;")
         .unwrap();
     drop(legacy);
 

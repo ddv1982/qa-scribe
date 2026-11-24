@@ -40,6 +40,7 @@ pub(crate) struct ChatDuplexContext<'a> {
     pub provider: AiProvider,
     pub app_data_dir: &'a Path,
     pub model: &'a str,
+    pub log_mcp_token: Option<&'a str>,
     pub reasoning_effort: Option<&'a str>,
 }
 
@@ -130,6 +131,9 @@ fn execute_chat_duplex(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     apply_provider_path(&mut process);
+    if let Some(token) = context.log_mcp_token {
+        process.env(crate::log_mcp::TOKEN_ENV, token);
+    }
     configure_process_group(&mut process);
     let mut child = process
         .spawn()
@@ -173,6 +177,7 @@ fn execute_chat_duplex(
     peer.stderr = Some(thread::spawn(move || read_stderr(stderr, diagnostics)));
     let started = Instant::now();
     let mut pending: Option<mpsc::Receiver<PermissionReply>> = None;
+    let mut deferred = None;
     let mut exited_at: Option<Instant> = None;
     let mut writer_failure: Option<(String, Instant)> = None;
     let mut frames_since_service = 0usize;
@@ -194,7 +199,7 @@ fn execute_chat_duplex(
             // both pipes. Pending permission loses authority immediately.
             if context.control.child_exit_status()?.is_some() {
                 let exited = exited_at.get_or_insert_with(Instant::now);
-                if pending.is_some() {
+                if pending.is_some() || deferred.is_some() {
                     return Err(
                         "Provider exited while a chat permission request was pending".into(),
                     );
@@ -260,11 +265,7 @@ fn execute_chat_duplex(
                                     .status(context.job_id)
                                     .map_err(|error| error.to_string())?,
                             );
-                            if let Some(details) = protocol.take_queued_permission() {
-                                pending =
-                                    Some(publish_permission(context, details, &mut on_status)?);
-                                publish_queue(context, &protocol, &mut on_status)?;
-                            }
+                            deferred = protocol.take_queued_permission();
                         }
                         Err(TryRecvError::Empty) => {}
                         Err(TryRecvError::Disconnected) => {
@@ -273,6 +274,13 @@ fn execute_chat_duplex(
                             }
                             return Err("Chat permission decision was revoked".into());
                         }
+                    }
+                }
+                if let Some(details) = &deferred {
+                    pending = publish_permission(context, details, &mut on_status)?;
+                    if pending.is_some() {
+                        deferred = None;
+                        publish_queue(context, &protocol, &mut on_status)?;
                     }
                 }
                 frames_since_service = 0;
@@ -315,13 +323,16 @@ fn execute_chat_duplex(
                         if context.input.local_edit() {
                             return Err("The provider requested a tool during a local edit. The request was stopped.".into());
                         }
-                        if pending.is_some() {
+                        if pending.is_some() || deferred.is_some() {
                             return Err("A chat permission request is already pending".into());
                         }
-                        pending = Some(publish_permission(context, details, &mut on_status)?);
+                        pending = publish_permission(context, &details, &mut on_status)?;
+                        if pending.is_none() {
+                            deferred = Some(details);
+                        }
                     }
                     ChatProtocolEvent::Complete => {
-                        if pending.is_some() {
+                        if pending.is_some() || deferred.is_some() {
                             return Err(
                                 "Provider completed with an unresolved permission request".into()
                             );
@@ -384,6 +395,7 @@ fn permission_details(
         tool_name: details.tool_name,
         server_name: details.server_name,
         input_json: details.input_json,
+        log_query: None,
     }
 }
 
@@ -413,21 +425,23 @@ fn publish_queue(
 
 fn publish_permission(
     context: &ChatDuplexContext<'_>,
-    details: ChatProtocolPermission,
+    details: &ChatProtocolPermission,
     on_status: &mut impl FnMut(GenerationJobStatus),
-) -> Result<mpsc::Receiver<PermissionReply>, String> {
+) -> Result<Option<mpsc::Receiver<PermissionReply>>, String> {
     if context.control.child_exit_status()?.is_some() {
         return Err("Provider exited before publishing chat permission".into());
     }
-    let (status, decision) = context
+    let published = context
         .jobs
-        .publish_chat_permission(
+        .try_publish_chat_permission(
             context.job_id,
-            permission_details(context.provider, details),
+            permission_details(context.provider, details.clone()),
         )
         .map_err(|error| error.to_string())?;
-    on_status(status);
-    Ok(decision)
+    Ok(published.map(|(status, decision)| {
+        on_status(status);
+        decision
+    }))
 }
 
 fn output(text: Option<String>, cancelled: bool) -> ProviderGenerationOutput {

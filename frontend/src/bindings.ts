@@ -69,9 +69,9 @@ export const commands = {
 	listTestRuns: (sessionId: string) => __TAURI_INVOKE<TestRunSummary[]>("list_test_runs", { sessionId }),
 	setTestCaseResult: (caseId: string, result: TestCaseResult, remark: string | null) => __TAURI_INVOKE<TestRunCase>("set_test_case_result", { caseId, result, remark }),
 	saveTestCaseNotes: (caseId: string, bodyJson: string, images: TestCaseNoteImage[]) => __TAURI_INVOKE<TestRunCase>("save_test_case_notes", { caseId, bodyJson, images }),
-	applyTestRunSuggestion: (request: TestRunSuggestionRequest) => __TAURI_INVOKE<TestRunSuggestionOutcome>("apply_test_run_suggestion", { request }),
-	applyAllTestRunSuggestions: (request: TestRunSuggestionsRequest) => __TAURI_INVOKE<TestRunSuggestionOutcome[]>("apply_all_test_run_suggestions", { request }),
-	undoTestRunSuggestion: (request: TestRunSuggestionRequest) => __TAURI_INVOKE<TestRunSuggestionOutcome>("undo_test_run_suggestion", { request }),
+	applyTestRunSuggestion: (request: TestRunSuggestionRequest) => __TAURI_INVOKE<TestRunSuggestionOutcome_Serialize>("apply_test_run_suggestion", { request }),
+	applyAllTestRunSuggestions: (request: TestRunSuggestionsRequest) => __TAURI_INVOKE<TestRunSuggestionOutcome_Serialize[]>("apply_all_test_run_suggestions", { request }),
+	undoTestRunSuggestion: (request: TestRunSuggestionRequest) => __TAURI_INVOKE<TestRunSuggestionOutcome_Serialize>("undo_test_run_suggestion", { request }),
 	linkTestCaseFinding: (caseId: string, findingId: string | null) => __TAURI_INVOKE<TestRunCase>("link_test_case_finding", { caseId, findingId }),
 	deleteTestRun: (runId: string) => __TAURI_INVOKE<null>("delete_test_run", { runId }),
 	startAiActionJob: (request: GenerateAiActionRequest, events: Channel<GenerationJobEvent_Deserialize>) => __TAURI_INVOKE<StartAiActionJobResult_Serialize>("start_ai_action_job", { request, events }),
@@ -146,6 +146,7 @@ export type AppSettings = {
 	 */
 	generationReadSources?: GenerationReadSource[],
 	applicationLogSources?: ApplicationLogSource[],
+	askAiApplicationLogs?: boolean,
 };
 
 export type ApplicationInsightsComponent = {
@@ -273,6 +274,7 @@ export type ChatHistoryEntry_Deserialize = {
 	lastTurnStatus: ChatTurnStatus | null,
 	unresolvedStages: StageOrigin[],
 	hasTestRunSuggestions?: boolean,
+	hasTestRunLogCaptures?: boolean,
 };
 
 export type ChatHistoryEntry_Serialize = {
@@ -288,6 +290,7 @@ export type ChatHistoryEntry_Serialize = {
 	lastTurnStatus: ChatTurnStatus | null,
 	unresolvedStages: StageOrigin[],
 	hasTestRunSuggestions?: boolean,
+	hasTestRunLogCaptures?: boolean,
 };
 
 export type ChatHistoryScope = { kind: "notes"; sessionId: string } | { kind: "record"; sessionId: string; record: ConversationRecord } | { kind: "session"; sessionId: string };
@@ -301,6 +304,24 @@ export type ChatImage = {
 
 export type ChatJobIdentity = {
 	reference: ChatRef,
+};
+
+export type ChatLogCapture = {
+	id: string,
+	targetLabel: string,
+	kql: string,
+	start: string,
+	end: string,
+	rowCount: number,
+	truncated: boolean,
+	provider: AiProvider,
+};
+
+export type ChatLogQueryApproval = {
+	target: ApplicationLogSource,
+	kql: string,
+	start: string,
+	end: string,
 };
 
 export type ChatMessage = ChatMessage_Serialize | ChatMessage_Deserialize;
@@ -369,6 +390,7 @@ export type ChatPermissionRequest_Deserialize = {
 	toolName: string | null,
 	serverName: string | null,
 	inputJson: string | null,
+	logQuery?: ChatLogQueryApproval | null,
 };
 
 export type ChatPermissionRequest_Serialize = {
@@ -379,6 +401,7 @@ export type ChatPermissionRequest_Serialize = {
 	toolName: string | null,
 	serverName: string | null,
 	inputJson: string | null,
+	logQuery?: ChatLogQueryApproval | null,
 };
 
 export type ChatQuestion = {
@@ -437,7 +460,8 @@ export type ChatState_Deserialize = {
 	lastActiveAt: string,
 	pendingResponse?: ChatResponsePurpose | null,
 	proposals?: RefinementProposal[],
-	testRunSuggestions?: TestRunSuggestion[],
+	testRunSuggestions?: TestRunSuggestion_Deserialize[],
+	applicationLogCaptures?: ChatLogCapture[],
 	sessionId: string,
 	draftId: string,
 	revision: number,
@@ -457,7 +481,8 @@ export type ChatState_Serialize = {
 	lastActiveAt: string,
 	pendingResponse?: ChatResponsePurpose | null,
 	proposals?: RefinementProposal[],
-	testRunSuggestions?: TestRunSuggestion[],
+	testRunSuggestions?: TestRunSuggestion_Serialize[],
+	applicationLogCaptures?: ChatLogCapture[],
 	sessionId: string,
 	draftId: string,
 	revision: number,
@@ -743,6 +768,7 @@ export type GenerationJobStatus_Deserialize = {
 	errorMessage: string | null,
 	partialText: string | null,
 	pendingPermission?: ChatPermissionRequest_Deserialize | null,
+	permissionRevision?: number,
 	queuedPermissions?: ChatPermissionRequest_Deserialize[],
 };
 
@@ -757,6 +783,7 @@ export type GenerationJobStatus_Serialize = {
 	errorMessage: string | null,
 	partialText: string | null,
 	pendingPermission?: ChatPermissionRequest_Serialize | null,
+	permissionRevision?: number,
 	queuedPermissions?: ChatPermissionRequest_Serialize[],
 };
 
@@ -1254,7 +1281,20 @@ export type TestRunCaseDraft = {
 	bodyJson: string,
 };
 
-export type TestRunSuggestion = {
+export type TestRunSuggestion = TestRunSuggestion_Serialize | TestRunSuggestion_Deserialize;
+
+export type TestRunSuggestionOutcome = TestRunSuggestionOutcome_Serialize | TestRunSuggestionOutcome_Deserialize;
+
+export type TestRunSuggestionOutcome_Deserialize = ({ kind: "saved"; logEvidence?: LogEvidenceSummary[] | null; testCase: TestRunCase; suggestion: TestRunSuggestion_Deserialize }) & { caseId?: never; message?: never } | ({ kind: "out_of_date"; testCase: TestRunCase; suggestion: TestRunSuggestion_Deserialize }) & { caseId?: never; logEvidence?: never; message?: never } | ({ kind: "failed"; caseId: string; message: string }) & { logEvidence?: never; suggestion?: never; testCase?: never };
+
+export type TestRunSuggestionOutcome_Serialize = ({ kind: "saved"; logEvidence?: LogEvidenceSummary[] | null; testCase: TestRunCase; suggestion: TestRunSuggestion_Serialize }) & { caseId?: never; message?: never } | ({ kind: "out_of_date"; testCase: TestRunCase; suggestion: TestRunSuggestion_Serialize }) & { caseId?: never; logEvidence?: never; message?: never } | ({ kind: "failed"; caseId: string; message: string }) & { logEvidence?: never; suggestion?: never; testCase?: never };
+
+export type TestRunSuggestionRequest = {
+	reference: ChatRef,
+	suggestionId: string,
+};
+
+export type TestRunSuggestion_Deserialize = {
 	id: string,
 	assistantMessageId: string,
 	caseId: string,
@@ -1263,13 +1303,19 @@ export type TestRunSuggestion = {
 	rationale: string,
 	baseFingerprint: string,
 	appliedFingerprint: string | null,
+	captureIds?: string[],
 };
 
-export type TestRunSuggestionOutcome = { kind: "saved"; testCase: TestRunCase; suggestion: TestRunSuggestion } | { kind: "out_of_date"; testCase: TestRunCase; suggestion: TestRunSuggestion } | { kind: "failed"; caseId: string; message: string };
-
-export type TestRunSuggestionRequest = {
-	reference: ChatRef,
-	suggestionId: string,
+export type TestRunSuggestion_Serialize = {
+	id: string,
+	assistantMessageId: string,
+	caseId: string,
+	result: TestCaseResult | null,
+	notesJson: string | null,
+	rationale: string,
+	baseFingerprint: string,
+	appliedFingerprint: string | null,
+	captureIds?: string[],
 };
 
 export type TestRunSuggestionsRequest = {

@@ -28,6 +28,7 @@ fn pending_decision(
                 tool_name: Some("read_file".into()),
                 server_name: None,
                 input_json: Some(r#"{"path":"README.md"}"#.into()),
+                log_query: None,
             },
         )
         .expect("publish permission");

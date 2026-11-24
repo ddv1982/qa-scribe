@@ -63,6 +63,7 @@ impl JobStore {
             error_message: None,
             partial_text: None,
             pending_permission: None,
+            permission_revision: 0,
             queued_permissions: vec![],
         };
         let control = JobControl::default();

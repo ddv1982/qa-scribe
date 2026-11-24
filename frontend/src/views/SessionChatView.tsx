@@ -1,3 +1,4 @@
+import { ChatLogActivity } from './ChatLogActivity'
 import { ActionButton } from '../components/ActionButton'
 import { Paperclip } from 'lucide-react'
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
@@ -116,6 +117,7 @@ export function SessionChatView(props: SessionChatViewProps) {
     && job.action === 'chat' && job.state === 'running' ? job.pendingPermission : null
   const permissionDisabled = permissionWorking || !onDecidePermission
   const approvalUnavailable = pendingPermission?.canApprove === false
+  const logQuery = pendingPermission?.logQuery
   const permissionKey = pendingPermission && job
     ? JSON.stringify([job.sessionId, job.jobId, pendingPermission.requestId]) : null
   const permissionExpanded = permissionKey !== null && expandedPermissionKey === permissionKey
@@ -213,7 +215,18 @@ export function SessionChatView(props: SessionChatViewProps) {
               </div>
             ) : null}
             {pendingPermission ? <>
-              <div className="chat-permission-details">
+              {logQuery ? <div className="chat-permission-details chat-log-query-approval">
+                <h3>Query application logs</h3>
+                <p className="chat-help">Azure uses your signed-in account’s permissions. KQL and saved functions can read beyond the primary target.</p>
+                <p className="chat-help">Shares up to 100 rows or 32 KiB and a query-bearing Azure Portal link with {permissionProviderLabels[pendingPermission.provider]}. That provider can reuse the capture in this conversation while enabled.</p>
+                <dl>
+                  <dt>Primary target</dt><dd>{logQuery.target.label}<br /><bdi>{logQuery.target.resourceId}</bdi></dd>
+                  <dt>Start (UTC)</dt><dd><time>{logQuery.start}</time></dd>
+                  <dt>End (UTC)</dt><dd><time>{logQuery.end}</time></dd>
+                </dl>
+                <p className="chat-help">Full KQL</p>
+                <pre className="chat-message-text chat-permission-input" tabIndex={0} aria-label="Full KQL" dir="ltr">{logQuery.kql}</pre>
+              </div> : <div className="chat-permission-details">
                 <p className="chat-help">{pendingPermission.toolName == null ? 'Provider description' : 'Request'}</p>
                 <p className="chat-message-text">{pendingPermission.title}</p>
                 {pendingPermission.serverName != null ? <>
@@ -232,7 +245,7 @@ export function SessionChatView(props: SessionChatViewProps) {
                     <ActionButton variant="secondary" type="button" aria-controls={`${id}-permission-input`} onClick={() => setExpandedPermissionKey(permissionKey)}>Show complete arguments</ActionButton>
                   </> : null}
                 </> : null}
-              </div>
+              </div>}
               {queuedPermissions.length ? <>
                 <ul className="chat-queued-permissions" aria-label="Additional permission requests">
                   {queuedPermissions.map(request => <li key={request.requestId}>
@@ -261,7 +274,7 @@ export function SessionChatView(props: SessionChatViewProps) {
                     if (permissionDisabled || approvalUnavailable) return
                     if (approveBatch) void onDecidePermission?.(pendingPermission.requestId, 'approveBatch', queuedIds)
                     else void onDecidePermission?.(pendingPermission.requestId, 'approve')
-                  }}>{approveBatch ? `Approve ${queuedIds.length + 1} requests` : 'Approve this request'}</ActionButton>
+                  }}>{approveBatch ? `Approve ${queuedIds.length + 1} requests` : logQuery ? 'Approve this query' : 'Approve this request'}</ActionButton>
                 <ActionButton variant="secondary" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'deny') }}>Deny</ActionButton>
               </div>
             ) : null}
@@ -296,6 +309,7 @@ export function SessionChatView(props: SessionChatViewProps) {
           </div>
         ) : null}
 
+        <ChatLogActivity captures={chat?.applicationLogCaptures} />
         <section ref={transcriptRef} className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
           {messages.length === 0 ? <div className="chat-empty-state">
             {loading ? <p className="chat-help">Loading saved messages…</p> : record?.owner.kind === 'test_run' ? (

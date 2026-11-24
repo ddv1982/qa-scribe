@@ -50,6 +50,7 @@
 .chat-permission-context {
   display: grid;
   align-content: start;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   min-height: 8rem;
   max-height: 16rem;
@@ -67,4 +68,25 @@
 @media (max-width: 600px) {
   .chat-permission { padding: var(--space-3); }
   .chat-permission .chat-buttons { justify-content: flex-start; }
+}
+
+
+.chat-log-query-approval {
+  overflow-wrap: anywhere;
+}
+
+.chat-log-query-approval dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+}
+
+.chat-log-query-approval dd {
+  margin: 0;
+}
+
+.chat-log-query-approval pre {
+  margin: 0;
+  white-space: pre-wrap;
 }

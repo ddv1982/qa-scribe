@@ -13,6 +13,9 @@ pub struct TestRunSuggestion {
     pub rationale: String,
     pub base_fingerprint: String,
     pub applied_fingerprint: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[specta(optional)]
+    pub capture_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, specta::Type)]
@@ -37,6 +40,9 @@ pub struct TestRunSuggestionsRequest {
 )]
 pub enum TestRunSuggestionOutcome {
     Saved {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[specta(optional)]
+        log_evidence: Option<Vec<super::LogEvidenceSummary>>,
         test_case: Box<super::TestRunCase>,
         suggestion: TestRunSuggestion,
     },

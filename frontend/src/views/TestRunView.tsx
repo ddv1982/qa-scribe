@@ -31,7 +31,7 @@ const resultKeys: Record<string, RecordedResult> = { p: 'passed', f: 'failed', b
 /**
  * A test run shows copied test cases with autosaved results and notes.
  */
-export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = false, onSelectRun, onBack, onDelete, onChangeCase, onReadSavedRun, onCreateFinding, onOpenFinding }: {
+export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = false, onSelectRun, onBack, onDelete, onChangeCase, onReadSavedRun, onChangeEvidence, onCreateFinding, onOpenFinding }: {
   open: OpenTestRun
   /** The draft's test runs, newest first. */
   draftRuns: TestRunSummary[]
@@ -43,6 +43,7 @@ export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = fals
   /** Changes one field of a case; the other keeps its value, so a remark and a result never overwrite each other. */
   onChangeCase: (caseId: string, patch: CasePatch, completingImageRead?: boolean) => void
   onReadSavedRun?: (runId: string) => Promise<TestRun>
+  onChangeEvidence?: (runId: string, change: (captures: LogEvidenceSummary[]) => LogEvidenceSummary[]) => void
   /** Starts a Finding from a failed case; without it no Create Finding is offered. */
   onCreateFinding?: (testCase: TestRunCase) => void
   /** Opens the Finding a case is linked to. */
@@ -55,11 +56,7 @@ export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = fals
   const cancelRef = useRef<HTMLButtonElement>(null)
   const toggleRefs = useRef<Array<HTMLButtonElement | null>>([])
   const { run } = open
-  const [addedEvidence, setAddedEvidence] = useState<LogEvidenceSummary[]>([])
-  const [detachedEvidence, setDetachedEvidence] = useState<string[]>([])
-  const savedEvidence = run?.logEvidence ?? []
-  const visibleEvidence = [...savedEvidence, ...addedEvidence.filter((capture) => !savedEvidence.some((saved) => saved.id === capture.id))]
-    .filter((capture) => !detachedEvidence.includes(capture.id))
+  const visibleEvidence = run?.logEvidence ?? []
   const cases = run?.cases ?? []
   const recorded = cases.filter((testCase) => testCase.result !== 'not_run').length
 
@@ -107,7 +104,7 @@ export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = fals
           ) : null}
           {run && askAi ? <ActionButton variant="secondary" className="ask-ai-trigger" icon={Sparkles} aria-expanded={askAi.expanded}
             onClick={() => void askAi.onOpen(run.id)}>Ask AI</ActionButton> : null}
-          {run ? <CopyReportButton run={{ ...run, logEvidence: visibleEvidence }} readSavedRun={onReadSavedRun} /> : null}
+          {run ? <CopyReportButton run={run} readSavedRun={onReadSavedRun} /> : null}
           {/* Kept together, so a narrow header never leaves the delete icon alone on a line. */}
           <span className="test-run-leave">
             <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
@@ -133,8 +130,8 @@ export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = fals
               onAskAi={askAi ? () => void askAi.onOpen(run.id, testCase.id) : undefined}
               logEvidence={<TestRunLogEvidence caseId={testCase.id} disabled={editsBlocked}
                 captures={visibleEvidence.filter((capture) => capture.caseId === testCase.id)}
-                onCapture={(capture) => setAddedEvidence((previous) => [...previous, capture])}
-                onDetach={(captureId) => setDetachedEvidence((previous) => [...previous, captureId])} />}
+                onCapture={(capture) => onChangeEvidence?.(open.runId, previous => [...previous, capture])}
+                onDetach={(captureId) => onChangeEvidence?.(open.runId, previous => previous.filter(capture => capture.id !== captureId))} />}
               onChangeCase={onChangeCase} />
           ))}
         </div>

@@ -10,6 +10,7 @@ mod chat;
 mod chat_context;
 mod chat_conversations;
 mod chat_images;
+mod chat_log_evidence;
 mod chat_note_updates;
 mod chat_questions;
 mod chat_refinements;

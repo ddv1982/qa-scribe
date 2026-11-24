@@ -294,13 +294,13 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
         if (!current()) return
         setRecoveryRows(rows.filter(row => row.unresolvedStages.length || ['running', 'failed', 'interrupted', 'cancelled'].includes(row.lastTurnStatus ?? '')))
         const latest = rows.find(row => !row.archived && sameOwner(row.owner, owner))
-        const latestWithSuggestions = owner.kind === 'test_run' && latest?.hasTestRunSuggestions ? latest : undefined
+        const latestWithEvidence = owner.kind === 'test_run' && (latest?.hasTestRunSuggestions || latest?.hasTestRunLogCaptures) ? latest : undefined
         const unfinished = unfinishedConversations(rows, ctx.conversations.attention(owner.sessionId)).find(item =>
-          sameOwner(item.owner, owner) && (!latestWithSuggestions || item.reference.draftId === latestWithSuggestions.reference.draftId))
+          sameOwner(item.owner, owner) && (!latestWithEvidence || item.reference.draftId === latestWithEvidence.reference.draftId))
         if (unfinished && !forceNew) { attempts.current.delete(key); await openConversation(unfinished.reference, unfinished.origin, unfinished.reason, preparing); return }
-        if (!forceNew && latestWithSuggestions) {
+        if (!forceNew && latestWithEvidence) {
           attempts.current.delete(key)
-          await openConversation(latestWithSuggestions.reference, undefined, '', preparing)
+          await openConversation(latestWithEvidence.reference, undefined, '', preparing)
           return
         }
         const bound = ctx.conversations.bind(captured.reference)

@@ -369,6 +369,8 @@ export function SettingsView({
         {settingsDraft ? <GenerationReadSourcesSetting settingsDraft={settingsDraft} updateSettingsDraft={updateSettingsDraft} codexAvailable={providerOptions.some((provider) => provider.id === 'codex_cli' && provider.available)} /> : null}
 
         {settingsDraft ? <ApplicationLogsSettings sources={settingsDraft.applicationLogSources ?? []}
+          askAiEnabled={settingsDraft.askAiApplicationLogs}
+          onAskAiChange={(askAiApplicationLogs) => updateSettingsDraft({ askAiApplicationLogs })}
           onChange={(applicationLogSources) => updateSettingsDraft({ applicationLogSources })} /> : null}
 
         <section className="wide-setting advanced-setting" id="template-settings">

@@ -70,7 +70,19 @@ Select a saved Finding or test case and choose **Ask AI** beside Copy and Edit. 
 
 Sending includes the record's current content, including unsaved edits, without saving it. Notes chat has its own messages, input, images, and tool decisions. Record conversations cannot be added to the Session Note.
 
-A test run has **Ask AI** too, beside Copy report. Its conversation is read-only: every message sends the test run report with the current results and remarks, and the AI can use your CLI's tools under their usual permission prompts, for example to post the results to a Jira issue or a Confluence page. It never suggests an update and cannot change a result. The report is limited to 32 KiB and marked where it was cut. Going back to the test cases, or opening another test run or draft, closes the panel. If the test run is deleted while its conversation is unfinished, **Recover Ask AI · Deleted test run** opens it again so you can stop the reply or answer a permission prompt; it cannot send new messages.
+A test run has **Ask AI** beside Copy report. Each message includes the current test run report, bounded to 32 KiB. Ask AI can suggest a Result, appended Result notes, or approved application log evidence for one or more cases. **Update** and **Apply all** write the reviewed changes. Going back to the test cases or opening a different run closes the panel. A deleted test run can still be opened from **Recover Ask AI · Deleted test run** to stop an unfinished reply or resolve an outstanding permission prompt.
+
+### Application log access in test runs
+
+| Provider | App-approved Azure log queries |
+| --- | --- |
+| Claude Code | Linux and macOS, opt-in |
+| Codex CLI | Linux and macOS, opt-in |
+| Copilot CLI | Use **Add log evidence** on the test case |
+
+Enable **Allow Ask AI to request application logs** in **Settings → Application logs**. Ask about Application Insights logs in a test run conversation. The approval card shows the full KQL, primary target, UTC bounds, and the provider that receives the result. Azure CLI runs with your current account’s permissions. KQL expressions and saved functions can reach additional resources the account can read. Approve each query individually. The app shares up to 100 rows within 32 KiB and a portal link containing the query. The conversation lists recent approved queries, and bounded capture results can be replayed to the same provider while the setting is enabled and the target remains configured. You can apply a suggested capture to a case and undo the attachment. Manual log captures stay local.
+
+The relay adds one tool alongside existing user-configured tools. Claude uses a private MCP configuration and Codex uses a per-server configuration override. [Claude Code MCP](https://code.claude.com/docs/en/mcp) · [Codex configuration](https://learn.chatgpt.com/docs/config-file/config-reference)
 
 Paste or choose screenshots in **Message** using the existing image controls. Attach a screenshot to Message to ask about it, even if it already appears in the record. Updating a record preserves its existing screenshots. They are not automatically sent as chat images or uploaded to Jira.
 

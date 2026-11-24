@@ -1,3 +1,4 @@
+import { logTurn } from './ask-ai-log-provider.mjs'
 import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
@@ -53,7 +54,7 @@ export function authorizationTurn(provider, prompt, complete, requestPermission)
 }
 
 export function providerFixture(provider, argv) {
-  if (!process.env.QA_SCRIBE_E2E_AUTH_PROVIDER) {
+  if (!process.env.QA_SCRIBE_E2E_AUTH_PROVIDER && process.env.QA_SCRIBE_E2E_LOG_PROVIDER !== provider) {
     console.error('Provider fixture is unavailable outside the dedicated authorization workflow')
     process.exitCode = 1
     return
@@ -79,12 +80,17 @@ export function providerFixture(provider, argv) {
 function claude(argv) {
   if (!argv.includes('--input-format') || !argv.includes('stream-json')) throw new Error('Claude requires native duplex stdin')
   let authorize
-  jsonLines((message) => {
+  jsonLines(async (message) => {
     if (message.type === 'control_request' && message.request.subtype === 'initialize') {
       const catalog = message.request_id === 'qa-scribe-model-catalog'
       if (catalog) catalogObservation('claude', 'initialize.catalog')
       emit({ type: 'control_response', response: { subtype: 'success', request_id: message.request_id,
         response: catalog ? { models: [{ value: 'fixture-model', displayName: 'Fixture model' }] } : {} } })
+    } else if (message.type === 'user' && process.env.QA_SCRIBE_E2E_LOG_PROVIDER === 'claude') {
+      const content = message.message.content
+      const prompt = typeof content === 'string' ? content : content.map((part) => part.text).join('')
+      const text = await logTurn('claude', argv, prompt)
+      emit({ type: 'result', subtype: 'success', is_error: false, result: text })
     } else if (message.type === 'user') {
       authorize = authorizationTurn('claude', message.message.content,
         (text) => emit({ type: 'result', subtype: 'success', is_error: false, result: text }),

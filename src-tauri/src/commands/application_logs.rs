@@ -37,14 +37,14 @@ struct JobRegistry {
 #[derive(Clone, Default)]
 pub(crate) struct ApplicationLogJobs(Arc<JobRegistry>);
 
-struct LogJob {
+pub(crate) struct LogJob {
     jobs: ApplicationLogJobs,
     id: uuid::Uuid,
     cancelled: Arc<AtomicBool>,
 }
 
 impl ApplicationLogJobs {
-    fn register(&self, id: uuid::Uuid) -> Result<LogJob, CommandError> {
+    pub(crate) fn register(&self, id: uuid::Uuid) -> Result<LogJob, CommandError> {
         let mut jobs = self.0.jobs.lock().map_err(lock_error)?;
         if jobs.shutting_down || jobs.active.contains_key(&id) || jobs.active.len() >= 4 {
             return Err(CommandError::validation(
@@ -103,7 +103,12 @@ impl ApplicationLogJobs {
 }
 
 impl LogJob {
-    fn commit<T>(
+    #[cfg(unix)]
+    pub(crate) fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Acquire)
+    }
+
+    pub(crate) fn commit<T>(
         &self,
         commit: impl FnOnce() -> Result<T, CommandError>,
     ) -> Result<T, CommandError> {

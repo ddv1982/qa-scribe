@@ -103,7 +103,8 @@ impl SessionService {
             substr(CASE WHEN length(trim(composer))>0 THEN composer ELSE COALESCE((SELECT text FROM chat_messages WHERE draft_id=d.id ORDER BY sequence LIMIT 1),'') END,1,160),
             length(composer)>0 OR composer_intent!='message' OR EXISTS(SELECT 1 FROM chat_messages WHERE draft_id=d.id) OR EXISTS(SELECT 1 FROM chat_composer_images WHERE draft_id=d.id),
             (SELECT status FROM chat_messages WHERE draft_id=d.id AND role='user' ORDER BY sequence DESC LIMIT 1),
-            EXISTS(SELECT 1 FROM chat_messages a JOIN chat_test_run_suggestions s ON s.assistant_message_id=a.id WHERE a.draft_id=d.id)
+            EXISTS(SELECT 1 FROM chat_messages a JOIN chat_test_run_suggestions s ON s.assistant_message_id=a.id WHERE a.draft_id=d.id),
+            EXISTS(SELECT 1 FROM test_run_log_captures WHERE conversation_id=d.id AND origin='ask_ai')
             FROM chat_drafts d WHERE session_id=?1 {predicate} ORDER BY last_active_order DESC,id");
         let mut statement = connection.prepare(&sql)?;
         let mut query = if let Some((kind, record_id)) = owner_filter {
@@ -146,6 +147,7 @@ impl SessionService {
                     .transpose()?,
                 unresolved_stages: stages.remove(&draft_id).unwrap_or_default(),
                 has_test_run_suggestions: row.get(12)?,
+                has_test_run_log_captures: row.get(13)?,
             });
         }
         Ok(history)

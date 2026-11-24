@@ -49,9 +49,14 @@ pub(super) fn migrate(connection: &rusqlite::Connection, found: i32) -> rusqlite
     }
     if found < 26 {
         connection.execute_batch(super::chat_test_run_suggestions::SCHEMA)?;
+        connection.execute_batch(super::chat_test_run_suggestions::SUGGESTIONS_SCHEMA)?;
     }
     if found < 27 {
         connection.execute_batch(super::log_evidence::SCHEMA)?;
+    }
+    if found < 28 {
+        super::chat_test_run_suggestions::migrate_log_evidence(connection)?;
+        connection.execute_batch(super::chat_log_evidence::SCHEMA)?;
     }
     Ok(())
 }

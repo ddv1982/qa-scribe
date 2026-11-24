@@ -1,3 +1,4 @@
+import { logTurn } from './ask-ai-log-provider.mjs'
 import { inspectMinimalInput } from './ask-ai-minimal-provider.mjs'
 import { inspectRoutingInput } from './ask-ai-routing-provider.mjs'
 import { inspectJiraInput } from './ask-ai-jira-provider.mjs'
@@ -61,7 +62,10 @@ export function codexAppServer(argv) {
         return input.text
       }).join('')
       turnId = `fixture-turn-${process.pid}`
-      if (process.env.QA_SCRIBE_E2E_AUTH_PROVIDER) {
+      if (process.env.QA_SCRIBE_E2E_LOG_PROVIDER === 'codex') {
+        emit({ id: request.id, result: { turn: { id: turnId, status: 'inProgress' } } })
+        complete(await logTurn('codex', argv, prompt))
+      } else if (process.env.QA_SCRIBE_E2E_AUTH_PROVIDER) {
         emit({ id: request.id, result: { turn: { id: turnId, status: 'inProgress' } } })
         authorize = authorizationTurn('codex', prompt, complete, (marker, id) => {
           emit({ id, method: 'mcpServer/elicitation/request', params: {

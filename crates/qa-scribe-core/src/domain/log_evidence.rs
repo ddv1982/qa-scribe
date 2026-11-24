@@ -7,6 +7,8 @@ use crate::{Result, error::validation};
 
 pub const LOG_RESULT_MAX_BYTES: usize = 256 * 1024;
 pub const LOG_RESULT_MAX_ROWS: usize = 500;
+pub const CHAT_LOG_RESULT_MAX_BYTES: usize = 32 * 1024;
+pub const CHAT_LOG_RESULT_MAX_ROWS: u32 = 100;
 const MAX_SOURCES: usize = 20;
 const MAX_KQL_BYTES: usize = 16 * 1024;
 
@@ -180,6 +182,19 @@ pub struct LogEvidenceSummary {
 pub struct LogEvidenceDetails {
     pub kql: String,
     pub result_json: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatLogCapture {
+    pub id: String,
+    pub target_label: String,
+    pub kql: String,
+    pub start: String,
+    pub end: String,
+    pub row_count: u32,
+    pub truncated: bool,
+    pub provider: super::AiProvider,
 }
 
 pub struct QueriedApplicationLogs {

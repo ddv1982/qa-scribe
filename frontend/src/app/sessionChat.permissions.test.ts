@@ -142,6 +142,15 @@ describe('Session Chat explicit permission authority', () => {
     expect(api.saveChatComposer).not.toHaveBeenCalled()
   })
 
+  it('keeps a newer permission visible when the previous decision snapshot arrives late', async () => {
+    const h = await setup()
+    const next = pending('claude_code')
+    next.pendingPermission = { ...next.pendingPermission!, requestId: 'permission-2' }
+    h.actions.observeJob({ ...next, permissionRevision: 3 })
+    h.actions.observeJob({ ...clean, permissionRevision: 2 })
+    expect(h.snapshot.job?.pendingPermission?.requestId).toBe('permission-2')
+  })
+
   it('serializes duplicate clicks and does not replay a resolved token', async () => {
     const gate = deferred<GenerationJobStatus>()
     api.decideChatPermission.mockReturnValue(gate.promise)

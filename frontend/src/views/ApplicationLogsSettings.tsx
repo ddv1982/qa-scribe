@@ -17,8 +17,10 @@ const accessMessages: Record<ApplicationLogAccess, string> = {
 
 const MAX_SOURCES = 20
 
-export function ApplicationLogsSettings({ sources, onChange }: {
+export function ApplicationLogsSettings({ sources, onChange, askAiEnabled, onAskAiChange }: {
   sources: ApplicationLogSource[]
+  askAiEnabled?: boolean
+  onAskAiChange?: (enabled: boolean) => void
   onChange: (sources: ApplicationLogSource[]) => void
 }) {
   const atCapacity = sources.length >= MAX_SOURCES
@@ -35,6 +37,11 @@ export function ApplicationLogsSettings({ sources, onChange }: {
           onChange={(next) => onChange(sources.map((previous, i) => i === index ? next : previous))}
           onRemove={() => onChange(sources.filter((_, i) => i !== index))} />
       ))}
+      {onAskAiChange ? <label className="read-source-option">
+        <input type="checkbox" checked={askAiEnabled ?? false} onChange={(event) => onAskAiChange(event.target.checked)} />
+        <span>Allow Ask AI to request application logs</span>
+        <span className="settings-note">Claude Code and Codex can request log queries during test runs on macOS and Linux. Each query requires your approval before results are shared with the provider.</span>
+      </label> : null}
     </section>
   )
 }

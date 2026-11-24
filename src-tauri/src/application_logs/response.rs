@@ -77,6 +77,15 @@ pub(super) fn capture(
     query: &ValidatedApplicationLogQuery,
     bytes: &[u8],
 ) -> Result<QueriedApplicationLogs, LogQueryError> {
+    capture_with_limits(query, bytes, LOG_RESULT_MAX_ROWS, LOG_RESULT_MAX_BYTES)
+}
+
+pub(super) fn capture_with_limits(
+    query: &ValidatedApplicationLogQuery,
+    bytes: &[u8],
+    max_rows: usize,
+    max_bytes: usize,
+) -> Result<QueriedApplicationLogs, LogQueryError> {
     let mut result: AzureResult =
         serde_json::from_slice(bytes).map_err(|_| LogQueryError::InvalidResponse)?;
     if result.response_fields.iter().any(|(key, value)| {
@@ -110,7 +119,7 @@ pub(super) fn capture(
     let encode = |data: &AzureResult| {
         serde_json::to_string(data).map_err(|_| LogQueryError::InvalidResponse)
     };
-    let mut remaining = LOG_RESULT_MAX_BYTES
+    let mut remaining = max_bytes
         .checked_sub(encode(&result)?.len())
         .ok_or(LogQueryError::TooMuchOutput)?;
     let mut row_count = 0;
@@ -120,7 +129,7 @@ pub(super) fn capture(
                 .map_err(|_| LogQueryError::InvalidResponse)?
                 .len()
                 + usize::from(!table.rows.is_empty());
-            if row_count == LOG_RESULT_MAX_ROWS || bytes > remaining {
+            if row_count == max_rows || bytes > remaining {
                 break 'tables;
             }
             remaining -= bytes;

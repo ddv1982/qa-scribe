@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- In a test run, opt in to **Allow Ask AI to request application logs** for Claude Code or Codex. Approve each Application Insights query after reviewing its KQL, UTC window and sharing scope, then apply the suggested capture to the test case.
 - In **Settings → Application logs**, use **Discover from Azure** to choose a subscription and Application Insights resource with your Azure CLI sign-in. You can also enter a resource ID manually. **Check access** runs a separate query against the target.
 
 - On Linux and macOS, use **Add log evidence** on a test run case to run KQL against a configured Azure Application Insights target with your Azure CLI sign-in. Captures stay local. Copy the query with its exact UTC bounds, copy the Azure portal link, or use **Copy report** to share the evidence reference.

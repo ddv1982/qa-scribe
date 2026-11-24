@@ -21,6 +21,7 @@ fn details() -> ChatPermissionDetails {
         tool_name: Some("read_file".into()),
         server_name: Some("local".into()),
         input_json: Some(r#"{"path":"README.md"}"#.into()),
+        log_query: None,
     }
 }
 
@@ -427,4 +428,66 @@ fn chat_permission_public_cancel_races_decision_without_leaking_pending() {
         );
     }
     assert_cleared(&store, &receiver);
+}
+
+#[test]
+fn log_and_provider_permissions_share_the_visible_slot_without_sharing_approval() {
+    let store = JobStore::default();
+    insert(&store, "chat", true);
+    let (native, native_reply) = publish(&store);
+    let mut log = details();
+    log.input_json = None;
+    log.log_query = Some(crate::jobs::ChatLogQueryApproval {
+        target: qa_scribe_core::domain::ApplicationLogSource {
+            label: "Acceptance".into(),
+            resource_id: "/application".into(),
+        },
+        kql: "print hello".into(),
+        start: "2026-11-24T10:00:00Z".into(),
+        end: "2026-11-24T10:15:00Z".into(),
+    });
+    assert!(
+        store
+            .try_publish_chat_permission("job", log.clone())
+            .unwrap()
+            .is_none()
+    );
+    store.decide_chat_permission(decision(&native)).unwrap();
+    assert_eq!(
+        native_reply.try_recv().unwrap().decision,
+        ChatPermissionDecision::Approve
+    );
+    let (approval, log_reply) = store
+        .try_publish_chat_permission("job", log)
+        .unwrap()
+        .unwrap();
+    assert!(
+        store
+            .try_publish_chat_permission("job", details())
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        store
+            .show_queued_chat_permissions("job", [details()].into_iter())
+            .unwrap()
+            .is_none()
+    );
+    let mut batch = decision(&approval);
+    batch.decision = ChatPermissionDecision::ApproveBatch;
+    batch.additional_request_ids.push("not shown".into());
+    assert!(store.decide_chat_permission(batch).is_err());
+    assert!(store.decide_chat_permission(decision(&native)).is_err());
+    assert_eq!(log_reply.try_recv(), Err(TryRecvError::Empty));
+    store.decide_chat_permission(decision(&approval)).unwrap();
+    assert_eq!(
+        log_reply.try_recv().unwrap().decision,
+        ChatPermissionDecision::Approve
+    );
+    assert!(
+        store
+            .try_publish_chat_permission("job", details())
+            .unwrap()
+            .is_some()
+    );
 }

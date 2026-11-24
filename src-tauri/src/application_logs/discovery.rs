@@ -117,7 +117,13 @@ fn metadata(
     let az = resolve_az()?;
     let cwd = NeutralProviderCwd::new()
         .map_err(|_| LogQueryError::Access(ApplicationLogAccess::Failed))?;
-    run_cli(&az, cwd.path(), args, cancelled, QUERY_TIMEOUT)
+    run_cli(
+        &az,
+        cwd.path(),
+        args,
+        &|| cancelled.load(std::sync::atomic::Ordering::Acquire),
+        QUERY_TIMEOUT,
+    )
 }
 
 fn parse<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T, LogQueryError> {

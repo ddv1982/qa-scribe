@@ -17,6 +17,9 @@ pub struct ChatPermissionDetails {
     pub tool_name: Option<String>,
     pub server_name: Option<String>,
     pub input_json: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[specta(optional)]
+    pub log_query: Option<ChatLogQueryApproval>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
@@ -30,6 +33,18 @@ pub struct ChatPermissionRequest {
     pub tool_name: Option<String>,
     pub server_name: Option<String>,
     pub input_json: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[specta(optional)]
+    pub log_query: Option<ChatLogQueryApproval>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatLogQueryApproval {
+    pub target: qa_scribe_core::domain::ApplicationLogSource,
+    pub kql: String,
+    pub start: String,
+    pub end: String,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
@@ -68,25 +83,39 @@ impl From<ChatPermissionDetails> for ChatPermissionRequest {
             tool_name: details.tool_name,
             server_name: details.server_name,
             input_json: details.input_json,
+            log_query: details.log_query,
         }
     }
 }
 
+type PublishedPermission = (GenerationJobStatus, Receiver<PermissionReply>);
+
 impl JobStore {
+    #[cfg(test)]
     pub fn publish_chat_permission(
         &self,
         job_id: &str,
         details: ChatPermissionDetails,
     ) -> Result<(GenerationJobStatus, Receiver<PermissionReply>), JobStoreError> {
+        self.try_publish_chat_permission(job_id, details)?
+            .ok_or_else(|| invalid("A chat permission request is already pending"))
+    }
+
+    pub fn try_publish_chat_permission(
+        &self,
+        job_id: &str,
+        details: ChatPermissionDetails,
+    ) -> Result<Option<PublishedPermission>, JobStoreError> {
         validate_details(&details)?;
         self.with_permission_job(job_id, |record| {
             if record.status.pending_permission.is_some() || record.permission_reply.is_some() {
-                return Err(invalid("A chat permission request is already pending"));
+                return Ok(None);
             }
             let (sender, receiver) = mpsc::channel();
             record.status.pending_permission = Some(details.into());
+            record.status.permission_revision += 1;
             record.permission_reply = Some(sender);
-            Ok((record.status.clone(), receiver))
+            Ok(Some((record.status.clone(), receiver)))
         })
     }
 
@@ -96,7 +125,12 @@ impl JobStore {
         details: impl Iterator<Item = ChatPermissionDetails>,
     ) -> Result<Option<GenerationJobStatus>, JobStoreError> {
         self.with_permission_job(job_id, |record| {
-            if record.status.pending_permission.is_none() {
+            if record
+                .status
+                .pending_permission
+                .as_ref()
+                .is_none_or(|pending| pending.log_query.is_some())
+            {
                 return Ok(None);
             }
             let queued = &mut record.status.queued_permissions;
@@ -113,6 +147,7 @@ impl JobStore {
                 return Ok(None);
             }
             queued.extend(batch);
+            record.status.permission_revision += 1;
             Ok(Some(record.status.clone()))
         })
     }
@@ -139,6 +174,7 @@ impl JobStore {
             let additional = request.additional_request_ids.len();
             if request.decision == ChatPermissionDecision::ApproveBatch {
                 if additional == 0
+                    || pending.log_query.is_some()
                     || pending.input_json.is_none()
                     || additional > record.status.queued_permissions.len()
                     || !record
@@ -165,8 +201,7 @@ impl JobStore {
                 .permission_reply
                 .take()
                 .ok_or_else(|| invalid("Chat permission receiver is unavailable"))?;
-            record.status.pending_permission = None;
-            record.status.queued_permissions.clear();
+            record.clear_permission();
             // Unbounded mpsc send cannot block. Keep delivery inside the gate
             // and store lock so accepted cancellation cannot interleave it.
             sender
@@ -250,7 +285,11 @@ impl JobStore {
 
 impl JobRecord {
     pub(super) fn clear_permission(&mut self) {
-        self.status.pending_permission = None;
+        if self.status.pending_permission.take().is_some()
+            || !self.status.queued_permissions.is_empty()
+        {
+            self.status.permission_revision += 1;
+        }
         self.status.queued_permissions.clear();
         self.permission_reply = None;
     }

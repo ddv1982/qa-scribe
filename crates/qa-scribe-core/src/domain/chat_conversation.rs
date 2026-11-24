@@ -166,4 +166,7 @@ pub struct ChatHistoryEntry {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     #[specta(optional)]
     pub has_test_run_suggestions: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[specta(optional)]
+    pub has_test_run_log_captures: bool,
 }
