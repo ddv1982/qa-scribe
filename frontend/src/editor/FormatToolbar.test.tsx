@@ -94,6 +94,17 @@ describe('FormatToolbar', () => {
     await waitFor(() => expect(html()).toBe('<h2>Evidence</h2><p></p>'))
   })
 
+  it.each([
+    ['h3', '<blockquote><ul><li><p>Evidence</p></li></ul></blockquote>', '<h3>Evidence</h3>'],
+    ['h2', '<blockquote><blockquote><ol><li><p>Evidence</p></li></ol></blockquote></blockquote>', '<h2>Evidence</h2>'],
+    ['codeBlock', '<blockquote><ul><li><p>Evidence</p></li></ul></blockquote>', '<pre><code>Evidence</code></pre>'],
+  ])('moves a block out of quotes and lists for the %s block style in %s', async (value, source, expected) => {
+    const { editor, html } = await renderEditor(source)
+    selectText(editor)
+    chooseBlockStyle(value)
+    await waitFor(() => expect(html()).toBe(`${expected}<p></p>`))
+  })
+
   it('returns a heading to Normal', async () => {
     const { editor, html } = await renderEditor('<h5>Evidence</h5>')
     selectText(editor)

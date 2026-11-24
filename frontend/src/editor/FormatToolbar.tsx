@@ -1,6 +1,9 @@
 import { ActionButton } from '../components/ActionButton'
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
 import type { Editor } from '@tiptap/react'
+import type { NodeRange } from '@tiptap/pm/model'
+import type { Transaction } from '@tiptap/pm/state'
+import { liftTarget } from '@tiptap/pm/transform'
 import { Bold, Code, ImageIcon, Italic, Link2, List, ListChecks, ListOrdered, SeparatorHorizontal, Strikethrough, type LucideIcon } from 'lucide-react'
 import { isSafeEditorLinkUrl } from './editorHtml'
 import { useRichEditorController, type RichEditorImageInserter, type RichEditorImageUpload } from './richEditorRegistry'
@@ -263,21 +266,31 @@ function currentBlockStyle(editor: Editor | null): string {
 
 function setBlockStyle(editor: Editor | null, value: string) {
   if (!editor) return
-  let chain = editor.chain().focus()
+  const chain = editor.chain().focus()
   const level = headingLevels.find((candidate) => value === `h${candidate}`)
-  // A heading or code block leaves every quote around it, so the splitter sees a heading as a case heading.
-  if (level || value === 'codeBlock') {
-    for (let depth = quoteDepth(editor); depth > 0; depth -= 1) chain = chain.lift('blockquote')
-  }
-  if (level) chain.setNode('heading', { level }).run()
-  else if (value === 'codeBlock') chain.setCodeBlock().run()
+  // A heading leaves every quote and list around it, so the splitter sees it as a case heading;
+  // a code block leaves every quote.
+  if (level) chain.command(liftUntil((range) => range.depth === 0)).setNode('heading', { level }).run()
+  else if (value === 'codeBlock') chain.command(liftUntil((range) => !hasAncestor(range, 'blockquote'))).setCodeBlock().run()
   else if (value === 'blockquote') chain.clearNodes().setBlockquote().run()
   else chain.clearNodes().setParagraph().run()
 }
 
-function quoteDepth(editor: Editor): number {
-  const { $from } = editor.state.selection
-  let quotes = 0
-  for (let depth = $from.depth; depth > 0; depth -= 1) if ($from.node(depth).type.name === 'blockquote') quotes += 1
-  return quotes
+// Lifts the selected blocks one wrapper at a time until `done` holds. Each lift moves the range
+// to a lower depth and a range that cannot be lifted ends the loop, so it always stops.
+function liftUntil(done: (range: NodeRange) => boolean) {
+  return ({ tr }: { tr: Transaction }) => {
+    for (;;) {
+      const range = tr.selection.$from.blockRange(tr.selection.$to)
+      if (!range || done(range)) return true
+      const target = liftTarget(range)
+      if (target === null) return true
+      tr.lift(range, target)
+    }
+  }
+}
+
+function hasAncestor(range: NodeRange, typeName: string): boolean {
+  for (let depth = range.depth; depth > 0; depth -= 1) if (range.$from.node(depth).type.name === typeName) return true
+  return false
 }
