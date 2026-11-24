@@ -193,6 +193,8 @@ describe('clipboardExport', () => {
     ['literal markup', '&lt;br&gt; *lit* _u_ a_b [x] ~s~ `c` \\ &amp;amp;', '\\<br> \\*lit\\* \\_u\\_ a_b \\[x\\] \\~s\\~ \\`c\\` \\\\ \\&amp;'],
     ['bold across a break', '<strong>alpha<br>beta</strong>', '**alpha**<br>**beta**'],
     ['italic inside bold', '<strong>a <em>b</em> c</strong>', '**a *b* c**'],
+    ['underline under bold within a word', 'pre<strong><u>fix</u></strong>ed', 'pre<u>**fix**</u>ed'],
+    ['underline under bold and italic within a word', 'pre<strong><em><u>fix</u></em></strong>ed', 'pre<u>***fix***</u>ed'],
   ])('writes %s in a table cell so it reads back the same', (_case, cellHtml, cellMarkdown) => {
     const payload = formatRecordForClipboard({ title: '', bodyHtml: `<table><tbody><tr><th><p>Head</p></th></tr><tr><td><p>${cellHtml}</p></td></tr></tbody></table>` })
     expect(payload.plain).toBe(['| Head |', '| --- |', `| ${cellMarkdown} |`].join('\n'))

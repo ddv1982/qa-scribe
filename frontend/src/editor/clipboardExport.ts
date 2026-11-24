@@ -178,7 +178,9 @@ function orderedListPosition(node: ProseMirrorNode, parent: ProseMirrorNode): nu
 // A cell is rendered here rather than from its rendered children, so it reads back as the same
 // cell: each line break is `<br>`, at the cell's edges too; literal text is escaped, so `<br>` or
 // `*` typed in a cell stays text; and each mark wraps the longest run of text it covers on a line,
-// so marks nest and close before each `<br>`. Every `|`, also in code, is escaped last.
+// so marks nest and close before each `<br>`. Of marks over the same run, underline goes outside:
+// within a word, a delimiter next to `<` neither opens nor closes, as the Rust projection keeps
+// it. Every `|`, also in code, is escaped last.
 function tableCellMarkdown(cell: ProseMirrorNode): string {
   const lines: ProseMirrorNode[][] = [[]]
   cell.descendants((node) => {
@@ -198,7 +200,7 @@ function cellInlineMarkdown(nodes: ProseMirrorNode[]): string {
       if (mark.type.name === 'code') continue
       let end = index + 1
       while (end < nodes.length && mark.isInSet(nodes[end].marks)) end += 1
-      if (!widest || end > widest.end) widest = { mark, end }
+      if (!widest || end > widest.end || (end === widest.end && mark.type.name === 'underline')) widest = { mark, end }
     }
     if (!widest) {
       markdown += node.marks.some((mark) => mark.type.name === 'code') ? codeSpan(node.text ?? '') : escapeCellText(node.text ?? '')
