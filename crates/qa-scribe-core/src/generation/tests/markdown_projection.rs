@@ -393,3 +393,33 @@ fn a_divider_first_in_a_list_item_stays_in_the_item() {
         );
     }
 }
+
+#[test]
+fn an_underlined_mark_within_a_word_keeps_both_marks() {
+    for (html, marks) in [
+        ("<strong><u>word</u></strong>", vec!["bold"]),
+        ("<em><u>word</u></em>", vec!["italic"]),
+        ("<s><u>word</u></s>", vec!["strike"]),
+        (
+            "<strong><em><u>word</u></em></strong>",
+            vec!["bold", "italic"],
+        ),
+    ] {
+        let html = format!("<p>foo{html}bar</p>");
+        let mut marks: Vec<_> = marks
+            .into_iter()
+            .map(|mark| serde_json::json!({"type":mark}))
+            .collect();
+        marks.push(serde_json::json!({"type":"underline"}));
+        assert_eq!(
+            round_trip(&html),
+            vec![serde_json::json!({"type":"paragraph","content":[
+                {"type":"text","text":"foo"},
+                {"type":"text","text":"word","marks":marks},
+                {"type":"text","text":"bar"},
+            ]})],
+            "{html} -> {}",
+            project(&html)
+        );
+    }
+}

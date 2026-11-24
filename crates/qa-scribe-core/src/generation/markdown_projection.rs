@@ -211,7 +211,21 @@ fn inline(node: &Node) -> String {
         } => (name.as_str(), tag, children),
     };
     let content = join_inline(children.iter().map(inline));
-    let wrap = |marker: &str| outside_spaces(&content, |inner| format!("{marker}{inner}{marker}"));
+    // Delimiters go inside an underline that covers all the content: within a word, a delimiter
+    // next to `<` neither opens nor closes. Text escapes its `<`, so a `<u>` here is the mark.
+    let wrap = |marker: &str| {
+        outside_spaces(&content, |inner| {
+            match inner
+                .strip_prefix("<u>")
+                .and_then(|rest| rest.strip_suffix("</u>"))
+            {
+                Some(underlined) if !underlined.contains("</u>") => {
+                    format!("<u>{marker}{underlined}{marker}</u>")
+                }
+                _ => format!("{marker}{inner}{marker}"),
+            }
+        })
+    };
     match name {
         "br" => "\n".into(),
         "img" => image(tag),
