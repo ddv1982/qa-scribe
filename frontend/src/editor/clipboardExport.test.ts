@@ -50,6 +50,15 @@ describe('clipboardExport', () => {
     expect(payload.plain).toBe(['10. Outer', '    - inner', '', '      ```', '      x', '      ```', '', '    after'].join('\n'))
   })
 
+  // CommonMark lets only an ordered list starting at 1 interrupt a paragraph.
+  it('separates a nested ordered list starting past one from the paragraph before it', () => {
+    const payload = formatRecordForClipboard({
+      title: '',
+      bodyHtml: '<ul><li><p>Parent</p><ol start="3"><li><p>Step</p></li></ol></li><li><p>Other</p><ol><li><p>One</p></li></ol></li></ul>',
+    })
+    expect(payload.plain).toBe(['- Parent', '', '  3. Step', '- Other', '  1. One'].join('\n'))
+  })
+
   it('keeps literal text that looks like a code block placeholder', () => {
     const literal = '\uE0000\uE001'
     const payload = formatRecordForClipboard({ title: '', bodyHtml: `<p>${literal}</p><pre><code>x</code></pre><p>a ${literal}</p>` })

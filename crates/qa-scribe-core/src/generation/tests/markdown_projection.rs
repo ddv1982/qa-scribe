@@ -6,7 +6,7 @@ fn nested_lists_indent_under_their_item() {
         project(
             "<ul><li><p>Parent</p><ol start=\"3\"><li><p>Third</p></li><li><p>Fourth</p></li></ol></li><li><p>Next</p></li></ul>"
         ),
-        "- Parent\n  3. Third\n  4. Fourth\n- Next"
+        "- Parent\n\n  3. Third\n  4. Fourth\n- Next"
     );
 }
 
@@ -355,4 +355,21 @@ fn the_projection_and_the_parser_share_one_nesting_bound() {
         "</blockquote>".repeat(46)
     );
     assert!(!crate::chat::note_rewrite_fits("", &html));
+}
+
+/// CommonMark lets only an ordered list starting at 1 interrupt a paragraph.
+#[test]
+fn a_nested_ordered_list_starting_past_one_stays_a_list() {
+    let html = "<ul><li><p>Parent</p><ol start=\"3\"><li><p>Step</p></li></ol></li><li><p>Next</p></li></ul>";
+    assert_eq!(
+        round_trip(html),
+        vec![serde_json::json!({"type":"bulletList","content":[
+            {"type":"listItem","content":[text_line(&["Parent"]), {"type":"orderedList","attrs":{"start":3},"content":[
+                {"type":"listItem","content":[text_line(&["Step"])]},
+            ]}]},
+            {"type":"listItem","content":[text_line(&["Next"])]},
+        ]})],
+        "{html} -> {}",
+        project(html)
+    );
 }

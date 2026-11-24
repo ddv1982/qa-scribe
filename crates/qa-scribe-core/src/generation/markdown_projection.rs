@@ -124,7 +124,8 @@ fn blocks(nodes: &[&Node]) -> Vec<String> {
         .collect()
 }
 
-/// Each block with whether it is a list, which stays tight under a list item.
+/// Each block with whether it is a list that stays tight under a list item: CommonMark reads an
+/// ordered list starting past 1 right after a line as that line's text.
 fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
     let mut result = vec![];
     let mut inline_run: Vec<&Node> = vec![];
@@ -160,7 +161,8 @@ fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
             _ => blocks(&children.iter().collect::<Vec<_>>()).join("\n\n"),
         };
         if !block.is_empty() {
-            result.push((block, matches!(name.as_str(), "ul" | "ol")));
+            let tight = name == "ul" || (name == "ol" && list::start(tag) == 1);
+            result.push((block, tight));
         }
     }
     flush(&mut inline_run, &mut result);

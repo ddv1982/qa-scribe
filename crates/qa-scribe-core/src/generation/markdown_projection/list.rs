@@ -1,10 +1,14 @@
 //! Lists in the Ask AI Notes projection: each item's blocks at its content column.
 use super::{Node, attribute_value, kinded_blocks};
 
-pub(super) fn list(name: &str, tag: &str, children: &[Node]) -> String {
-    let start = attribute_value(tag, "start")
+pub(super) fn start(tag: &str) -> i64 {
+    attribute_value(tag, "start")
         .and_then(|value| value.trim().parse::<i64>().ok())
-        .unwrap_or(1);
+        .unwrap_or(1)
+}
+
+pub(super) fn list(name: &str, tag: &str, children: &[Node]) -> String {
+    let start = start(tag);
     let mut items = vec![];
     for child in children {
         let Node::Element {
@@ -27,9 +31,9 @@ pub(super) fn list(name: &str, tag: &str, children: &[Node]) -> String {
         };
         let indent = " ".repeat(if name == "ol" { marker.len() } else { 2 });
         let mut text = String::new();
-        for (index, (block, is_list)) in kinded_blocks(&unwrap_item(item)).iter().enumerate() {
-            // A nested list stays tight under its item; further paragraphs get a blank line.
-            let separator = match (index, is_list) {
+        for (index, (block, tight)) in kinded_blocks(&unwrap_item(item)).iter().enumerate() {
+            // A nested list stays tight under its item where it can; other blocks get a blank line.
+            let separator = match (index, tight) {
                 (0, _) => "",
                 (_, true) => "\n",
                 _ => "\n\n",

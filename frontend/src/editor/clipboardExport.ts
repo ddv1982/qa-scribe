@@ -142,17 +142,23 @@ function listItemMarkdown(node: ProseMirrorNode, children: string | string[] | u
   let body = ''
   node.forEach((child, _offset, index) => {
     const part = rendered[index] ?? ''
-    // A nested list follows the line before it directly, so the list stays tight.
+    // A nested list follows the line before it directly, so the list stays tight, except an
+    // ordered list starting past 1, which CommonMark reads right after a line as its text.
     const isList = child.type.name === 'bulletList' || child.type.name === 'orderedList'
-    body = isList ? `${body.replace(/\n+$/, '')}\n${part.trim()}\n` : `${body}${part}`
+    const separator = child.type.name === 'orderedList' && orderedListStart(child) !== 1 ? '\n\n' : '\n'
+    body = isList ? `${body.replace(/\n+$/, '')}${separator}${part.trim()}\n` : `${body}${part}`
   })
 
   const marker = parent?.type.name === 'orderedList' ? `${orderedListPosition(node, parent)}.` : '-'
   return `${marker} ${indentContinuation(body.trim(), marker.length + 1)}\n`
 }
 
+function orderedListStart(list: ProseMirrorNode): number {
+  return Number.isInteger(list.attrs.start) ? Number(list.attrs.start) : 1
+}
+
 function orderedListPosition(node: ProseMirrorNode, parent: ProseMirrorNode): number {
-  const start = Number.isInteger(parent.attrs.start) ? Number(parent.attrs.start) : 1
+  const start = orderedListStart(parent)
   let position = start
   parent.forEach((child, _offset, index) => {
     if (child === node) position = start + index
