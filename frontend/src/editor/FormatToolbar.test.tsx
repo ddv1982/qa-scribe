@@ -41,7 +41,7 @@ function selectText(editor: HTMLElement, { all = false } = {}) {
   if (!first || !last) throw new Error('editor text missing')
   const range = document.createRange()
   range.setStart(first, 0)
-  range.setEnd(last, last.textContent?.length ?? 0)
+  range.setEnd(last, Math.max(0, (last.textContent?.length ?? 0) - (all ? 1 : 0)))
   const selection = window.getSelection()
   selection?.removeAllRanges()
   selection?.addRange(range)
@@ -111,12 +111,14 @@ describe('FormatToolbar', () => {
   it.each([
     ['<ul><li><p>One</p></li><li><p>Two</p></li></ul>'],
     ['<blockquote><ol><li><p>One</p></li><li><p>Two</p></li></ol></blockquote>'],
+    ['<blockquote><ol><li><p>One</p></li><li><p>Two</p></li></ol><p>Three</p></blockquote>'],
   ])('turns every selected list item into a heading in %s', async (source) => {
     const { editor, html } = await renderEditor(source)
     selectText(editor, { all: true })
     chooseBlockStyle('h2')
     // jsdom maps the selection end into the trailing empty paragraph, so only the start is fixed.
-    await waitFor(() => expect(html()).toMatch(/^<h2>One<\/h2><h2>Two<\/h2>(<h2><\/h2>)?<p><\/p>$/))
+    await waitFor(() => expect(html()).toMatch(/^<h2>One<\/h2><h2>Two<\/h2>(<h2>Three<\/h2>)?(<h2><\/h2>)?<p><\/p>$/))
+    if (source.includes('Three')) expect(html()).toContain('<h2>Three</h2>')
   })
 
   it('keeps the quote and list around an item the heading leaves untouched', async () => {

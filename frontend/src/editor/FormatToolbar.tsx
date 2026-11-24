@@ -269,23 +269,25 @@ function setBlockStyle(editor: Editor | null, value: string) {
   const chain = editor.chain().focus()
   const level = headingLevels.find((candidate) => value === `h${candidate}`)
   // A heading leaves every quote and list around it, so the splitter sees it as a case heading;
-  // a code block leaves every quote. A range over several list items has no lift target, so
-  // when lifting stops short, clearing lifts each selected block on its own and lifting resumes.
+  // a code block leaves every quote. A range over several blocks has no lift target, so several
+  // selected blocks are first cleared, each lifted on its own; one block lifts alone, which keeps
+  // the wrappers around its untouched siblings.
   const toRoot = liftUntil((range) => range.depth === 0)
-  if (level) chain.command(toRoot).command(clearWhenNested).command(toRoot).setNode('heading', { level }).run()
+  if (level && selectedTextblocks(editor) > 1) chain.clearNodes().command(toRoot).setNode('heading', { level }).run()
+  else if (level) chain.command(toRoot).setNode('heading', { level }).run()
   else if (value === 'codeBlock') chain.command(liftUntil((range) => !hasAncestor(range, 'blockquote'))).setCodeBlock().run()
   else if (value === 'blockquote') chain.clearNodes().setBlockquote().run()
   else chain.clearNodes().setParagraph().run()
 }
 
-// Clears the selection only when a selected block still sits inside a wrapper.
-function clearWhenNested({ tr, commands }: { tr: Transaction; commands: Editor['commands'] }) {
-  let nested = false
-  tr.doc.nodesBetween(tr.selection.from, tr.selection.to, (node, pos) => {
-    if (node.isTextblock && tr.doc.resolve(pos).depth > 0) nested = true
-    return !nested && !node.isTextblock
+function selectedTextblocks(editor: Editor): number {
+  const { doc, selection } = editor.state
+  let count = 0
+  doc.nodesBetween(selection.from, selection.to, (node) => {
+    if (node.isTextblock) count += 1
+    return !node.isTextblock
   })
-  return !nested || commands.clearNodes()
+  return count
 }
 
 // Lifts the selected blocks one wrapper at a time until `done` holds. Each lift moves the range
