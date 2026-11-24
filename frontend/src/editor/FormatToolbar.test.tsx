@@ -259,6 +259,18 @@ describe('FormatToolbar', () => {
       expect(html).toMatch(new RegExp(`^${tableHtml(['A', 'B'], ['1', '2'], ['3', '4'])}<img [^>]*data-attachment-id="attachment-1"[^>]*><p></p>$`))
     })
 
+    // Neither command deletes every row or column of a table; Delete table does that.
+    it.each([
+      ['one row', tableHtml(['A', 'B']), { 'Delete row': false, 'Delete column': true }],
+      ['one column', tableHtml(['A'], ['1']), { 'Delete row': true, 'Delete column': false }],
+    ])('disables what cannot be deleted in a table of %s', async (_shape, html, enabled) => {
+      const { editor } = await renderEditor(html)
+      selectText(editor)
+      await screen.findByRole('group', { name: 'Table' })
+      for (const [label, isEnabled] of Object.entries(enabled)) expect(screen.getByRole<HTMLButtonElement>('button', { name: label }).disabled, label).toBe(!isEnabled)
+      expect(screen.getByRole('button', { name: 'Delete table' })).toBeEnabled()
+    })
+
     it('keeps the editor selection when a table control is pressed', async () => {
       const { editor } = await renderEditor(twoByTwo)
       selectText(editor, { index: 2 })

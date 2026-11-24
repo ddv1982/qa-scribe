@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, t
 import type { Editor } from '@tiptap/react'
 import type { NodeRange } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
+import { selectedRect } from '@tiptap/pm/tables'
 import { liftTarget } from '@tiptap/pm/transform'
 import {
   BetweenHorizontalEnd,
@@ -252,13 +253,21 @@ const tableControls: { label: string; icon: LucideIcon; command: TableCommand }[
   { label: 'Delete table', icon: Grid2x2X, command: 'deleteTable' },
 ]
 
-/** Row, column and table commands, shown while the cursor is in a table. */
+/**
+ * Row, column and table commands, shown while the cursor is in a table. Delete row and Delete
+ * column do nothing when the selection covers every row or column, so they are disabled then.
+ */
 function TableControls({ editor, controlsId }: { editor: Editor; controlsId?: string }) {
+  const rect = selectedRect(editor.state)
+  const unavailable: Partial<Record<TableCommand, boolean>> = {
+    deleteRow: rect.top === 0 && rect.bottom === rect.map.height,
+    deleteColumn: rect.left === 0 && rect.right === rect.map.width,
+  }
   return (
     <div className="toolbar-group" role="group" aria-label="Table">
       <span className="toolbar-divider" aria-hidden="true" />
       {tableControls.map(({ label, icon, command }) => (
-        <ToolbarButton key={command} label={label} icon={icon} controlsId={controlsId} command={() => editor.chain().focus()[command]().run()} />
+        <ToolbarButton key={command} label={label} icon={icon} controlsId={controlsId} disabled={unavailable[command]} command={() => editor.chain().focus()[command]().run()} />
       ))}
     </div>
   )
