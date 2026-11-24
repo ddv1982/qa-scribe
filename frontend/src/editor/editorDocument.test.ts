@@ -69,6 +69,17 @@ describe('editorDocument', () => {
     }
   })
 
+  it('reads inline code ending in a space the same after an HTML round trip', () => {
+    const document = richEditorDocumentFromHtml('<p><code>a </code><code>b</code> and <code>end </code></p>')
+    expect(richEditorDocumentsEqual(document, richEditorDocumentFromHtml(richEditorDocumentToHtml(document)))).toBe(true)
+    expect(richEditorDocumentToHtml(document)).toBe('<p><code>a b</code> and <code>end </code></p>')
+  })
+
+  it('keeps authored private-use text next to inline code that ends a paragraph', () => {
+    const document = richEditorDocumentFromHtml('<p><code>x </code></p><p><b>&#xE002;</b><strong>&#xE002;</strong></p>')
+    expect(richEditorDocumentToPlainText(document)).toContain('\uE002\uE002')
+  })
+
   it('retains a non-default ordered list start through HTML and stored JSON', () => {
     const document = richEditorDocumentFromHtml('<ol start="7"><li><p>Seventh</p></li><li><p>Eighth</p></li></ol>')
     const stored = richEditorDocumentToStoredBody(document)

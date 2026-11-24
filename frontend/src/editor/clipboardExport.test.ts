@@ -90,6 +90,11 @@ describe('clipboardExport', () => {
     expect(payload.html).toBe('<p>Run <code>echo  </code></p>')
   })
 
+  it('keeps a mark after inline code ending in a space within the paragraph', () => {
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: '<p><code>run </code><em> then</em></p>' })
+    expect(payload.plain).toBe('`run `*then*')
+  })
+
   it('keeps literal text that looks like a code block placeholder', () => {
     const literal = '\uE0000\uE001'
     const payload = formatRecordForClipboard({ title: '', bodyHtml: `<p>${literal}</p><pre><code>x</code></pre><p>a ${literal}</p>` })

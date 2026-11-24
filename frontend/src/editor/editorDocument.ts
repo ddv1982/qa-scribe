@@ -46,26 +46,39 @@ export function richEditorDocumentFromHtml(html: string): RichEditorDocument {
 // HTML parsing collapses each white space run, but inline code keeps its spaces, as the editor
 // wrote them: the parser keeps white space inside an element styled `white-space: pre`. A line
 // end in inline code reads as a space, as before, not as a hard break. The parser still trims
-// the end of a paragraph, so code ending in a space gets a guard after it, removed once parsed;
-// the guard is a private-use run longer than any in the HTML, so literal text never matches it.
+// the end of a block, so code ending a block with a space gets a guard after it, removed once
+// parsed. The guard is a private-use run longer than any in the decoded text, where adjacent
+// text nodes already read joined, so authored text never matches it.
 function withInlineCodeSpaces(html: string): { html: string; guard?: string } {
   if (!/<code[\s>]/i.test(html)) return { html }
-  let guard = '\uE002'
-  while (html.includes(guard)) guard += '\uE002'
-  let guarded = false
   const template = document.createElement('template')
   template.innerHTML = html
+  let guard = '\uE002'
+  while ((template.content.textContent ?? '').includes(guard)) guard += '\uE002'
+  let guarded = false
   template.content.querySelectorAll('code').forEach((code) => {
     if (code.closest('pre')) return
     code.style.whiteSpace = 'pre'
     const texts = document.createTreeWalker(code, NodeFilter.SHOW_TEXT)
     while (texts.nextNode()) texts.currentNode.nodeValue = (texts.currentNode.nodeValue ?? '').replace(/\r\n?|\n/g, ' ')
-    if (/\s$/.test(code.textContent ?? '')) {
+    if (/\s$/.test(code.textContent ?? '') && endsItsBlock(code)) {
       code.after(guard)
       guarded = true
     }
   })
   return guarded ? { html: template.innerHTML, guard } : { html: template.innerHTML }
+}
+
+const inlineElements = new Set(['A', 'B', 'CODE', 'EM', 'I', 'LABEL', 'S', 'SPAN', 'STRIKE', 'STRONG', 'U'])
+
+// Nothing but white space and line breaks follows the node up to its block.
+function endsItsBlock(node: Node): boolean {
+  for (let current: Node | null = node; current && inlineElements.has(current.nodeName); current = current.parentNode) {
+    for (let next = current.nextSibling; next; next = next.nextSibling) {
+      if (next.nodeType === Node.TEXT_NODE ? (next.nodeValue ?? '').trim() : next.nodeName !== 'BR') return false
+    }
+  }
+  return true
 }
 
 function withoutGuard(node: JSONContent, guard: string): JSONContent {
