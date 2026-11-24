@@ -269,12 +269,23 @@ function setBlockStyle(editor: Editor | null, value: string) {
   const chain = editor.chain().focus()
   const level = headingLevels.find((candidate) => value === `h${candidate}`)
   // A heading leaves every quote and list around it, so the splitter sees it as a case heading;
-  // a code block leaves every quote. Clearing first lifts each selected block on its own, as a
-  // range over several list items has no lift target.
-  if (level) chain.clearNodes().command(liftUntil((range) => range.depth === 0)).setNode('heading', { level }).run()
+  // a code block leaves every quote. A range over several list items has no lift target, so
+  // when lifting stops short, clearing lifts each selected block on its own and lifting resumes.
+  const toRoot = liftUntil((range) => range.depth === 0)
+  if (level) chain.command(toRoot).command(clearWhenNested).command(toRoot).setNode('heading', { level }).run()
   else if (value === 'codeBlock') chain.command(liftUntil((range) => !hasAncestor(range, 'blockquote'))).setCodeBlock().run()
   else if (value === 'blockquote') chain.clearNodes().setBlockquote().run()
   else chain.clearNodes().setParagraph().run()
+}
+
+// Clears the selection only when a selected block still sits inside a wrapper.
+function clearWhenNested({ tr, commands }: { tr: Transaction; commands: Editor['commands'] }) {
+  let nested = false
+  tr.doc.nodesBetween(tr.selection.from, tr.selection.to, (node, pos) => {
+    if (node.isTextblock && tr.doc.resolve(pos).depth > 0) nested = true
+    return !nested && !node.isTextblock
+  })
+  return !nested || commands.clearNodes()
 }
 
 // Lifts the selected blocks one wrapper at a time until `done` holds. Each lift moves the range

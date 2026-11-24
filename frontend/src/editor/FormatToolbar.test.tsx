@@ -119,6 +119,13 @@ describe('FormatToolbar', () => {
     await waitFor(() => expect(html()).toMatch(/^<h2>One<\/h2><h2>Two<\/h2>(<h2><\/h2>)?<p><\/p>$/))
   })
 
+  it('keeps the quote and list around an item the heading leaves untouched', async () => {
+    const { editor, html } = await renderEditor('<blockquote><ol><li><p>One</p></li><li><p>Two</p></li></ol></blockquote>')
+    selectText(editor)
+    chooseBlockStyle('h2')
+    await waitFor(() => expect(html()).toBe('<h2>One</h2><blockquote><ol><li><p>Two</p></li></ol></blockquote><p></p>'))
+  })
+
   it('returns a heading to Normal', async () => {
     const { editor, html } = await renderEditor('<h5>Evidence</h5>')
     selectText(editor)
