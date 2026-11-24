@@ -167,11 +167,13 @@ function codeFence(code: string): string {
 }
 
 // The fence outgrows every backtick run in the code; a space pads code that starts or ends
-// with a backtick, which CommonMark strips again.
+// with a backtick, or starts and ends with a space while holding more than spaces, since
+// CommonMark strips one space each side then.
 function codeSpan(code: string): string {
   const longest = Math.max(0, ...(code.match(/`+/g) ?? []).map((run) => run.length))
   const fence = '`'.repeat(longest + 1)
-  const pad = code.startsWith('`') || code.endsWith('`') ? ' ' : ''
+  const spaced = code.startsWith(' ') && code.endsWith(' ') && code.trim() !== ''
+  const pad = code.startsWith('`') || code.endsWith('`') || spaced ? ' ' : ''
   return `${fence}${pad}${code}${pad}${fence}`
 }
 

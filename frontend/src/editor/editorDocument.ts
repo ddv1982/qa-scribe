@@ -37,11 +37,27 @@ export function richEditorDocumentFromHtml(html: string): RichEditorDocument {
   try {
     return normalizeRichEditorDocument({
       schemaVersion: 1,
-      doc: generateJSON(normalizedHtml, richTextEditorExtensions()) as JSONContent,
+      doc: generateJSON(withInlineCodeSpaces(normalizedHtml), richTextEditorExtensions()) as JSONContent,
     })
   } catch {
     return richEditorDocumentFromPlainText(stripHtml(normalizedHtml))
   }
+}
+
+// HTML parsing collapses each white space run, but inline code keeps its spaces, as the editor
+// wrote them: the parser keeps white space inside an element styled `white-space: pre`. A line
+// end in inline code reads as a space, as before, not as a hard break.
+function withInlineCodeSpaces(html: string): string {
+  if (!/<code[\s>]/i.test(html)) return html
+  const template = document.createElement('template')
+  template.innerHTML = html
+  template.content.querySelectorAll('code').forEach((code) => {
+    if (code.closest('pre')) return
+    code.style.whiteSpace = 'pre'
+    const texts = document.createTreeWalker(code, NodeFilter.SHOW_TEXT)
+    while (texts.nextNode()) texts.currentNode.nodeValue = (texts.currentNode.nodeValue ?? '').replace(/\r\n?|\n/g, ' ')
+  })
+  return template.innerHTML
 }
 
 export function richEditorDocumentFromPlainText(value: string): RichEditorDocument {

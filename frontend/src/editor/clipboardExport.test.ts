@@ -66,6 +66,25 @@ describe('clipboardExport', () => {
     expect(payload.plain).toBe('``a`b`` ``` ``x ``` `` `edge` `` `plain`')
   })
 
+  // CommonMark strips one space from each side of a code span holding more than spaces, so code
+  // with a space at both edges gets one more; the plain text reads back as the same code.
+  it('keeps the spaces inside inline code in both flavors', () => {
+    const spaced = formatRecordForClipboard({ title: '', bodyHtml: '<p>Run <code>echo    hello</code> now</p>' })
+    expect(spaced.plain).toBe('Run `echo    hello` now')
+    expect(spaced.html).toBe('<p>Run <code>echo    hello</code> now</p>')
+    for (const [code, span] of [
+      [' fail ', '`  fail  `'],
+      ['  x  ', '`   x   `'],
+      [' lead', '` lead`'],
+      ['trail ', '`trail `'],
+      ['   ', '`   `'],
+    ]) {
+      const payload = formatRecordForClipboard({ title: '', bodyHtml: `<p>Run<code>${code}</code>now</p>` })
+      expect(payload.plain).toBe(`Run${span}now`)
+      expect(payload.html).toBe(`<p>Run<code>${code}</code>now</p>`)
+    }
+  })
+
   it('preserves non-default ordered numbering around separate task lists', () => {
     const payload = formatRecordForClipboard({ title: '', bodyHtml: '<ol start="7"><li><p>Seventh</p></li><li><p>Eighth</p></li></ol><ul data-type="taskList"><li data-type="taskItem" data-checked="true"><p>Done</p></li></ul><ol start="10"><li><p>Tenth</p></li></ol>' })
     expect(payload.plain).toContain('7. Seventh')
