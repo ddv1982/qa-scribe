@@ -94,7 +94,13 @@ pub fn run(
     query: &ValidatedApplicationLogQuery,
     cancelled: &AtomicBool,
 ) -> Result<QueriedApplicationLogs, LogQueryError> {
-    execute(&resolve_az()?, query, cancelled, QUERY_TIMEOUT)
+    let out = query_cli(
+        &resolve_az()?,
+        query,
+        &|| cancelled.load(Ordering::Acquire),
+        QUERY_TIMEOUT,
+    )?;
+    response::capture(query, &out)
 }
 
 fn command_args(query: &ValidatedApplicationLogQuery, kql_path: &Path) -> Vec<OsString> {
@@ -118,38 +124,62 @@ fn command_args(query: &ValidatedApplicationLogQuery, kql_path: &Path) -> Vec<Os
     .into()
 }
 
+#[cfg(unix)]
+pub fn run_for_chat(
+    query: &ValidatedApplicationLogQuery,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<QueriedApplicationLogs, LogQueryError> {
+    let out = query_cli(&resolve_az()?, query, cancelled, QUERY_TIMEOUT)?;
+    response::capture_with_limits(
+        query,
+        &out,
+        qa_scribe_core::domain::CHAT_LOG_RESULT_MAX_ROWS as usize,
+        qa_scribe_core::domain::CHAT_LOG_RESULT_MAX_BYTES,
+    )
+}
+
+#[cfg(test)]
 fn execute(
     az: &Path,
     query: &ValidatedApplicationLogQuery,
     cancelled: &AtomicBool,
     timeout: Duration,
 ) -> Result<QueriedApplicationLogs, LogQueryError> {
+    let out = query_cli(az, query, &|| cancelled.load(Ordering::Acquire), timeout)?;
+    response::capture(query, &out)
+}
+
+fn query_cli(
+    az: &Path,
+    query: &ValidatedApplicationLogQuery,
+    cancelled: &dyn Fn() -> bool,
+    timeout: Duration,
+) -> Result<Vec<u8>, LogQueryError> {
     let failed = |_| LogQueryError::Access(ApplicationLogAccess::Failed);
-    if cancelled.load(Ordering::Acquire) {
+    if cancelled() {
         return Err(LogQueryError::Cancelled);
     }
     let cwd = NeutralProviderCwd::new().map_err(failed)?;
     let mut kql = tempfile::NamedTempFile::new_in(cwd.path()).map_err(failed)?;
     kql.write_all(query.kql.as_bytes()).map_err(failed)?;
-    let out = run_cli(
+    run_cli(
         az,
         cwd.path(),
         command_args(query, kql.path()),
         cancelled,
         timeout,
-    )?;
-    response::capture(query, &out)
+    )
 }
 
 fn run_cli(
     az: &Path,
     cwd: &Path,
     args: impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>>,
-    cancelled: &AtomicBool,
+    cancelled: &dyn Fn() -> bool,
     timeout: Duration,
 ) -> Result<Vec<u8>, LogQueryError> {
     let failed = |_| LogQueryError::Access(ApplicationLogAccess::Failed);
-    if cancelled.load(Ordering::Acquire) {
+    if cancelled() {
         return Err(LogQueryError::Cancelled);
     }
     let mut command = Command::new(az);
@@ -186,7 +216,7 @@ fn run_cli(
         let err = scope.spawn(|| read_stderr(stderr));
         let started = Instant::now();
         let status = loop {
-            if cancelled.load(Ordering::Acquire) {
+            if cancelled() {
                 break Err(LogQueryError::Cancelled);
             }
             if started.elapsed() >= timeout {

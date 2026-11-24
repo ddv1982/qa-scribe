@@ -30,6 +30,9 @@ pub struct AppSettings {
     #[serde(default)]
     #[specta(optional)]
     pub application_log_sources: Vec<super::ApplicationLogSource>,
+    #[serde(default)]
+    #[specta(optional)]
+    pub ask_ai_application_logs: bool,
 }
 
 /// A read-only source that Generate may look up through the user's Claude Code
@@ -60,6 +63,7 @@ impl Default for AppSettings {
             note_summary_template: default_note_summary_template(),
             generation_read_sources: Vec::new(),
             application_log_sources: Vec::new(),
+            ask_ai_application_logs: false,
         }
     }
 }

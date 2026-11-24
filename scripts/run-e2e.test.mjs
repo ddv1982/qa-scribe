@@ -91,14 +91,14 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
   const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.deepEqual(linux.map(({ id }) => id), [
     ...criticalScenarios, 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
-    'chat-tool-authorization-copilot', 'manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'editor-rich-content-restart', 'test-run-log-evidence', 'test-run-log-evidence-restart', 'native-close', 'ask-ai-isolation-initial', 'model-management', 'model-evidence', 'model-evidence-restart',
+    'chat-tool-authorization-copilot', 'manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'editor-rich-content-restart', 'test-run-log-evidence', 'test-run-log-evidence-restart', 'native-close', 'ask-ai-isolation-initial', 'ask-ai-logs-codex', 'ask-ai-logs-claude', 'model-management', 'model-evidence', 'model-evidence-restart',
     'model-selection', 'model-selection-restart', 'provider-qualification-disabled', 'provider-qualification-diagnostics',
     'provider-qualification-selector',
   ])
   for (const platform of ['darwin', 'win32']) {
     assert.deepEqual(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform).map(({ id }) => id), [
       ...criticalScenarios, 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
-      ...(platform === 'darwin' ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'editor-rich-content-restart', 'test-run-log-evidence', 'test-run-log-evidence-restart', 'ask-ai-isolation-initial'] : []),
+      ...(platform === 'darwin' ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'editor-rich-content-restart', 'test-run-log-evidence', 'test-run-log-evidence-restart', 'ask-ai-isolation-initial', 'ask-ai-logs-codex', 'ask-ai-logs-claude'] : []),
     ])
   }
 })

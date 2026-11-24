@@ -376,6 +376,8 @@ else:
         "sessionUpdate": "tool_call", "toolCallId": "call-1", "title": "Checking connector.", "status": "pending"}}})
 permission_sent = time.monotonic()
 send(request)
+if mode == "log_overlap":
+    record({"overlap_permission_sent": True})
 if mode == "parent_exit_pending":
     # Allow publication to reach the observer, then exit without closing the
     # inherited pipes. A driver watching only EOF waits for its long watchdog.

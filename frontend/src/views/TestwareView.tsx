@@ -145,7 +145,7 @@ export function TestwareView({
         <TestRunView key={testRuns.open.runId} open={testRuns.open} draftRuns={runsOf(draft.id)} error={testRuns.error}
           onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding}
           onSelectRun={(runId) => void testRuns.openRun(runId, draft.id)} onBack={testRuns.close}
-          onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase} onReadSavedRun={testRuns.readSavedRun}
+          onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase} onReadSavedRun={testRuns.readSavedRun} onChangeEvidence={testRuns.updateEvidence}
           editsBlocked={testRuns.editsBlocked}
           askAi={recordChat?.onAskAiRun ? { expanded: recordChat.openRunId === testRuns.open.runId, onOpen: recordChat.onAskAiRun } : undefined} />
       ) : null}

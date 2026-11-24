@@ -12,8 +12,8 @@ mod permission_tests;
 mod registration;
 mod session_deletion;
 pub use control::JobControl;
-pub use permission::ChatPermissionDetails;
 pub(crate) use permission::PermissionReply;
+pub use permission::{ChatLogQueryApproval, ChatPermissionDetails};
 pub use permission::{
     ChatPermissionDecision, ChatPermissionDecisionRequest, ChatPermissionRequest,
 };
@@ -100,6 +100,8 @@ pub struct GenerationJobStatus {
     pub partial_text: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_permission: Option<ChatPermissionRequest>,
+    #[specta(optional)]
+    pub permission_revision: u32,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub queued_permissions: Vec<ChatPermissionRequest>,
 }

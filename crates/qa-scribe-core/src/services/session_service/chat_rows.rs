@@ -91,6 +91,11 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
         } else {
             vec![]
         },
+        application_log_captures: if kind == "test_run" {
+            super::chat_log_evidence::activity(connection, id)?
+        } else {
+            vec![]
+        },
         session_id: row.0,
         draft_id: id.into(),
         revision: row.1,

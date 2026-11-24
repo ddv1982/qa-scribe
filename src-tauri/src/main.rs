@@ -2,6 +2,7 @@ mod app_data;
 mod application_logs;
 mod commands;
 mod jobs;
+mod log_mcp;
 mod process_io;
 mod provider_command;
 mod settings;
@@ -14,6 +15,9 @@ use std::time::Instant;
 use tauri::Manager;
 
 fn main() {
+    if log_mcp::run_headless() {
+        return;
+    }
     let mut context = tauri::generate_context!();
 
     // Debug builds get their own identity: a dev instance must never share a
@@ -120,6 +124,9 @@ fn main() {
                 "qa-scribe startup creation recovery: pending_attempts={}",
                 creation_recovery.pending_attempts
             );
+            if let Err(error) = session_service.sweep_unattached_chat_log_captures() {
+                eprintln!("qa-scribe startup log evidence cleanup unavailable: {error}");
+            }
             app.manage(AppState::new(session_service, app_data_dir));
             app.manage(JobStore::default());
             app.manage(commands::application_logs::ApplicationLogJobs::default());

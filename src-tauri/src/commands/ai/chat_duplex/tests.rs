@@ -40,6 +40,7 @@ impl Fixture {
 
     fn context(&self) -> ChatDuplexContext<'_> {
         ChatDuplexContext {
+            log_mcp_token: None,
             input: &self.input,
             job_id: "job",
             jobs: &self.jobs,
@@ -465,3 +466,6 @@ include!("tests/bulk.rs");
 include!("tests/replay.rs");
 
 mod model_evidence;
+
+#[path = "tests/log_permission.rs"]
+mod log_permission;

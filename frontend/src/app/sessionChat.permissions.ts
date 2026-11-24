@@ -8,6 +8,7 @@ type PermissionLedger = {
   jobId: string
   provider: AiProvider | null
   pending: ChatPermissionRequest | null
+  revision: number
   attempted: Set<string>
   resolved: Set<string>
 }
@@ -28,7 +29,7 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
     let value = ledgers.get(entry)
     if (!value || value.jobId !== jobId) {
       entry.permissionOperation = null
-      value = { jobId, provider: entry.chat?.aiRuns.find(run => run.id === aiRunId)?.provider ?? null, pending: null, attempted: new Set(), resolved: new Set() }
+      value = { jobId, provider: entry.chat?.aiRuns.find(run => run.id === aiRunId)?.provider ?? null, pending: null, revision: 0, attempted: new Set(), resolved: new Set() }
       ledgers.set(entry, value)
     }
     return value
@@ -37,6 +38,9 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
     if (!statusOwns(entry, status)) return null
     const state = ledger(entry, status.jobId, status.aiRunId)
     if (status.pendingPermission && state.provider && status.pendingPermission.provider !== state.provider) return null
+    // The relay and provider can publish snapshots from separate threads.
+    if (status.permissionRevision !== undefined && status.permissionRevision < state.revision) return null
+    state.revision = status.permissionRevision ?? state.revision
     state.provider ??= status.pendingPermission?.provider ?? null
     state.pending = status.pendingPermission ?? null
     if (!['starting', 'running', 'cancelling'].includes(status.state)) {

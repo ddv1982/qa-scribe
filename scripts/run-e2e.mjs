@@ -9,7 +9,7 @@ import { isolationInvocations, readIsolationEvidence } from './ask-ai-isolation-
 import { prepareOwnershipFixture } from './prepare-ask-ai-ownership.mjs'
 import { commandReceiptError, finishCommandReceipt, startCommandReceipt } from './command-utils.mjs'
 
-import { installAzFixture, logEvidenceInvocations, logEvidenceSpec } from './application-log-evidence-e2e.mjs'
+import { askAiLogInvocations, askAiLogSpec, installAzFixture, logEvidenceInvocations, logEvidenceSpec } from './application-log-evidence-e2e.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const fixtureBin = join(root, 'e2e', 'fixtures', 'bin')
@@ -68,6 +68,11 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
   if (requestedSpec === editorRichContentSpec) {
     if (requestedScenario) throw new Error('Rich editor content runs its phases serially')
     return editorRichContentInvocations(temporaryRoot, artifacts)
+  }
+
+  if (requestedSpec === askAiLogSpec) {
+    if (requestedScenario) throw new Error('Ask AI log evidence runs per provider')
+    return askAiLogInvocations(temporaryRoot, artifacts)
   }
 
   if (requestedSpec === logEvidenceSpec) {
@@ -147,7 +152,10 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
         QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures', id),
       } })
     }
-    if (['linux', 'darwin'].includes(platform)) plan.push(...isolationInvocations(temporaryRoot, artifacts))
+    if (['linux', 'darwin'].includes(platform)) {
+      plan.push(...isolationInvocations(temporaryRoot, artifacts))
+      plan.push(...askAiLogInvocations(join(temporaryRoot, 'ask-ai-logs'), join(artifacts, 'ask-ai-logs')))
+    }
     if (platform === 'linux') {
       const modelRuns = [
         ['model-management', 'model-management', null, {}],
@@ -378,6 +386,8 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       // of the default provider PATH, not merely returning an unavailable version.
       const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')
       mkdirSync(providerBin, { recursive: true })
+      const logProvider = invocation.environment.QA_SCRIBE_E2E_LOG_PROVIDER
+      if (!logProvider) delete invocationEnvironment.QA_SCRIBE_E2E_LOG_PROVIDER
       const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
       const isolation = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'ask-ai-conversation-isolation.e2e.mjs'
       if (isolation) {
@@ -395,7 +405,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const sourceBin = qualification ? join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'provider-copy', 'bin') : fixtureBin
       if (qualification) cpSync(join(root, 'e2e', 'fixtures'), join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'provider-copy'), { recursive: true })
       for (const provider of ['codex', 'claude', 'copilot']) rmSync(join(providerBin, provider), { force: true })
-      for (const provider of authorization || modelManagement ? ['codex', 'claude', 'copilot'] : isolation ? ['codex'] : recordContext ? ['codex', 'copilot'] : ['codex']) {
+      for (const provider of logProvider ? [logProvider] : authorization || modelManagement ? ['codex', 'claude', 'copilot'] : isolation ? ['codex'] : recordContext ? ['codex', 'copilot'] : ['codex']) {
         const link = join(providerBin, provider)
         symlinkSync(join(sourceBin, provider), link)
       }

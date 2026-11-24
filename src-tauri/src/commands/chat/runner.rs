@@ -43,6 +43,10 @@ pub(super) fn run(
             events: &events,
             control: &control,
             app_data_dir: state.app_data_dir(),
+            #[cfg(unix)]
+            app: &app,
+            #[cfg(unix)]
+            turn_id: &prepared.started.turn_id,
         }
         .execute(&request, &prepared.input);
         let report = match &execution {

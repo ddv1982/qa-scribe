@@ -15,17 +15,21 @@ fn offer(f: &Fixture, rows: Value) -> ChatState {
 }
 
 fn finish(f: &Fixture, started: ChatTurnStarted, rows: Value) -> ChatState {
-    f.service
-        .finish_chat_turn(ChatFinishRequest {
-            scope: scope(&started.chat),
-            turn_id: started.turn_id,
-            assistant_text: json!({
-                "version": 2, "requestId": started.chat.messages.last().unwrap().id,
-                "markdown": "Here are the suggested results.", "testRunSuggestions": rows
-            })
-            .to_string(),
+    let user = started.chat.messages.last().unwrap();
+    let request = ChatFinishRequest {
+        scope: scope(&started.chat),
+        turn_id: started.turn_id,
+        assistant_text: json!({
+            "version": 2, "requestId": user.id,
+            "markdown": "Here are the suggested results.", "testRunSuggestions": rows
         })
-        .unwrap()
+        .to_string(),
+    };
+    match &user.ai_run_id {
+        Some(id) => f.service.finish_chat_turn_with_ai_run(request, id),
+        None => f.service.finish_chat_turn(request),
+    }
+    .unwrap()
 }
 
 fn suggested(case_id: &str) -> Value {
@@ -279,7 +283,11 @@ fn a_schema_25_database_keeps_the_run_and_conversation_on_upgrade() {
         .database()
         .connection()
         .execute_batch(
-            "DROP TABLE chat_test_run_suggestions;
+            "DROP TRIGGER chat_log_attachment_detached;
+         DROP TRIGGER chat_log_unattached_delete;
+         DROP TABLE chat_suggestion_log_captures;
+         DROP TABLE chat_log_capture_shares;
+         DROP TABLE chat_test_run_suggestions;
          DROP TABLE chat_test_run_sources;
          DROP TABLE test_run_log_captures;
          PRAGMA user_version = 25;",
@@ -309,3 +317,6 @@ fn a_schema_25_database_keeps_the_run_and_conversation_on_upgrade() {
 }
 
 mod updates;
+
+#[path = "suggestions/log_evidence.rs"]
+mod log_evidence;

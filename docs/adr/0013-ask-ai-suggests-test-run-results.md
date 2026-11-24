@@ -15,8 +15,8 @@ any observations or screenshots they already saved.
 
 1. **One reply can cover several test cases.** Ask AI can suggest a Result, an
    addition to Result notes, or both for one or more cases of the same test run.
-   A suggested Result requires a rationale. A later phase lets a row also
-   suggest attaching log evidence captured by the app.
+   A suggested Result requires a rationale. A row can also suggest attaching
+   application logs captured and approved in the same conversation.
 2. **The tester applies the changes.** A "Suggested results" card shows one row
    per suggested case with the current and proposed Result, the rationale and
    the notes to append. "Update" applies one row. "Apply all" applies the
@@ -29,6 +29,14 @@ any observations or screenshots they already saved.
    Apply. An applied row offers "Undo", which restores the exact previous
    Result, notes JSON and legacy remark only while the case still matches the
    applied fingerprint.
+
+4. **The tester approves each query.** The app shows the primary Azure target,
+   full KQL, UTC window and what will be sent to the selected provider. Azure
+   CLI runs under the tester’s account permissions, including for cross-resource
+   expressions and saved functions. An approved query can yield one bounded
+   capture. Approval of the query and Apply on the suggestion are separate
+   actions. Apply attaches capture IDs from that conversation and run, and Undo
+   detaches captures attached by that update.
 
 This decision implements D4 of the [test run plan](../test-runs-editor-logs-plan.md#decisions)
 and supersedes decision 4 of [ADR 0012](0012-test-runs-are-frozen-copies.md#decision).

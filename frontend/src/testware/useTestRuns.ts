@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from 'react'
-import { deleteTestRun, getTestRun, listTestRuns, saveTestCaseNotes, setTestCaseResult, startTestRun, type TestRun, type TestRunCaseDraft, type TestRunSummary, type TestRunSuggestionOutcome } from '../tauri'
+import { deleteTestRun, getTestRun, listTestRuns, saveTestCaseNotes, setTestCaseResult, startTestRun, type LogEvidenceSummary, type TestRun, type TestRunCaseDraft, type TestRunSummary, type TestRunSuggestionOutcome } from '../tauri'
 import { CaseSaveQueue, type CasePatch, type CaseSaveListener } from './caseSaveQueue'
 import { latestTestRunIds } from './testRuns'
 import { formatError } from '../ui/format'
@@ -15,7 +15,7 @@ export const BACKGROUND_SAVE_ERROR = 'A change to a test run could not be saved.
  * a run reopened afterwards must still wait for them.
  */
 const draining = new Map<string, CaseSaveQueue>()
-const onScreen = new Map<string, CaseSaveQueue>()
+const onScreen = new Map<string, ScreenQueue>()
 const editBarriers = new Map<string, Promise<void>>()
 const barrierListeners = new Set<() => void>()
 const noteImageReads = new Map<Promise<unknown>, string>()
@@ -47,7 +47,7 @@ export async function acquireTestRunEditBarrier(runId: string): Promise<() => vo
   notify()
   try {
     await Promise.allSettled(readsForRun(runId))
-    const queue = onScreen.get(runId) ?? draining.get(runId)
+    const queue = onScreen.get(runId)?.queue ?? draining.get(runId)
     await queue?.whenIdle()
     if (queue?.hasFailedSave || queue?.hasPendingNotes) {
       throw new Error('Resolve the failed test case save before continuing.')
@@ -60,7 +60,7 @@ export async function acquireTestRunEditBarrier(runId: string): Promise<() => vo
 }
 
 function runQueues() {
-  return new Set([...onScreen.values(), ...draining.values()])
+  return new Set([...Array.from(onScreen.values(), item => item.queue), ...draining.values()])
 }
 
 export function hasPendingTestRunNotes(): boolean {
@@ -89,7 +89,14 @@ export function forgetDrainingTestRuns() {
 type Drained = { sessionId: string; failed: boolean }
 const drainedListeners = new Set<(event: Drained) => void>()
 
-type ScreenQueue = { runId: string; sessionId: string; queue: CaseSaveQueue; background: { failed: boolean } }
+type EvidenceChange = (captures: LogEvidenceSummary[]) => LogEvidenceSummary[]
+type ScreenQueue = {
+  runId: string
+  sessionId: string
+  queue: CaseSaveQueue
+  background: { failed: boolean }
+  updateEvidence: (change: EvidenceChange) => void
+}
 
 /** Keeps a queue that left the screen until its saves have settled, then tells the views. */
 function drain(left: ScreenQueue) {
@@ -155,7 +162,7 @@ export function useTestRuns(sessionId: string | null) {
     const current = queueRef.current
     queueRef.current = null
     if (!current) return
-    if (onScreen.get(current.runId) === current.queue) onScreen.delete(current.runId)
+    if (onScreen.get(current.runId) === current) onScreen.delete(current.runId)
     current.queue.detach()
     leftRef.current = current
     drain(current)
@@ -172,8 +179,12 @@ export function useTestRuns(sessionId: string | null) {
       const existing = draining.get(next.runId)
       const queue = existing ?? saveQueue(next.run, listener)
       draining.delete(next.runId)
-      onScreen.set(next.runId, queue)
-      queueRef.current = { runId: next.runId, sessionId: next.run.sessionId, background, queue }
+      const runId = next.runId
+      const screen = { runId, sessionId: next.run.sessionId, background, queue,
+        updateEvidence: (change: EvidenceChange) => setOpen(current => current?.run && current.runId === runId
+          ? { ...current, run: { ...current.run, logEvidence: change(current.run.logEvidence ?? []) } } : current) }
+      onScreen.set(runId, screen)
+      queueRef.current = screen
       if (existing) next = { ...next, run: { ...next.run, cases: queue.attach(next.run.cases, listener) } }
     }
     setError(null)
@@ -311,7 +322,7 @@ export function useTestRuns(sessionId: string | null) {
     }
   }, [detachQueue, openRun, refresh, show])
 
-  return { summaries, latestRuns, open, editsBlocked, starting, startError, error, openRun, close, keepForDraft, start, changeCase, readSavedRun, deleteRun }
+  return { summaries, latestRuns, open, editsBlocked, starting, startError, error, openRun, close, keepForDraft, start, changeCase, readSavedRun, deleteRun, updateEvidence: (runId: string, change: EvidenceChange) => onScreen.get(runId)?.updateEvidence(change) }
 }
 
 function saveQueue(run: TestRun, listener: CaseSaveListener) {
@@ -339,10 +350,16 @@ export async function runTestRunSuggestionAction(
 ): Promise<TestRunSuggestionOutcome[]> {
   const release = await acquireTestRunEditBarrier(runId)
   try {
-    const queue = onScreen.get(runId)
-    if (!queue) throw new Error('Open this test run to update its results.')
+    const screen = onScreen.get(runId)
+    if (!screen) throw new Error('Open this test run to update its results.')
     const outcomes = await write()
-    queue.install(outcomes.flatMap(outcome => outcome.kind === 'failed' ? [] : [outcome.testCase]))
+    screen.queue.install(outcomes.flatMap(outcome => outcome.kind === 'failed' ? [] : [outcome.testCase]))
+    for (const outcome of outcomes) {
+      if (outcome.kind !== 'saved' || !outcome.logEvidence || !outcome.suggestion.captureIds?.length) continue
+      const affectedIds = new Set(outcome.suggestion.captureIds)
+      const updated = outcome.logEvidence.filter(capture => affectedIds.has(capture.id))
+      screen.updateEvidence(captures => [...captures.filter(capture => !affectedIds.has(capture.id)), ...updated])
+    }
     return outcomes
   } finally {
     release()

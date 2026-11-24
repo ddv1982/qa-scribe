@@ -47,7 +47,7 @@ for (const skipBuild of ['0', '1']) {
   })
 }
 
-for (const [platform, expectedCount] of [['linux', 29], ['darwin', 20]]) {
+for (const [platform, expectedCount] of [['linux', 31], ['darwin', 22]]) {
   test(`${platform} defaults register first use with independent state and receipts`, () => {
     const plan = createWdioInvocationPlan({}, '/tmp/owned', '/tmp/evidence', platform)
     assert.equal(plan.length, expectedCount)

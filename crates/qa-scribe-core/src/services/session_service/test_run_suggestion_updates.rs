@@ -2,6 +2,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 
 use super::{
     SessionService, chat_rows, now,
+    test_run_log_evidence::attached_log_evidence,
     test_run_notes::append_suggested_notes,
     test_run_suggestions::{SUGGESTION_COLUMNS, map_suggestion},
     test_runs::{test_run_case, update_case_on},
@@ -103,12 +104,12 @@ fn update(
             ],
             |row| {
                 let previous = row
-                    .get::<_, Option<String>>(8)?
+                    .get::<_, Option<String>>(9)?
                     .map(|result| {
                         Ok::<_, rusqlite::Error>(StoredResult {
                             result,
-                            notes_json: row.get(9)?,
-                            remark: row.get(10)?,
+                            notes_json: row.get(10)?,
+                            remark: row.get(11)?,
                         })
                     })
                     .transpose()?;
@@ -132,10 +133,7 @@ fn update(
     }
     let applied = previous.is_some();
     if undo != applied {
-        return Ok(TestRunSuggestionOutcome::Saved {
-            test_case: Box::new(case),
-            suggestion,
-        });
+        return saved_outcome(tx, case, suggestion);
     }
     let original = StoredResult::from_case(&case);
     let notes = suggestion.notes_json.as_deref();
@@ -151,6 +149,7 @@ fn update(
             remark: original.remark.clone(),
         }
     };
+    update_log_attachments(tx, request, &suggestion, &case, undo)?;
     let saved = update_case_on(tx, &case.id, &now(), |tx, _, changed_at| {
         tx.execute(
             "UPDATE test_run_cases SET result = ?1, notes_json = ?2, remark = ?3, updated_at = ?4 WHERE id = ?5",
@@ -171,8 +170,74 @@ fn update(
             suggestion.id,
         ],
     )?;
+    saved_outcome(tx, saved, suggestion)
+}
+
+fn saved_outcome(
+    tx: &Connection,
+    case: TestRunCase,
+    suggestion: TestRunSuggestion,
+) -> Result<TestRunSuggestionOutcome> {
+    let log_evidence = (!suggestion.capture_ids.is_empty())
+        .then(|| attached_log_evidence(tx, &case.run_id))
+        .transpose()?;
     Ok(TestRunSuggestionOutcome::Saved {
-        test_case: Box::new(saved),
+        test_case: Box::new(case),
         suggestion,
+        log_evidence,
     })
+}
+
+fn update_log_attachments(
+    tx: &Connection,
+    request: &TestRunSuggestionRequest,
+    suggestion: &TestRunSuggestion,
+    case: &TestRunCase,
+    undo: bool,
+) -> Result<()> {
+    if suggestion.capture_ids.is_empty() {
+        return Ok(());
+    }
+    if undo {
+        tx.execute(
+            "UPDATE test_run_log_captures SET case_id = NULL WHERE case_id = ?1 AND id IN
+             (SELECT capture_id FROM chat_suggestion_log_captures WHERE suggestion_id = ?2 AND attached = 1)",
+            params![case.id, suggestion.id],
+        )?;
+        return Ok(());
+    }
+    let count: u32 = tx.query_row(
+        "SELECT COUNT(*) FROM test_run_log_captures WHERE case_id = ?1",
+        [&case.id],
+        |row| row.get(0),
+    )?;
+    if count as usize + suggestion.capture_ids.len() > 10 {
+        return Err(validation(
+            "At most 10 log captures can be attached to a test case.",
+        ));
+    }
+    for capture_id in &suggestion.capture_ids {
+        let count = tx.execute(
+            "UPDATE test_run_log_captures SET case_id = ?1
+             WHERE id = ?2 AND origin = 'ask_ai' AND conversation_id = ?3
+               AND run_id = ?4 AND session_id = ?5 AND case_id IS NULL",
+            params![
+                case.id,
+                capture_id,
+                request.reference.draft_id,
+                case.run_id,
+                request.reference.session_id
+            ],
+        )?;
+        if count != 1 {
+            return Err(validation(
+                "This log capture has already been attached or is no longer available.",
+            ));
+        }
+        tx.execute(
+            "UPDATE chat_suggestion_log_captures SET attached = 1 WHERE suggestion_id = ?1 AND capture_id = ?2",
+            params![suggestion.id, capture_id],
+        )?;
+    }
+    Ok(())
 }

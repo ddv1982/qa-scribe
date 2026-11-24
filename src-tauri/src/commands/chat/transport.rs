@@ -25,6 +25,10 @@ pub(super) struct ChatTransport<'a> {
     pub events: &'a Channel<GenerationJobStatus>,
     pub control: &'a JobControl,
     pub app_data_dir: &'a std::path::Path,
+    #[cfg(unix)]
+    pub app: &'a tauri::AppHandle,
+    #[cfg(unix)]
+    pub turn_id: &'a str,
 }
 
 impl ChatTransport<'_> {
@@ -67,6 +71,15 @@ impl ChatTransport<'_> {
             };
             restrict_local_edit(&mut command, request.provider, &servers);
         }
+        #[cfg(unix)]
+        let logs = self.application_logs(request, input, &mut command)?;
+        #[cfg(unix)]
+        let (input, log_mcp_token) = match &logs {
+            Some((broker, input)) => (input, broker.codex_token()),
+            None => (input, None),
+        };
+        #[cfg(not(unix))]
+        let log_mcp_token = None;
         let mut partial = String::new();
         let mut last_emit = Instant::now();
         let mut last_len = 0usize;
@@ -80,6 +93,7 @@ impl ChatTransport<'_> {
                 provider: request.provider,
                 app_data_dir: self.app_data_dir,
                 model: &request.model,
+                log_mcp_token,
                 reasoning_effort: request.reasoning_effort.as_deref(),
             },
             |update| {
@@ -111,6 +125,64 @@ impl ChatTransport<'_> {
                 let _ = self.events.send(status);
             },
         )
+    }
+
+    #[cfg(unix)]
+    fn application_logs(
+        &self,
+        request: &StartChatJobRequest,
+        input: &qa_scribe_core::chat::ChatInput,
+        command: &mut qa_scribe_core::ai::GenerationCommand,
+    ) -> Result<
+        Option<(
+            crate::log_mcp::broker::LogBroker,
+            qa_scribe_core::chat::ChatInput,
+        )>,
+        String,
+    > {
+        use crate::log_mcp::broker::{ChatLogScope, LogBroker};
+        use qa_scribe_core::domain::{AiProvider, ChatRef};
+        use tauri::Manager;
+
+        if input.local_edit() || request.provider == AiProvider::CopilotCli {
+            return Ok(None);
+        }
+        let reference = ChatRef {
+            session_id: request.scope.session_id.clone(),
+            draft_id: request.scope.draft_id.clone(),
+        };
+        let state = self.app.state::<crate::settings::AppState>();
+        let (sources, captures) = state
+            .with_service(|service| {
+                let sources =
+                    service.chat_log_sources(&reference, self.turn_id, request.provider)?;
+                let captures =
+                    service.chat_log_replay(&reference, self.turn_id, request.provider)?;
+                Ok((sources, captures))
+            })
+            .map_err(|error| error.message)?;
+        if sources.is_empty() {
+            return Ok(None);
+        }
+        let scope = ChatLogScope {
+            app: self.app.clone(),
+            job_id: self.job_id.into(),
+            reference,
+            turn_id: self.turn_id.into(),
+            provider: request.provider,
+            control: self.control.clone(),
+            events: self.events.clone(),
+        };
+        let broker = LogBroker::start(scope, command)
+            .map_err(|_| "Could not start the application logs tool.")?;
+        let labels = sources
+            .iter()
+            .map(|source| source.label.as_str())
+            .collect::<Vec<_>>();
+        Ok(Some((
+            broker,
+            input.clone().with_application_logs(&labels, &captures),
+        )))
     }
 }
 
