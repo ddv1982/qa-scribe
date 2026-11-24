@@ -100,6 +100,8 @@ function insertInCell(view: EditorView, from: number, to: number, slice: Slice, 
   const $from = view.state.doc.resolve(from)
   const afterTable = positionAfterTable($from)
   if (afterTable === null || !inTableCell($from) || (!closedLine && images.length === 0) || images.some((node) => node.type.name !== 'image')) return false
+  // An empty paragraph adds nothing, so the cell and the caret stay as they were.
+  if (!line?.content.size && images.length === 0) return true
   const tr = view.state.tr
   if (line && line.content.size > 0) {
     tr.replace(from, to, new Slice(Fragment.from(line), 1, 1))

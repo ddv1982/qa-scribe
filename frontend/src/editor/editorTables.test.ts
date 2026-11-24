@@ -125,6 +125,12 @@ describe('pasting at a caret inside a cell', () => {
     ])
   })
 
+  it('leaves the cell and the caret as they were for an empty pasted paragraph', () => {
+    editorAtAbc(1).view.pasteHTML('<p data-pm-slice="0 0 []"></p>', new Event('paste') as ClipboardEvent)
+    expect(editor!.getJSON().content?.[0]).toEqual(table(row(header(text('abc')), header(text('xyz'))), row(cell(text('1')), cell(text('2')))))
+    expect(editor!.state.selection.from).toBe(5)
+  })
+
   const image = { type: 'image', attrs: expect.objectContaining({ attachmentId: 'shot-1', alt: 'shot' }) as Record<string, unknown> }
   const shotHtml = `<img src="${managedAttachmentProtocol}shot-1" alt="shot">`
   const untouched = table(row(header(text('abc')), header(text('xyz'))), row(cell(text('1')), cell(text('2'))))
