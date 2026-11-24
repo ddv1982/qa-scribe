@@ -117,10 +117,15 @@ function pasteInCell(view: EditorView, _event: ClipboardEvent, slice: Slice): bo
   return selection instanceof TextSelection && insertInCell(view, selection.from, selection.to, slice, 'paste')
 }
 
-/** A drop that moves content within the editor is left to ProseMirror, which deletes the source. */
+/**
+ * A drop that moves content within the editor is left to ProseMirror, which deletes the source.
+ * A drop this handles focuses the editor, as ProseMirror's own drop does.
+ */
 function dropInCell(view: EditorView, event: DragEvent, slice: Slice, moved: boolean): boolean {
   const target = moved ? null : view.posAtCoords({ left: event.clientX, top: event.clientY })
-  return target !== null && insertInCell(view, target.pos, target.pos, slice, 'drop')
+  if (target === null || !insertInCell(view, target.pos, target.pos, slice, 'drop')) return false
+  view.focus()
+  return true
 }
 
 /** The position after the table around `$position`, where content a cell cannot hold goes. */

@@ -1,6 +1,6 @@
 import { Editor, type JSONContent } from '@tiptap/core'
 import { CellSelection } from '@tiptap/pm/tables'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished } from 'vitest'
 import { richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
 import { richTextEditorExtensions } from './editorExtensions'
 import { normalizeEditorHtml } from './editorHtml'
@@ -165,6 +165,17 @@ describe('pasting at a caret inside a cell', () => {
     editorAtAbc(0)
     dropHtml(shotHtml)
     expect(editor!.getJSON().content?.slice(0, 2)).toEqual([untouched, image])
+  })
+
+  // As ProseMirror's own drop does, so typing goes on where the drop landed.
+  it('focuses the editor when an image dropped from outside it lands', () => {
+    editorAtAbc(0)
+    const elsewhere = document.body.appendChild(document.createElement('button'))
+    const editorDom = document.body.appendChild(editor!.view.dom)
+    onTestFinished(() => [elsewhere, editorDom].forEach((element) => element.remove()))
+    elsewhere.focus()
+    dropHtml(shotHtml)
+    expect(document.activeElement).toBe(editorDom)
   })
 
   // The drop lands at its own position, so selected cells elsewhere do not change how it is read.
