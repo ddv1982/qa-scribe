@@ -176,11 +176,11 @@ fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
     result
 }
 
-/// Inline content with HTML white space collapsed and each line trimmed.
+/// Inline content with HTML white space collapsed outside code spans and each line trimmed.
 fn paragraph<'a>(nodes: impl Iterator<Item = &'a Node>) -> String {
-    let text: String = nodes.map(inline).collect();
-    text.split('\n')
-        .map(|line| escape_line_start(&line.split_whitespace().collect::<Vec<_>>().join(" ")))
+    join_inline(nodes.map(inline))
+        .split('\n')
+        .map(|line| escape_line_start(line.trim()))
         .collect::<Vec<_>>()
         .join("\n")
         .trim_matches('\n')
@@ -189,14 +189,14 @@ fn paragraph<'a>(nodes: impl Iterator<Item = &'a Node>) -> String {
 
 fn inline(node: &Node) -> String {
     let (name, tag, children) = match node {
-        Node::Text(text) => return escape_text(&text.replace(['\n', '\r', '\t'], " ")),
+        Node::Text(text) => return escape_text(&collapse_whitespace(text)),
         Node::Element {
             name,
             tag,
             children,
         } => (name.as_str(), tag, children),
     };
-    let content: String = children.iter().map(inline).collect();
+    let content = join_inline(children.iter().map(inline));
     let wrap = |marker: &str| outside_spaces(&content, |inner| format!("{marker}{inner}{marker}"));
     match name {
         "br" => "\n".into(),
@@ -204,10 +204,7 @@ fn inline(node: &Node) -> String {
         "strong" | "b" => wrap("**"),
         "em" | "i" => wrap("*"),
         "s" => wrap("~~"),
-        "code" => outside_spaces(
-            &raw_text(children).replace(['\n', '\r', '\t'], " "),
-            code_span,
-        ),
+        "code" => code_span(&raw_text(children).replace(['\n', '\r', '\t'], " ")),
         "u" => outside_spaces(&content, |inner| format!("<u>{inner}</u>")),
         "a" => match attribute_value(tag, "href").map(|href| href.trim().to_string()) {
             Some(href) if safe_link(&href) && !content.trim().is_empty() => {
@@ -217,6 +214,34 @@ fn inline(node: &Node) -> String {
         },
         _ => content,
     }
+}
+
+/// HTML white space: each run of it reads as one space.
+fn collapse_whitespace(text: &str) -> String {
+    let mut collapsed = String::with_capacity(text.len());
+    for character in text.chars() {
+        if !character.is_whitespace() {
+            collapsed.push(character);
+        } else if !collapsed.ends_with(' ') {
+            collapsed.push(' ');
+        }
+    }
+    collapsed
+}
+
+/// Joins inline Markdown with one space where two pieces meet at spaces. A code span starts and
+/// ends with a backtick, so its spaces are never touched.
+fn join_inline(pieces: impl Iterator<Item = String>) -> String {
+    let mut joined = String::new();
+    for piece in pieces {
+        let piece = if joined.ends_with(' ') {
+            piece.trim_start_matches(' ')
+        } else {
+            &piece
+        };
+        joined.push_str(piece);
+    }
+    joined
 }
 
 /// Backslash-escapes the characters that would start inline Markdown, so literal text in the
@@ -285,7 +310,8 @@ fn outside_spaces(content: &str, wrap: impl Fn(&str) -> String) -> String {
 }
 
 /// A code span whose backtick fence is longer than any backtick run inside it, padded with a
-/// space when the code starts or ends with a backtick (CommonMark strips one space each side).
+/// space when the code starts or ends with a backtick, or with a space while holding more than
+/// spaces, since CommonMark strips one space each side then.
 fn code_span(code: &str) -> String {
     let longest = code
         .split(|character| character != '`')
@@ -293,7 +319,8 @@ fn code_span(code: &str) -> String {
         .max()
         .unwrap_or(0);
     let fence = "`".repeat(longest + 1);
-    let pad = if code.starts_with('`') || code.ends_with('`') {
+    let spaced = code.starts_with(' ') && code.ends_with(' ') && !code.trim_matches(' ').is_empty();
+    let pad = if code.starts_with('`') || code.ends_with('`') || spaced {
         " "
     } else {
         ""

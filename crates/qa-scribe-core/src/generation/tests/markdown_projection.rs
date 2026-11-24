@@ -172,7 +172,6 @@ fn a_mark_selected_with_surrounding_spaces_keeps_its_mark() {
         ("em", "italic"),
         ("s", "strike"),
         ("u", "underline"),
-        ("code", "code"),
     ] {
         let html = format!("<p>Result<{tag}> fail </{tag}>here</p>");
         assert_eq!(
@@ -291,4 +290,27 @@ fn the_projection_and_the_parser_share_one_nesting_bound() {
         "</blockquote>".repeat(46)
     );
     assert!(!crate::chat::note_rewrite_fits("", &html));
+}
+
+#[test]
+fn inline_code_keeps_its_spaces_through_a_rewrite() {
+    for code in [
+        "echo    hello",
+        " fail ",
+        "  x  ",
+        " lead",
+        "trail ",
+        "   ",
+        " `tick` ",
+    ] {
+        let html = format!("<p>Run<code>{}</code>now</p>", html_text(code));
+        assert_eq!(
+            round_trip(&html),
+            vec![serde_json::json!({"type":"paragraph","content":[
+                {"type":"text","text":"Run"}, code_text(code), {"type":"text","text":"now"},
+            ]})],
+            "{html} -> {}",
+            project(&html)
+        );
+    }
 }
