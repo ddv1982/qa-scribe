@@ -13,7 +13,7 @@ const resultOrder: TestCaseResult[] = ['passed', 'failed', 'blocked', 'not_run']
  * Cases without a group come first; the others follow under their group title in the order the
  * groups first appear. The AI report uses the same result and notes labels.
  */
-export function testRunReport(run: Pick<TestRun, 'draftTitle' | 'createdAt' | 'cases'>): string {
+export function testRunReport(run: Pick<TestRun, 'draftTitle' | 'createdAt' | 'cases' | 'logEvidence'>): string {
   const totals = resultOrder
     .map((result) => `${run.cases.filter((testCase) => testCase.result === result).length} ${resultLabels[result].toLowerCase()}`)
     .join(', ')
@@ -27,6 +27,11 @@ export function testRunReport(run: Pick<TestRun, 'draftTitle' | 'createdAt' | 'c
     `- ${resultLabels[testCase.result]}: ${testCase.title}`,
     ...(testCase.notes ? resultNotesLines(testCase.notes) : testCase.remark ? [`  Remark: ${testCase.remark}`] : []),
     ...testCase.findingTitle ? [`  Finding: ${testCase.findingTitle}`] : [],
+    ...(run.logEvidence ?? []).filter((capture) => capture.caseId === testCase.id).map((capture) => {
+      const rows = capture.rowCount === 1 ? 'row' : 'rows'
+      const truncated = capture.truncated ? ', truncated' : ''
+      return `  Application logs: ${capture.sourceLabels.join(', ')} · ${capture.start} to ${capture.end} · ${capture.rowCount} ${rows}${truncated} · ${capture.portalUrl}`
+    }),
   ]
   const sections = [
     ...ungrouped.length ? [ungrouped.flatMap(caseLines).join('\n')] : [],

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-recent-application-log-queries"
+description = "Enables the recent_application_log_queries command without any pre-configured scope."
+commands.allow = ["recent_application_log_queries"]
+
+[[permission]]
+identifier = "deny-recent-application-log-queries"
+description = "Denies the recent_application_log_queries command without any pre-configured scope."
+commands.deny = ["recent_application_log_queries"]

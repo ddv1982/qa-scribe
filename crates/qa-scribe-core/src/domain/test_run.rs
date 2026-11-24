@@ -109,6 +109,9 @@ pub struct TestRun {
     pub updated_at: String,
     /// Ordered by position.
     pub cases: Vec<TestRunCase>,
+    #[serde(default)]
+    #[specta(optional)]
+    pub log_evidence: Vec<super::LogEvidenceSummary>,
 }
 
 /// A test run without its cases, with how many cases have each Result.

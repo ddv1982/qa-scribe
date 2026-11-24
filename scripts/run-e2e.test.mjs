@@ -12,10 +12,10 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
   const plan = createWdioInvocationPlan({}, '/tmp/e2e-root', '/tmp/e2e-artifacts')
 
   assert.deepEqual(plan.slice(0, criticalScenarios.length).map(({ id }) => id), criticalScenarios)
-  const legacy = plan.slice(0, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 8 : 0) + (process.platform === 'linux' ? 1 : 0))
+  const legacy = plan.slice(0, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 10 : 0) + (process.platform === 'linux' ? 1 : 0))
   assert.deepEqual(legacy.slice(criticalScenarios.length).map(({ id }) => id), [
     'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
-    ...(['linux', 'darwin'].includes(process.platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'editor-rich-content-restart'] : []),
+    ...(['linux', 'darwin'].includes(process.platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'editor-rich-content-restart', 'test-run-log-evidence', 'test-run-log-evidence-restart'] : []),
     ...(process.platform === 'linux' ? ['native-close'] : []),
   ])
   // A restart reopens the state of the invocation it restarts; only its artifacts are its own.
@@ -91,14 +91,14 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
   const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.deepEqual(linux.map(({ id }) => id), [
     ...criticalScenarios, 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
-    'chat-tool-authorization-copilot', 'manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'editor-rich-content-restart', 'native-close', 'ask-ai-isolation-initial', 'model-management', 'model-evidence', 'model-evidence-restart',
+    'chat-tool-authorization-copilot', 'manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'editor-rich-content-restart', 'test-run-log-evidence', 'test-run-log-evidence-restart', 'native-close', 'ask-ai-isolation-initial', 'model-management', 'model-evidence', 'model-evidence-restart',
     'model-selection', 'model-selection-restart', 'provider-qualification-disabled', 'provider-qualification-diagnostics',
     'provider-qualification-selector',
   ])
   for (const platform of ['darwin', 'win32']) {
     assert.deepEqual(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform).map(({ id }) => id), [
       ...criticalScenarios, 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
-      ...(platform === 'darwin' ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'editor-rich-content-restart', 'ask-ai-isolation-initial'] : []),
+      ...(platform === 'darwin' ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'editor-rich-content-restart', 'test-run-log-evidence', 'test-run-log-evidence-restart', 'ask-ai-isolation-initial'] : []),
     ])
   }
 })
@@ -351,7 +351,7 @@ test('default execution preserves migrated pair state through restart and isolat
         if (spec === 'chat-images.e2e.mjs') assert.equal(env.QA_SCRIBE_PROVIDER_CATALOG_MODE, 'selector')
         const isolation = spec === 'ask-ai-conversation-isolation.e2e.mjs'
         const restarting = env.QA_SCRIBE_E2E_EVIDENCE_RESTART === '1' || env.QA_SCRIBE_E2E_SELECTION_RESTART === '1'
-          || env.QA_SCRIBE_E2E_EDITOR_PHASE === 'restart'
+          || env.QA_SCRIBE_E2E_EDITOR_PHASE === 'restart' || env.QA_SCRIBE_E2E_LOG_PHASE === 'restart'
         const state = join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'retained-model-state')
         const peer = join(env.QA_SCRIBE_E2E_FIXTURE_DIR, 'retained-model-peer')
         const modelPhase = { 'model-management.e2e.mjs': 'M01', 'model-evidence.e2e.mjs': 'M02', 'model-selection.e2e.mjs': 'M03' }[spec]
@@ -390,7 +390,7 @@ test('default execution preserves migrated pair state through restart and isolat
     assert.equal(new Set(homes.values()).size, homes.size, 'Only intentional restart pairs share one fixture HOME')
     assert.equal(new Set(seeds).size, seeds.length)
     assert.deepEqual(restartChecks, [
-      ...(['linux', 'darwin'].includes(process.platform) ? ['editor-rich-content.e2e.mjs'] : []),
+      ...(['linux', 'darwin'].includes(process.platform) ? ['editor-rich-content.e2e.mjs', 'test-run-log-evidence.e2e.mjs'] : []),
       ...(process.platform === 'linux' ? ['model-evidence.e2e.mjs', 'model-selection.e2e.mjs'] : []),
     ])
     assert.equal(seeds.length, process.platform === 'linux' ? 2 : 0)

@@ -265,7 +265,7 @@ fn deleting_a_run_cascades_its_attempts_and_suggestions() {
 
 #[test]
 fn a_schema_25_database_keeps_the_run_and_conversation_on_upgrade() {
-    use qa_scribe_core::storage::Database;
+    use qa_scribe_core::storage::{Database, SCHEMA_VERSION};
     let dir = std::env::temp_dir().join(format!("qa-scribe-phase-five-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir(&dir).unwrap();
     let path = dir.join("phase-five.sqlite");
@@ -275,9 +275,16 @@ fn a_schema_25_database_keeps_the_run_and_conversation_on_upgrade() {
         session_id: f.session_id.clone(),
         draft_id: chat.draft_id.clone(),
     };
-    f.service.database().connection().execute_batch(
-        "DROP TABLE IF EXISTS chat_test_run_suggestions; DROP TABLE IF EXISTS chat_test_run_sources; PRAGMA user_version = 25;"
-    ).unwrap();
+    f.service
+        .database()
+        .connection()
+        .execute_batch(
+            "DROP TABLE chat_test_run_suggestions;
+         DROP TABLE chat_test_run_sources;
+         DROP TABLE test_run_log_captures;
+         PRAGMA user_version = 25;",
+        )
+        .unwrap();
     let expected = f.run.clone();
     drop(f);
 
@@ -296,7 +303,7 @@ fn a_schema_25_database_keeps_the_run_and_conversation_on_upgrade() {
     let version: i32 = db
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 26);
+    assert_eq!(version, SCHEMA_VERSION);
     drop(service);
     std::fs::remove_dir_all(dir).unwrap();
 }

@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+
+const assert = require('node:assert/strict')
+const { appendFileSync, readFileSync } = require('node:fs')
+const { dirname, isAbsolute, join } = require('node:path')
+
+const config = process.env.AZURE_CONFIG_DIR
+const fixture = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
+assert.ok(fixture && config === join(dirname(fixture), 'azure-config'))
+assert.equal(process.env.AZURE_EXTENSION_USE_DYNAMIC_INSTALL, 'no')
+assert.equal(process.env.AZURE_CORE_COLLECT_TELEMETRY, 'no')
+assert.equal(process.env.AZURE_LOGGING_ENABLE_LOG_FILE, 'false')
+
+const argv = process.argv.slice(2)
+const [,,,, target,, queryFile,, start,, end] = argv
+assert.deepEqual(argv, [
+  'monitor', 'app-insights', 'query', '--apps', target,
+  '--analytics-query', queryFile, '--start-time', start, '--end-time', end, '-o', 'json',
+])
+assert.equal(target, '/subscriptions/11111111-1111-4111-8111-111111111111/resourceGroups/qa/providers/Microsoft.Insights/components/checkout')
+assert.ok(queryFile.startsWith('@') && isAbsolute(queryFile.slice(1)))
+assert.equal(dirname(queryFile.slice(1)), process.cwd())
+assert.match(start, /^\d{4}-\d\d-\d\dT.*Z$/)
+assert.match(end, /^\d{4}-\d\d-\d\dT.*Z$/)
+assert.ok(Date.parse(start) < Date.parse(end))
+const kql = readFileSync(queryFile.slice(1), 'utf8')
+const mode = readFileSync(join(config, 'mode'), 'utf8')
+appendFileSync(join(config, 'calls.jsonl'), JSON.stringify({ target, kql, start, end, mode }) + '\n')
+const failure = {
+  'extension-missing': [2, "ERROR: 'app-insights' is misspelled or not recognized by the system."],
+  'signed-out': [1, "ERROR: Please run 'az login' to setup account."],
+  'access-denied': [1, 'ERROR: (InsufficientAccessError) Access denied.'],
+}[mode]
+if (failure) {
+  console.error(failure[1])
+  process.exitCode = failure[0]
+} else {
+  assert.equal(mode, 'ready')
+  const values = kql === 'print access = 1' ? [1] : ['fixture checkout trace']
+  console.log(JSON.stringify({ tables: [{
+    name: 'PrimaryResult', columns: [{ name: 'Message', type: typeof values[0] === 'number' ? 'int' : 'string' }],
+    rows: [values],
+  }] }))
+}

@@ -12,6 +12,7 @@ mod chat_questions;
 mod chat_refinements;
 mod chat_test_run_suggestions;
 mod creation;
+mod log_evidence;
 mod schema;
 mod session_sheet;
 mod test_runs;
@@ -77,7 +78,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 26;
+pub const SCHEMA_VERSION: i32 = 27;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();

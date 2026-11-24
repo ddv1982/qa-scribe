@@ -9,6 +9,8 @@ import { isolationInvocations, readIsolationEvidence } from './ask-ai-isolation-
 import { prepareOwnershipFixture } from './prepare-ask-ai-ownership.mjs'
 import { commandReceiptError, finishCommandReceipt, startCommandReceipt } from './command-utils.mjs'
 
+import { installAzFixture, logEvidenceInvocations, logEvidenceSpec } from './application-log-evidence-e2e.mjs'
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const fixtureBin = join(root, 'e2e', 'fixtures', 'bin')
 const criticalSpec = 'critical-workflows.e2e.mjs'
@@ -68,6 +70,11 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
     return editorRichContentInvocations(temporaryRoot, artifacts)
   }
 
+  if (requestedSpec === logEvidenceSpec) {
+    if (requestedScenario) throw new Error('Log evidence runs its phases serially')
+    return logEvidenceInvocations(temporaryRoot, artifacts)
+  }
+
   if (requestedSpec === 'ask-ai-ownership-migration.e2e.mjs') {
     if (requestedScenario) throw new Error('Ownership migration runs its named scenarios serially')
     return ['initial', 'reopen-1', 'reopen-2'].map((phase, index) => ({
@@ -120,9 +127,13 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
   if (!requestedSpec && !requestedScenario) {
     // session-lifecycle already executes the complete Chat-to-Note workflow.
     // Keep its standalone spec selectable without replaying it in every gate.
-    for (const id of ['chat-images', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
+    for (const id of ['chat-images', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content', 'test-run-log-evidence'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
       if (id === 'editor-rich-content') {
         plan.push(...editorRichContentInvocations(join(temporaryRoot, id), join(artifacts, id)))
+        continue
+      }
+      if (id === 'test-run-log-evidence') {
+        plan.push(...logEvidenceInvocations(join(temporaryRoot, id), join(artifacts, id)))
         continue
       }
       const provider = id.startsWith('chat-tool-authorization-') ? id.slice('chat-tool-authorization-'.length) : null
@@ -276,6 +287,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
     CODEX_HOME: join(temporaryRoot, 'home', '.codex'),
     CLAUDE_CONFIG_DIR: join(temporaryRoot, 'home', '.claude'),
     COPILOT_HOME: join(temporaryRoot, 'home', '.copilot'),
+    AZURE_CONFIG_DIR: join(temporaryRoot, 'azure-config'),
     XDG_CONFIG_HOME: join(temporaryRoot, 'config'),
     XDG_DATA_HOME: join(temporaryRoot, 'data'),
     XDG_CACHE_HOME: join(temporaryRoot, 'cache'),
@@ -288,7 +300,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
     // clean CI runner and a developer machine with real CLIs behave identically.
     PATH: [fixtureBin, process.env.PATH].filter(Boolean).join(delimiter),
     QA_SCRIBE_E2E_PROVIDER_PATH: fixtureBin,
-    QA_SCRIBE_E2E_BINARY: join(root, 'target', 'debug', process.platform === 'win32' ? 'qa-scribe-tauri.exe' : 'qa-scribe-tauri'),
+    QA_SCRIBE_E2E_BINARY: join(resolve(root, environment.CARGO_TARGET_DIR ?? 'target'), 'debug', process.platform === 'win32' ? 'qa-scribe-tauri.exe' : 'qa-scribe-tauri'),
     TAURI_CONFIG: JSON.stringify(tauriConfig),
   }
 
@@ -387,6 +399,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
         const link = join(providerBin, provider)
         symlinkSync(join(sourceBin, provider), link)
       }
+      installAzFixture(invocationEnvironment, fixtureBin, providerBin)
       invocationEnvironment.PATH = [providerBin, process.env.PATH].filter(Boolean).join(delimiter)
       invocationEnvironment.QA_SCRIBE_E2E_PROVIDER_PATH = providerBin
       if (!authorization) delete invocationEnvironment.QA_SCRIBE_E2E_AUTH_PROVIDER

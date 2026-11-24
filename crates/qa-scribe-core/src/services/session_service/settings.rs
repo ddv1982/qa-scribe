@@ -130,7 +130,10 @@ impl SessionService {
         let mut generation_read_sources = settings.generation_read_sources.clone();
         generation_read_sources.sort();
         generation_read_sources.dedup();
+        let application_log_sources =
+            crate::domain::validate_application_log_sources(settings.application_log_sources)?;
         let next = AppSettings {
+            application_log_sources,
             generation_read_sources,
             generation_system_prompt: prompt,
             selected_ai_model: model,

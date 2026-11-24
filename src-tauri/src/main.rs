@@ -1,4 +1,5 @@
 mod app_data;
+mod application_logs;
 mod commands;
 mod jobs;
 mod process_io;
@@ -121,6 +122,7 @@ fn main() {
             );
             app.manage(AppState::new(session_service, app_data_dir));
             app.manage(JobStore::default());
+            app.manage(commands::application_logs::ApplicationLogJobs::default());
             eprintln!(
                 "qa-scribe startup backend setup complete: elapsed_ms={}",
                 setup_started.elapsed().as_millis()
@@ -136,6 +138,8 @@ fn main() {
             if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
                 commands::providers::cancel_active_provider_discovery();
                 app.state::<JobStore>().kill_all_children();
+                app.state::<commands::application_logs::ApplicationLogJobs>()
+                    .shutdown();
             }
         });
 }
