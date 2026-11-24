@@ -40,6 +40,13 @@ describe('panels', () => {
     expect(normalizeRichEditorDocument(panelDocument(undefined))).toEqual(panelDocument('note'))
   })
 
+  it('trims surrounding whitespace from panel kinds in HTML and JSON', () => {
+    const html = '<aside data-panel=" warning "><p>Check it.</p></aside>'
+    expect(normalizeEditorHtml(html)).toBe('<aside data-panel="warning"><p>Check it.</p></aside>')
+    expect(richEditorDocumentFromHtml(html)).toEqual(panelDocument('warning'))
+    expect(normalizeRichEditorDocument(panelDocument(' warning '))).toEqual(panelDocument('warning'))
+  })
+
   it('count as content when empty, like a divider', () => {
     expect(normalizeEditorHtml('<aside data-panel="note"><p></p></aside>')).toBe('<aside data-panel="note"><p></p></aside>')
     expect(richEditorDocumentFromHtml('<aside data-panel="note"><p></p></aside>').doc.content?.[0]?.type).toBe('panel')

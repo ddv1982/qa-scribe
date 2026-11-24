@@ -12,7 +12,8 @@ export type PanelKind = (typeof panelKinds)[number]
 export const panelLabels: Record<PanelKind, string> = { note: 'Note', info: 'Info', success: 'Success', warning: 'Warning', error: 'Error' }
 
 export function panelKind(value: unknown): PanelKind {
-  return panelKinds.find((kind) => kind === value) ?? 'note'
+  const normalized = typeof value === 'string' ? value.trim() : ''
+  return panelKinds.find((kind) => kind === normalized) ?? 'note'
 }
 
 declare module '@tiptap/core' {
