@@ -140,8 +140,10 @@ function renderMarkdownFromDocument(editorDocument: RichEditorDocument, codeBloc
 function listItemMarkdown(node: ProseMirrorNode, children: string | string[] | undefined, parent?: ProseMirrorNode): string {
   const rendered = Array.isArray(children) ? children : [children ?? '']
   let body = ''
+  let firstBlock = ''
   node.forEach((child, _offset, index) => {
     const part = rendered[index] ?? ''
+    if (!firstBlock && part.trim()) firstBlock = child.type.name
     // A nested list follows the line before it directly, so the list stays tight, except an
     // ordered list starting past 1, which CommonMark reads right after a line as its text.
     const isList = child.type.name === 'bulletList' || child.type.name === 'orderedList'
@@ -150,6 +152,8 @@ function listItemMarkdown(node: ProseMirrorNode, children: string | string[] | u
   })
 
   const marker = parent?.type.name === 'orderedList' ? `${orderedListPosition(node, parent)}.` : '-'
+  // `- ---` reads as a divider in place of the item, so a divider first goes on the next line.
+  if (firstBlock === 'horizontalRule') return `${marker}${indentContinuation(`\n${body.trim()}`, marker.length + 1)}\n`
   return `${marker} ${indentContinuation(body.trim(), marker.length + 1)}\n`
 }
 

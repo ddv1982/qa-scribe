@@ -373,3 +373,23 @@ fn a_nested_ordered_list_starting_past_one_stays_a_list() {
         project(html)
     );
 }
+
+#[test]
+fn a_divider_first_in_a_list_item_stays_in_the_item() {
+    for (list, attrs) in [("ul", None), ("ol", Some(serde_json::json!({"start":1})))] {
+        let html = format!("<{list}><li><p></p><hr></li><li><p>Next</p></li></{list}>");
+        let mut expected = serde_json::json!({"type":if list == "ul" { "bulletList" } else { "orderedList" },"content":[
+            {"type":"listItem","content":[{"type":"paragraph","content":[]}, {"type":"horizontalRule"}]},
+            {"type":"listItem","content":[text_line(&["Next"])]},
+        ]});
+        if let Some(attrs) = attrs {
+            expected["attrs"] = attrs;
+        }
+        assert_eq!(
+            round_trip(&html),
+            vec![expected],
+            "{html} -> {}",
+            project(&html)
+        );
+    }
+}

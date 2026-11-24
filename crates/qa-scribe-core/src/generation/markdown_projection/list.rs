@@ -32,8 +32,10 @@ pub(super) fn list(name: &str, tag: &str, children: &[Node]) -> String {
         let indent = " ".repeat(if name == "ol" { marker.len() } else { 2 });
         let mut text = String::new();
         for (index, (block, tight)) in kinded_blocks(&unwrap_item(item)).iter().enumerate() {
-            // A nested list stays tight under its item where it can; other blocks get a blank line.
+            // A nested list stays tight under its item where it can; other blocks get a blank
+            // line. A divider first goes on the line after the marker, as `- ---` is a divider.
             let separator = match (index, tight) {
+                (0, _) if block == "---" => "\n",
                 (0, _) => "",
                 (_, true) => "\n",
                 _ => "\n\n",
@@ -41,10 +43,15 @@ pub(super) fn list(name: &str, tag: &str, children: &[Node]) -> String {
             text.push_str(separator);
             text.push_str(&indent_lines(
                 block,
-                if index == 0 { "" } else { &indent },
+                if separator.is_empty() { "" } else { &indent },
                 &indent,
             ));
         }
+        let marker = if text.starts_with('\n') {
+            marker.trim_end()
+        } else {
+            &marker
+        };
         items.push(format!("{marker}{text}").trim_end().to_string());
     }
     items.join("\n")

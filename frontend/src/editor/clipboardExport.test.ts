@@ -59,6 +59,15 @@ describe('clipboardExport', () => {
     expect(payload.plain).toBe(['- Parent', '', '  3. Step', '- Other', '  1. One'].join('\n'))
   })
 
+  // `- ---` reads as a divider in place of the list item.
+  it('writes the list marker on its own line for an item that starts with a divider', () => {
+    const payload = formatRecordForClipboard({
+      title: '',
+      bodyHtml: '<ul><li><p></p><hr></li><li><p>Next</p></li></ul><ol start="4"><li><p></p><hr><p>x</p></li></ol>',
+    })
+    expect(payload.plain).toBe(['-', '  ---', '- Next', '', '4.', '   ---', '', '   x'].join('\n'))
+  })
+
   it('keeps literal text that looks like a code block placeholder', () => {
     const literal = '\uE0000\uE001'
     const payload = formatRecordForClipboard({ title: '', bodyHtml: `<p>${literal}</p><pre><code>x</code></pre><p>a ${literal}</p>` })
