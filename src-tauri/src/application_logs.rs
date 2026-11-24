@@ -152,10 +152,16 @@ fn execute(
     })?;
     let stdout = child.stdout.take().expect("piped Azure CLI stdout");
     let stderr = child.stderr.take().expect("piped Azure CLI stderr");
-    let oversized = AtomicBool::new(false);
+    let stdout_oversized = AtomicBool::new(false);
     let (status, out, err) = thread::scope(|scope| {
-        let out = scope.spawn(|| read_output(stdout, RAW_OUTPUT_MAX, &oversized));
-        let err = scope.spawn(|| read_output(stderr, ERROR_OUTPUT_MAX, &oversized));
+        let out = scope.spawn(|| -> io::Result<Vec<u8>> {
+            let bytes = read_prefix(stdout, RAW_OUTPUT_MAX)?;
+            if bytes.len() as u64 > RAW_OUTPUT_MAX {
+                stdout_oversized.store(true, Ordering::Release);
+            }
+            Ok(bytes)
+        });
+        let err = scope.spawn(|| read_stderr(stderr));
         let started = Instant::now();
         let status = loop {
             if cancelled.load(Ordering::Acquire) {
@@ -164,7 +170,7 @@ fn execute(
             if started.elapsed() >= timeout {
                 break Err(LogQueryError::Access(ApplicationLogAccess::TimedOut));
             }
-            if oversized.load(Ordering::Acquire) {
+            if stdout_oversized.load(Ordering::Acquire) {
                 break Err(LogQueryError::TooMuchOutput);
             }
             match child.try_wait().map_err(failed) {
@@ -183,7 +189,7 @@ fn execute(
         )
     });
     let status = status?;
-    if oversized.load(Ordering::Acquire) {
+    if stdout_oversized.load(Ordering::Acquire) {
         return Err(LogQueryError::TooMuchOutput);
     }
     let out = out.map_err(failed)?;
@@ -192,19 +198,23 @@ fn execute(
     if !status.success() {
         return Err(LogQueryError::Access(response::classify_error(&stderr)));
     }
-    if response::indicates_partial_response(&stderr) {
+    if err.len() as u64 > ERROR_OUTPUT_MAX || response::indicates_partial_response(&stderr) {
         return Err(LogQueryError::InvalidResponse);
     }
     response::capture(query, &out)
 }
 
-fn read_output(stream: impl Read, limit: u64, oversized: &AtomicBool) -> io::Result<Vec<u8>> {
+fn read_prefix(stream: impl Read, limit: u64) -> io::Result<Vec<u8>> {
     let mut bytes = Vec::new();
     stream.take(limit + 1).read_to_end(&mut bytes)?;
-    if bytes.len() as u64 > limit {
-        oversized.store(true, Ordering::Release);
-    }
     Ok(bytes)
+}
+
+fn read_stderr(mut stream: impl Read) -> io::Result<Vec<u8>> {
+    let prefix = read_prefix(&mut stream, ERROR_OUTPUT_MAX)?;
+    // Let a verbose CLI finish and return its actual exit status.
+    io::copy(&mut stream, &mut io::sink())?;
+    Ok(prefix)
 }
 
 pub fn check(query: &ValidatedApplicationLogQuery, cancelled: &AtomicBool) -> ApplicationLogAccess {

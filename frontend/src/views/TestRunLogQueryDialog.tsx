@@ -4,8 +4,10 @@ import { Dialog } from '../components/Dialog'
 import { commands, type ApplicationLogSource, type LogEvidenceSummary } from '../bindings'
 import { formatError } from '../ui/format'
 
+const SECOND_MS = 1_000
+
 function dateField(date: Date): string {
-  return date.toISOString().slice(0, 16)
+  return date.toISOString().slice(0, 19)
 }
 
 export function TestRunLogQueryDialog({ caseId, onCapture, onClose }: {
@@ -17,9 +19,9 @@ export function TestRunLogQueryDialog({ caseId, onCapture, onClose }: {
   const [targetId, setTargetId] = useState('')
   const [recent, setRecent] = useState<string[]>([])
   const [kql, setKql] = useState('')
-  const [openedAt] = useState(Date.now)
-  const [start, setStart] = useState(() => dateField(new Date(openedAt - 15 * 60_000)))
-  const [end, setEnd] = useState(() => dateField(new Date(openedAt)))
+  const [defaultEnd] = useState(() => Math.ceil(Date.now() / SECOND_MS) * SECOND_MS)
+  const [start, setStart] = useState(() => dateField(new Date(defaultEnd - 15 * 60 * SECOND_MS)))
+  const [end, setEnd] = useState(() => dateField(new Date(defaultEnd)))
   const [pending, setPending] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -119,9 +121,9 @@ export function TestRunLogQueryDialog({ caseId, onCapture, onClose }: {
         </select>
       </label>
       <p>Queries use your Azure CLI sign-in. KQL can reference other resources your Azure account can access.</p>
-      <label className="field"><span>Start (UTC)</span><input type="datetime-local" value={start} disabled={pending}
+      <label className="field"><span>Start (UTC)</span><input type="datetime-local" step="1" value={start} disabled={pending}
         onChange={(event) => setStart(event.target.value)} /></label>
-      <label className="field"><span>End (UTC)</span><input type="datetime-local" value={end} disabled={pending}
+      <label className="field"><span>End (UTC)</span><input type="datetime-local" step="1" value={end} disabled={pending}
         onChange={(event) => setEnd(event.target.value)} /></label>
       {recent.length ? <label className="field"><span>Recent queries for this target</span>
         <select value="" disabled={pending} onChange={(event) => setKql(recent[Number(event.target.value)] ?? '')}>

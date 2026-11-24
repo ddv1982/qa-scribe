@@ -214,7 +214,13 @@ fn successful_exit_still_checks_stderr_and_releases_descendant_pipes() {
     ));
     assert!(matches!(
         execute_fixture("head -c 20000 /dev/zero >&2; exit 0"),
-        Err(LogQueryError::TooMuchOutput)
+        Err(LogQueryError::InvalidResponse)
+    ));
+    assert!(matches!(
+        execute_fixture(
+            "echo \"ERROR: Please run 'az login' to setup account.\" >&2; head -c 20000 /dev/zero >&2; exit 1"
+        ),
+        Err(LogQueryError::Access(ApplicationLogAccess::SignedOut))
     ));
     let started = Instant::now();
     assert!(execute_fixture("sleep 30 &").is_ok());
