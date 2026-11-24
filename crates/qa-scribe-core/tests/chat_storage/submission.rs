@@ -122,8 +122,7 @@ fn markdown_fallbacks_keep_text_boundaries_and_block_unsafe_resources() {
         "<s>retained</s>",
         "<blockquote><p>Quote α<br>next β</p></blockquote>",
         "<pre><code>select &#39;&lt;x&gt;&#39;;\nsecond line</code></pre>",
-        "Name | Result",
-        "α | Pass",
+        "<table><tbody><tr><th><p>Name</p></th><th><p>Result</p></th></tr><tr><td><p>α</p></td><td><p>Pass</p></td></tr></tbody></table>",
         "Evidence",
         "&lt;script&gt;alert(1)&lt;/script&gt;",
         "<ol start=\"1\">",
@@ -140,7 +139,6 @@ fn markdown_fallbacks_keep_text_boundaries_and_block_unsafe_resources() {
         "href=\"javascript:",
         "href=\"file:",
         "href=\"/settings",
-        "<table",
     ] {
         assert!(!result.body.contains(forbidden), "unexpected {forbidden}");
     }
