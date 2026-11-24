@@ -17,6 +17,7 @@ beforeAll(() => {
 
 afterEach(async () => {
   cleanup()
+  vi.restoreAllMocks()
   await new Promise((resolve) => setTimeout(resolve, 1))
 })
 
@@ -126,6 +127,28 @@ describe('slash menu', () => {
     typeAt('Cell', ' /')
     await new Promise((resolve) => setTimeout(resolve, 10))
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['Enter', 'Cell'],
+    ['Tab', 'Head'],
+    ['Escape', 'Cell'],
+  ])('handles %s in a table at %s before table shortcuts', async (key, cell) => {
+    const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => undefined)
+    const { editor, html } = await renderEditor('<table><tbody><tr><th><p>Head</p></th></tr><tr><td><p>Cell</p></td></tr></tbody></table>')
+    typeAt(cell, ' /')
+    expect((await options()).map((option) => option.textContent)).toEqual(['Image'])
+    press(editor, key)
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument())
+    if (key === 'Escape') {
+      expect(click).not.toHaveBeenCalled()
+      expect(html()).toContain(`${cell} /</p>`)
+    } else {
+      expect(click).toHaveBeenCalledTimes(1)
+      expect(click.mock.contexts[0]).toBe(screen.getByLabelText('Upload image file'))
+      expect(html()).not.toContain(`${cell} /`)
+    }
+    expect(html()).not.toContain('<br')
   })
 
   it('opens the toolbar upload flow from Image', async () => {

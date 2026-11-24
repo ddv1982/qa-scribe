@@ -30,6 +30,8 @@ function renderSlashMenu() {
 
 export const SlashMenu = Extension.create({
   name: 'slashMenu',
+  // Handle the menu's Enter before the table cell's line break shortcut.
+  priority: 1100,
 
   addProseMirrorPlugins() {
     return [
