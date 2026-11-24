@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, mkdirSync, readlinkSync, rmSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdtempSync, mkdirSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { installAzFixture } from './application-log-evidence-e2e.mjs'
 import { createWdioInvocationPlan } from './run-e2e.mjs'
 
@@ -42,6 +44,37 @@ test('only the Azure evidence workflow installs fake az into its provider path',
       assert.equal(readlinkSync(az), join(fixtureBin, 'az'))
       assert.ok(existsSync(environment.AZURE_CONFIG_DIR))
     }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('fake az accepts the query file when the working directory has a symlink alias', () => {
+  const root = mkdtempSync(join(tmpdir(), 'qa-scribe-az-cwd-'))
+  try {
+    const physical = join(root, 'physical')
+    const alias = join(root, 'alias')
+    const config = join(root, 'azure-config')
+    mkdirSync(physical)
+    mkdirSync(config)
+    symlinkSync(physical, alias, 'dir')
+    writeFileSync(join(physical, 'check.kql'), 'print access = 1')
+    writeFileSync(join(config, 'mode'), 'extension-missing')
+    const result = spawnSync(process.execPath, [
+      fileURLToPath(new URL('../e2e/fixtures/bin/az', import.meta.url)),
+      'monitor', 'app-insights', 'query', '--apps',
+      '/subscriptions/11111111-1111-4111-8111-111111111111/resourceGroups/qa/providers/Microsoft.Insights/components/checkout',
+      '--analytics-query', '@' + join(alias, 'check.kql'),
+      '--start-time', '2026-11-24T10:00:00Z', '--end-time', '2026-11-24T10:15:00Z', '-o', 'json',
+    ], { cwd: physical, encoding: 'utf8', env: {
+      AZURE_CONFIG_DIR: config,
+      QA_SCRIBE_E2E_FIXTURE_DIR: join(root, 'fixtures'),
+      AZURE_EXTENSION_USE_DYNAMIC_INSTALL: 'no',
+      AZURE_CORE_COLLECT_TELEMETRY: 'no',
+      AZURE_LOGGING_ENABLE_LOG_FILE: 'false',
+    } })
+    assert.equal(result.status, 2, result.stderr)
+    assert.match(result.stderr, /app-insights.*not recognized/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
