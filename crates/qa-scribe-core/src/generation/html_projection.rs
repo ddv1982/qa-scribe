@@ -80,6 +80,14 @@ impl<'a> HtmlPromptProjector<'a> {
             (false, "br") => self.push_newline(),
             (false, "p" | "div" | "section" | "article" | "blockquote") => self.push_block_start(),
             (true, "p" | "div" | "section" | "article" | "blockquote") => self.push_newline(),
+            // A panel names its kind on a line of its own, before its content.
+            (false, "aside") => {
+                self.push_newline();
+                let kind = attribute_value(raw_tag, "data-panel").unwrap_or_default();
+                self.push_literal(&format!("{}:", super::panel::label(kind.trim())));
+                self.push_newline();
+            }
+            (true, "aside") => self.push_newline(),
             (false, "h1" | "h2" | "h3" | "h4" | "h5" | "h6") => self.push_newline(),
             (true, "h1" | "h2" | "h3" | "h4" | "h5" | "h6") => self.push_newline(),
             (false, "ul" | "ol") => self.push_newline(),

@@ -286,6 +286,12 @@ fn project(node: &Value, text: &mut String, image_count: &mut usize) {
         Some("image") => *image_count += 1,
         Some("text") => text.push_str(node["text"].as_str().unwrap_or_default()),
         Some("horizontalRule") => text.push_str("---\n"),
+        // A panel names its kind on a line of its own, as Generate's plain text does.
+        Some("panel") => {
+            let kind = node["attrs"]["kind"].as_str().unwrap_or_default();
+            text.push_str(crate::generation::panel::label(kind));
+            text.push_str(":\n");
+        }
         _ => {}
     }
     if let Some(children) = node["content"].as_array() {

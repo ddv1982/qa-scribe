@@ -12,6 +12,7 @@ pub use images::preserve_managed_attachment_images;
 
 const EDITOR_HTML_TAGS: &[&str] = &[
     "a",
+    "aside",
     "b",
     "blockquote",
     "br",
@@ -303,6 +304,14 @@ fn sanitize_opening_editor_tag(tag_name: &str, raw_tag: &str) -> Option<String> 
         "li" => Some(sanitize_list_item_tag(raw_tag)),
         "br" => Some("<br>".to_string()),
         "hr" => Some("<hr>".to_string()),
+        "aside" => Some(format!(
+            "<aside data-panel=\"{}\">",
+            super::panel::kind(
+                attribute_value(raw_tag, "data-panel")
+                    .unwrap_or_default()
+                    .trim()
+            )
+        )),
         _ => Some(format!("<{tag_name}>")),
     }
 }

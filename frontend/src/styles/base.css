@@ -104,6 +104,23 @@
   --action-danger-hover: #931c15;
   --action-danger-tint: #f8e9e6;
 
+  /* Panels in a document: a tinted block, a coloured edge and a label per kind. */
+  --panel-note-surface: #f0f1ed;
+  --panel-note-border: #7d8781;
+  --panel-note-label: var(--text-secondary);
+  --panel-info-surface: #e9f2ef;
+  --panel-info-border: var(--accent);
+  --panel-info-label: var(--accent);
+  --panel-success-surface: #e9f2ec;
+  --panel-success-border: var(--success);
+  --panel-success-label: var(--success);
+  --panel-warning-surface: #f7f0e4;
+  --panel-warning-border: var(--warning);
+  --panel-warning-label: var(--warning);
+  --panel-error-surface: #f9eceb;
+  --panel-error-border: var(--danger);
+  --panel-error-label: var(--danger);
+
   --backdrop: rgba(9, 13, 20, 0.4);
 
   --shadow-sm:
@@ -162,6 +179,13 @@
   --brand-paper: #141715;
   --action-danger-hover: #ffa698;
   --action-danger-tint: #3a2622;
+
+  --panel-note-surface: #222725;
+  --panel-note-border: #7a847e;
+  --panel-info-surface: #1b2b27;
+  --panel-success-surface: #1c2b22;
+  --panel-warning-surface: #2d281d;
+  --panel-error-surface: #2f201e;
 
   --backdrop: rgba(2, 4, 8, 0.6);
 

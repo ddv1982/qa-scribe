@@ -1,6 +1,7 @@
 mod html;
 mod html_projection;
 mod markdown_projection;
+pub(crate) mod panel;
 mod preferences;
 mod prompt;
 mod response;

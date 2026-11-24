@@ -4,6 +4,7 @@ import { copyHtmlToClipboard } from '../tauri'
 import { managedAttachmentImagesInDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
 import { richTextEditorExtensions } from './editorExtensions'
 import { managedAttachmentProtocol } from './editorHtml'
+import { panelKind, panelLabels } from './editorPanels'
 import { escapeHtml, isSafeUrlWithProtocols, managedAttachmentIdFromSrc } from './htmlUtils'
 
 export type ClipboardRecord = {
@@ -48,6 +49,14 @@ function renderClipboardHtml(title: string, editorDocument: RichEditorDocument):
       const alt = image.getAttribute('alt')?.trim() || 'Attached image'
       image.replaceWith(document.createTextNode(`Image: ${alt}`))
     }
+  })
+  // Jira and Confluence have no panel in pasted HTML, so a panel is a quote led by its bold label.
+  container.querySelectorAll('aside').forEach((panel) => {
+    const quote = document.createElement('blockquote')
+    const label = document.createElement('p')
+    label.append(Object.assign(document.createElement('strong'), { textContent: panelLabels[panelKind(panel.getAttribute('data-panel'))] }))
+    quote.append(label, ...Array.from(panel.childNodes))
+    panel.replaceWith(quote)
   })
   const heading = title ? `<h2>${escapeHtml(title)}</h2>` : ''
   return `${heading}${container.innerHTML}`
@@ -120,6 +129,12 @@ function renderMarkdownFromDocument(editorDocument: RichEditorDocument, codeBloc
           const fence = codeFence(node.textContent)
           codeBlocks.fenced.push(`${fence}\n${node.textContent}\n${fence}`)
           return `\n${codeBlocks.opener}${codeBlocks.fenced.length - 1}${placeholderCloser}\n`
+        },
+        // A panel is a quote led by its bold label, as in the HTML flavour: Markdown readers
+        // such as Jira's and Confluence's paste have no GitHub alerts.
+        panel: ({ node, children }: { node: ProseMirrorNode; children?: string | string[] }) => {
+          const body = `**${panelLabels[panelKind(node.attrs.kind)]}**\n\n${joinChildren(children).trim()}`.trim()
+          return `\n${body.split('\n').map((line) => `> ${line}`).join('\n')}\n`
         },
         // A table cell is one line of a GFM pipe table, as Ask AI's projection writes it.
         tableHeader: ({ node }: { node: ProseMirrorNode }) => tableCellMarkdown(node),

@@ -11,6 +11,8 @@ mod images;
 mod markdown_projection;
 #[path = "tests/markdown_projection_tables.rs"]
 mod markdown_projection_tables;
+#[path = "tests/panels.rs"]
+mod panels;
 #[path = "tests/prompt_and_projection.rs"]
 mod prompt_and_projection;
 #[path = "tests/response_parser.rs"]

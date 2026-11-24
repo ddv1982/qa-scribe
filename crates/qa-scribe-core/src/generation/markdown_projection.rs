@@ -115,7 +115,7 @@ fn close(stack: &mut Vec<(String, String, Vec<Node>)>) {
 fn is_block(node: &Node) -> bool {
     matches!(node, Node::Element { name, .. } if matches!(name.as_str(),
         "p" | "div" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "ul" | "ol" | "li" | "pre"
-            | "blockquote" | "hr" | "img" | "table" | "section" | "article"))
+            | "blockquote" | "aside" | "hr" | "img" | "table" | "section" | "article"))
 }
 
 /// Block-level Markdown, one entry per block. Loose inline content becomes a paragraph.
@@ -157,6 +157,7 @@ fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
             "ul" | "ol" => list(name, tag, children),
             "pre" => code_block(children),
             "blockquote" => quote(children),
+            "aside" => panel(tag, children),
             "hr" => "---".into(),
             "table" => table(children),
             "img" => image(tag),
@@ -416,6 +417,16 @@ fn raw_text(nodes: &[Node]) -> String {
             Node::Element { children, .. } => raw_text(children),
         })
         .collect()
+}
+
+/// A panel as the GitHub alert of its kind: the alert line, then its blocks quoted.
+fn panel(tag: &str, children: &[Node]) -> String {
+    let kind = attribute_value(tag, "data-panel").unwrap_or_default();
+    let alert = format!("> [!{}]", super::panel::alert(kind.trim()));
+    match quote(children) {
+        body if body == ">" => alert,
+        body => format!("{alert}\n{body}"),
+    }
 }
 
 fn quote(children: &[Node]) -> String {

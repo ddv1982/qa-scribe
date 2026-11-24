@@ -48,6 +48,10 @@ fn render(node: &Value) -> String {
         }
         Some("codeBlock") => format!("<pre><code>{content}</code></pre>"),
         Some("blockquote") => format!("<blockquote>{content}</blockquote>"),
+        Some("panel") => format!(
+            "<aside data-panel=\"{}\">{content}</aside>",
+            crate::generation::panel::kind(node["attrs"]["kind"].as_str().unwrap_or_default())
+        ),
         Some("horizontalRule") => "<hr>".into(),
         Some("bulletList") => format!("<ul>{content}</ul>"),
         Some("orderedList") => format!(
