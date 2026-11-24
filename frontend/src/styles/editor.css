@@ -87,6 +87,13 @@
   border-radius: var(--radius-sm);
 }
 
+.toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
 .toolbar-divider {
   width: 1px;
   height: 16px;
