@@ -11,6 +11,7 @@ import {
 } from './editorHtml'
 import { richTextEditorExtensions } from './editorExtensions'
 import { normalizeRichEditorDocument, richEditorDocumentsEqual, type RichEditorDocument } from './editorDocument'
+import { positionAfterTable } from './editorTables'
 import { notifyRichEditorRegistry, registerRichEditor, setActiveRichEditor, type RichEditorImageInserter } from './richEditorRegistry'
 
 export { FormatToolbar } from './FormatToolbar'
@@ -124,18 +125,11 @@ export function RichTextEditor({
       const source = attachmentId !== null ? `${managedAttachmentProtocol}${attachmentId}` : previewSrc
       if (!source) return false
       if (attachmentId && previewSrc) previewCache.seed(attachmentId, previewSrc)
-      const inserted = editor
-        .chain()
-        .focus(undefined, { scrollIntoView: false })
-        .insertContent({
-          type: 'image',
-          attrs: {
-            src: source,
-            attachmentId,
-            alt: filename,
-          },
-        })
-        .run()
+      const image = { type: 'image', attrs: { src: source, attachmentId, alt: filename } }
+      // A cell holds no image, so an image for a cell goes after its table.
+      const afterTable = positionAfterTable(editor.state.selection.$from)
+      const chain = editor.chain().focus(undefined, { scrollIntoView: false })
+      const inserted = (afterTable === null ? chain.insertContent(image) : chain.insertContentAt(afterTable, image)).run()
 
       if (inserted && previewSrc) {
         queueManagedPreviewHydration(editor, previewLoadRef, previewRetryTimerRef, previewCache)

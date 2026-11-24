@@ -83,6 +83,12 @@ function pasteClosedParagraphInCell(view: EditorView, _event: ClipboardEvent, sl
   return true
 }
 
+/** The position after the table around `$position`, where content a cell cannot hold goes. */
+export function positionAfterTable($position: ResolvedPos): number | null {
+  for (let depth = $position.depth; depth > 0; depth -= 1) if ($position.node(depth).type.name === 'table') return $position.after(depth)
+  return null
+}
+
 function inTableCell($position: ResolvedPos): boolean {
   for (let depth = $position.depth; depth > 0; depth -= 1) {
     const role: unknown = $position.node(depth).type.spec.tableRole

@@ -189,7 +189,8 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
       <ToolbarButton
         label="Divider"
         icon={SeparatorHorizontal}
-        disabled={disabled}
+        // A divider has no place in a cell; inserted there it would split the table.
+        disabled={disabled || Boolean(editor?.isActive('table'))}
         controlsId={editorId}
         command={() => editor?.chain().focus().setHorizontalRule().run()}
       />

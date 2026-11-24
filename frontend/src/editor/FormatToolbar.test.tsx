@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { FormatToolbar } from './FormatToolbar'
 import { RichTextEditor } from './RichTextEditor'
 import { richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
+import type { RichEditorImageUpload } from './richEditorRegistry'
 
 beforeAll(() => {
   // jsdom has no layout; ProseMirror measures ranges when it scrolls the selection into view.
@@ -225,6 +226,37 @@ describe('FormatToolbar', () => {
       chooseBlockStyle('h2')
       await waitFor(() => expect(html()).toMatch(/^<h2>One<\/h2><h2>Two<\/h2>/))
       expect(html()).toContain(twoByTwo)
+    })
+
+    // Each would split the table at the caret: a divider has no place in a cell.
+    it('disables Divider in a cell', async () => {
+      const { editor } = await renderEditor(`<p>Before</p>${twoByTwo}`)
+      selectText(editor)
+      expect(screen.getByRole('button', { name: 'Divider' })).toBeEnabled()
+      selectText(editor, { index: 3 })
+      await screen.findByRole('group', { name: 'Table' })
+      expect(screen.getByRole('button', { name: 'Divider' })).toBeDisabled()
+    })
+
+    it('inserts an uploaded image after the table, not in the cell', async () => {
+      const onUploadImage = vi.fn((_: RichEditorImageUpload) => undefined)
+      const onChange = vi.fn<(value: RichEditorDocument) => void>()
+      render(
+        <>
+          <FormatToolbar editorId="editor-one" onUploadImage={onUploadImage} />
+          <RichTextEditor editorId="editor-one" value={richEditorDocumentFromHtml(tableHtml(['A', 'B'], ['1', '2'], ['3', '4']))} onChange={onChange} />
+        </>,
+      )
+      const editor = await screen.findByRole('textbox', { name: 'Note body' })
+      await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Upload image' }).disabled).toBe(false))
+      selectText(editor, { index: 2 })
+      await screen.findByRole('group', { name: 'Table' })
+      fireEvent.click(screen.getByRole('button', { name: 'Upload image' }))
+      fireEvent.change(screen.getByLabelText('Upload image file'), { target: { files: [new File(['png'], 'evidence.png', { type: 'image/png' })] } })
+      expect(onUploadImage.mock.calls[0]?.[0].insertImage('attachment-1', 'evidence.png', 'data:image/png;base64,AAAA')).toBe(true)
+      await waitFor(() => expect(onChange).toHaveBeenCalled())
+      const html = richEditorDocumentToHtml(onChange.mock.lastCall![0])
+      expect(html).toMatch(new RegExp(`^${tableHtml(['A', 'B'], ['1', '2'], ['3', '4'])}<img [^>]*data-attachment-id="attachment-1"[^>]*><p></p>$`))
     })
 
     it('keeps the editor selection when a table control is pressed', async () => {
