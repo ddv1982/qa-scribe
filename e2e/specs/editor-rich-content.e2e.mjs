@@ -262,6 +262,9 @@ describe('Rich editor content in the built native application', () => {
       assert.deepEqual(tableRows(updated.bodyJson), updatedTable)
       await browser.saveScreenshot(join(artifacts, 'after-update.png'))
 
+      // In a narrow window, such as the macOS gate's, Ask AI covers the draft and its Copy button.
+      await click(`${panel} button[aria-label="Close Ask AI"]`)
+      await $(panel).waitForDisplayed({ reverse: true })
       await click(`[aria-label="Copy ${draftTitle}"]`)
       let copied
       await browser.waitUntil(() => {
