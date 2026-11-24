@@ -28,6 +28,7 @@ behind it is [ADR 0011](../adr/0011-one-accent-and-shared-components.md).
 | Borders | `--border-subtle`, `--border-default`, `--border-strong` |
 | Accent | `--accent`, `--accent-tint`, `--accent-border`, `--on-accent` |
 | Result and severity | `--success`, `--warning`, `--danger` and their `-tint` forms |
+| Panels in a document | `--panel-<kind>-surface`, `--panel-<kind>-border`, `--panel-<kind>-label` for `note`, `info`, `success`, `warning`, `error` |
 | Space, on a 4px grid | `--space-1` to `--space-8` |
 | Control heights | `--control-sm` 28px, `--control-md` 32px, `--control-lg` 36px |
 | Corners | `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-full` |
@@ -61,6 +62,27 @@ are the next ones to extract; until then, copy the named pattern exactly.
 | Tabs | `role="tablist"` with `role="tab"` buttons and `aria-selected` | Pattern, to extract as `Tabs` |
 | Small status label | `Badge` in `components/Badge.tsx`: a quiet pill for a short fact such as a format, a timebox or a state | Shared |
 | One choice from a few, or none | `Segmented` in `components/Segmented.tsx`: toggle buttons on a sunken track with `aria-pressed`. `allowDeselect` lets the pressed option be pressed again to clear it; a `tone` (`success`, `danger`, `warning`) colours a pressed result. Used by the theme setting, test run results and the Write \| Generate switch of a new draft, shown only when an AI provider is ready | Shared |
+
+## Editor
+
+- **Slash menu.** Typing `/` in a document opens a listbox of the blocks the
+  toolbar can insert, under the caret: headings 1 to 6, the three lists, table,
+  code block, quote, the five panels, divider and image. Focus stays in the
+  document, which points at the highlighted option with
+  `aria-activedescendant`; the highlight uses `--surface-selected`, not a focus
+  ring. ArrowUp and ArrowDown move and wrap, Enter or Tab inserts, Escape
+  closes, and typed letters filter by label words and keywords (`/warn`,
+  `/h2`). Each item runs the toolbar's own command. In a table cell only Image
+  is offered, since every other block would split the table, and in a code
+  block `/` is plain text. Image opens the toolbar's upload flow, so it is
+  offered only where the toolbar can upload.
+- **Panels.** A panel is a callout block: a tinted surface, a 3px edge in its
+  kind's colour and its kind as a small label (Note, Info, Success, Warning,
+  Error). Colour keeps its meaning: success, warning and error use the result
+  colours, info uses the accent tint and note stays neutral. The label is
+  decoration; the panel has role `note` and a name such as "Warning panel".
+  `check:contrast` checks text, label and edge on every panel surface in both
+  themes.
 
 ## Adding a screen
 

@@ -4,6 +4,8 @@
 
 - The editor has headings 1 to 6, a numbered list button, strikethrough, inline code, plain code blocks, quotes, dividers and underline. They are kept when you save and reopen, apply an Ask AI suggestion, copy for Jira, and start a test run. A level-1 heading ends a test case and its group; headings 4 to 6 stay inside a test case.
 - Ask AI rewrites keep each image where the suggestion places it, and add only the images it left out at the end.
+- Type `/` in the editor to insert a heading, list, checklist, table, code block, quote, panel, divider or image. Type to filter, for example `/warn`, move with the arrow keys and press Enter. In a table cell the menu offers only an image.
+- Panels: note, info, success, warning and error callouts. They are kept when you save and reopen, apply an Ask AI suggestion (Ask AI reads and writes them as GitHub alerts such as `> [!WARNING]`), and start a test run. Copy for Jira writes a panel as a quote that starts with its kind in bold.
 - Documents saved with these new formats may lose that formatting when opened in an older version of QA Scribe.
 
 ## v0.20.0 - 2026-11-23
