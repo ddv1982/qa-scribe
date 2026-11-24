@@ -50,6 +50,12 @@ describe('clipboardExport', () => {
     expect(payload.plain).toBe(['10. Outer', '    - inner', '', '      ```', '      x', '      ```', '', '    after'].join('\n'))
   })
 
+  it('keeps literal text that looks like a code block placeholder', () => {
+    const literal = '\uE0000\uE001'
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: `<p>${literal}</p><pre><code>x</code></pre><p>a ${literal}</p>` })
+    expect(payload.plain).toBe([literal, '', '```', 'x', '```', '', `a ${literal}`].join('\n'))
+  })
+
   it('keeps a code block inside a quote exactly', () => {
     const payload = formatRecordForClipboard({ title: '', bodyHtml: '<blockquote><pre><code>a  \n\n\n b</code></pre></blockquote>' })
     expect(payload.plain).toBe(['> ```', '> a  ', '>', '>', '>  b', '> ```'].join('\n'))

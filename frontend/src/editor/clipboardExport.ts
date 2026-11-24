@@ -24,7 +24,7 @@ export type ClipboardImageReference = {
 export function formatRecordForClipboard(record: ClipboardRecord): ClipboardPayload {
   const title = record.title.trim()
   const editorDocument = richEditorDocumentFromHtml(record.bodyHtml)
-  const codeBlocks: CodeBlocks = { opener: '\uE000', fenced: [] }
+  const codeBlocks: CodeBlocks = { opener: placeholderOpener(`${title}${JSON.stringify(editorDocument.doc)}`), fenced: [] }
   const plainParts = [title ? `## ${title}` : '', renderMarkdownFromDocument(editorDocument, codeBlocks)]
     .map((part) => trimBlankLines(part))
     .filter(Boolean)
@@ -187,6 +187,14 @@ function indentContinuation(body: string, width: number): string {
 type CodeBlocks = { opener: string; fenced: string[] }
 
 const placeholderCloser = '\uE001'
+
+// A placeholder starts with a run of private-use characters longer than any run in the record,
+// so literal text never reads as a placeholder.
+function placeholderOpener(source: string): string {
+  let opener = '\uE000'
+  while (source.includes(opener)) opener += '\uE000'
+  return opener
+}
 
 // Each placeholder line becomes its fenced code. The first line keeps the placeholder's prefix
 // (list markers, indent, quote markers); later lines take it with each list marker turned into
