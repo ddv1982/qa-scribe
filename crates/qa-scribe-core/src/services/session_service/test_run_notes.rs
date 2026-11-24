@@ -252,7 +252,7 @@ fn collect_images<'a>(node: &'a Value, ids: &mut BTreeSet<&'a str>) -> Result<()
     Ok(())
 }
 
-pub(super) fn summarize(body_json: String) -> TestCaseNotes {
+pub(crate) fn summarize(body_json: String) -> TestCaseNotes {
     let mut text = String::new();
     let mut image_count = 0;
     if let Ok(document) = parse(&body_json) {
@@ -269,6 +269,7 @@ fn project(node: &Value, text: &mut String, image_count: &mut usize) {
     match node["type"].as_str() {
         Some("image") => *image_count += 1,
         Some("text") => text.push_str(node["text"].as_str().unwrap_or_default()),
+        Some("horizontalRule") => text.push_str("---\n"),
         _ => {}
     }
     if let Some(children) = node["content"].as_array() {

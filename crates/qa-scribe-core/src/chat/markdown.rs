@@ -1,45 +1,87 @@
 //! Convert only newly submitted assistant Markdown into the existing editor schema.
 //! HTML is derived from the same nodes as JSON; no raw provider HTML is trusted.
-use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag};
+use crate::{Result, error::validation, generation::managed_attachment_protocol};
+use pulldown_cmark::{Event, Options, Parser, Tag};
 use serde_json::{Value, json};
 
 mod html;
 pub(crate) use html::to_html;
+#[cfg(test)]
+mod tests;
 
 struct Frame<'a> {
     tag: Option<Tag<'a>>,
     nodes: Vec<Value>,
     checked: Option<bool>,
+    /// An open `<u>` inline HTML tag, the one inline HTML form kept as a mark.
+    underline: bool,
+}
+
+impl<'a> Frame<'a> {
+    fn new(tag: Option<Tag<'a>>, underline: bool) -> Self {
+        Self {
+            tag,
+            nodes: vec![],
+            checked: None,
+            underline,
+        }
+    }
+}
+
+/// Open Markdown elements the parser follows. Deeper input reads back as literal text, so the
+/// recursive renderers stay within the thread stack. The Ask AI Notes projection keeps to it.
+pub(crate) const MAX_NESTING: usize = 47;
+
+/// Whether the parser reads `text` as Markdown, not as literal text for nesting too deep.
+pub(crate) fn within_nesting(text: &str) -> bool {
+    matches!(parse_events(text, None), Ok(Some(_)))
 }
 
 pub(crate) fn literal(text: &str) -> Vec<Value> {
     vec![node("paragraph", text_nodes(text))]
 }
 
+/// Assistant Markdown for display. Images become their alt text.
 pub(crate) fn parse(text: &str) -> Vec<Value> {
+    parse_inner(text, None).expect("display parsing places no images")
+}
+
+/// A rewrite of a record or the Note. A managed image (`![alt](qa-scribe-attachment://<id>)`)
+/// becomes the `known` image node with that id, in place; an unknown id refuses the reply.
+pub(crate) fn parse_with_images(text: &str, known: &[Value]) -> Result<Vec<Value>> {
+    parse_inner(text, Some(known))
+}
+
+fn parse_inner(text: &str, images: Option<&[Value]>) -> Result<Vec<Value>> {
+    Ok(parse_events(text, images)?.unwrap_or_else(|| literal(text)))
+}
+
+/// The editor nodes, or `None` when elements nest deeper than `MAX_NESTING`.
+fn parse_events(text: &str, images: Option<&[Value]>) -> Result<Option<Vec<Value>>> {
     let options =
         Options::ENABLE_TABLES | Options::ENABLE_TASKLISTS | Options::ENABLE_STRIKETHROUGH;
-    let mut stack = vec![Frame {
-        tag: None,
-        nodes: vec![],
-        checked: None,
-    }];
+    let mut stack = vec![Frame::new(None, false)];
     for event in Parser::new_ext(text, options) {
         match event {
             Event::Start(tag) => {
-                // Deep input remains readable rather than overflowing recursive renderers.
-                if stack.len() >= 48 {
-                    return literal(text);
+                // The root frame is not an element, so `stack.len()` counts this one too.
+                if stack.len() > MAX_NESTING {
+                    return Ok(None);
                 }
-                stack.push(Frame {
-                    tag: Some(tag),
-                    nodes: vec![],
-                    checked: None,
-                });
+                stack.push(Frame::new(Some(tag), false));
             }
             Event::End(_) => {
+                close_underline(&mut stack);
                 let frame = stack.pop().expect("balanced Markdown parser events");
-                stack.last_mut().unwrap().nodes.extend(finish(frame));
+                let nodes = match (&frame.tag, images) {
+                    (Some(Tag::Image { dest_url, .. }), Some(known))
+                        if dest_url.starts_with(&managed_attachment_protocol()) =>
+                    {
+                        vec![known_image(known, dest_url)?]
+                    }
+                    _ => finish(frame),
+                };
+                stack.last_mut().unwrap().nodes.extend(nodes);
             }
             Event::TaskListMarker(checked) => {
                 if let Some(item) = stack
@@ -50,10 +92,32 @@ pub(crate) fn parse(text: &str) -> Vec<Value> {
                     item.checked = Some(checked);
                 }
             }
-            Event::Text(value)
-            | Event::Code(value)
-            | Event::Html(value)
-            | Event::InlineHtml(value) => {
+            Event::Text(value) if matches!(stack.last().unwrap().tag, Some(Tag::CodeBlock(_))) => {
+                stack
+                    .last_mut()
+                    .unwrap()
+                    .nodes
+                    .push(json!({"type":"text", "text":value.as_ref()}));
+            }
+            Event::Code(value) => stack
+                .last_mut()
+                .unwrap()
+                .nodes
+                .push(json!({"type":"text", "text":value.as_ref(), "marks":[{"type":"code"}]})),
+            Event::InlineHtml(value) if value.eq_ignore_ascii_case("<u>") => {
+                if stack.len() > MAX_NESTING {
+                    return Ok(None);
+                }
+                stack.push(Frame::new(None, true));
+            }
+            Event::InlineHtml(value)
+                if value.eq_ignore_ascii_case("</u>") && stack.last().unwrap().underline =>
+            {
+                let mut frame = stack.pop().unwrap();
+                mark(&mut frame.nodes, json!({"type":"underline"}));
+                stack.last_mut().unwrap().nodes.extend(frame.nodes);
+            }
+            Event::Text(value) | Event::Html(value) | Event::InlineHtml(value) => {
                 stack.last_mut().unwrap().nodes.extend(text_nodes(&value));
             }
             Event::SoftBreak | Event::HardBreak => stack
@@ -61,30 +125,102 @@ pub(crate) fn parse(text: &str) -> Vec<Value> {
                 .unwrap()
                 .nodes
                 .push(json!({"type":"hardBreak"})),
-            Event::Rule => stack.last_mut().unwrap().nodes.extend(literal("---")),
+            Event::Rule => stack
+                .last_mut()
+                .unwrap()
+                .nodes
+                .push(json!({"type":"horizontalRule"})),
             _ => {}
         }
     }
-    blocks(stack.pop().unwrap().nodes)
+    close_underline(&mut stack);
+    let mut nodes = blocks(stack.pop().unwrap().nodes);
+    merge_text(&mut nodes);
+    Ok(Some(nodes))
+}
+
+fn known_image(known: &[Value], source: &str) -> Result<Value> {
+    let id = &source[managed_attachment_protocol().len()..];
+    known
+        .iter()
+        .find(|node| node["attrs"]["attachmentId"] == id || node["attrs"]["src"] == source)
+        .cloned()
+        .ok_or_else(|| validation("The suggestion refers to an image that is not in this content"))
+}
+
+/// Images are blocks in the editor, so an image inside a paragraph, heading or flattened table
+/// row splits it.
+fn without_inline_images(kind: &str, attrs: Option<Value>, nodes: Vec<Value>) -> Vec<Value> {
+    let mut result = vec![];
+    let mut run = vec![];
+    let flush = |run: &mut Vec<Value>, result: &mut Vec<Value>, last: bool| {
+        let blank = run.iter().all(|n| {
+            n["type"] == "hardBreak" || n["text"].as_str().is_some_and(|t| t.trim().is_empty())
+        });
+        if !blank || (last && result.is_empty()) {
+            let mut block = node(kind, std::mem::take(run));
+            if let Some(attrs) = &attrs {
+                block["attrs"] = attrs.clone();
+            }
+            result.push(block);
+        }
+        run.clear();
+    };
+    for value in nodes {
+        if value["type"] == "image" {
+            flush(&mut run, &mut result, false);
+            result.push(value);
+        } else {
+            run.push(value);
+        }
+    }
+    flush(&mut run, &mut result, true);
+    result
+}
+
+/// An `<u>` without its `</u>` before the enclosing element ends stays literal text.
+fn close_underline(stack: &mut Vec<Frame<'_>>) {
+    while stack.last().is_some_and(|frame| frame.underline) {
+        let frame = stack.pop().unwrap();
+        let parent = &mut stack.last_mut().unwrap().nodes;
+        parent.push(json!({"type":"text","text":"<u>"}));
+        parent.extend(frame.nodes);
+    }
 }
 
 fn finish(mut frame: Frame<'_>) -> Vec<Value> {
     let tag = frame.tag.unwrap();
     match tag {
-        Tag::Paragraph | Tag::CodeBlock(_) | Tag::HtmlBlock => vec![node("paragraph", frame.nodes)],
-        Tag::Heading { level, .. } => {
-            let level = if matches!(level, HeadingLevel::H1 | HeadingLevel::H2) {
-                2
+        Tag::Paragraph | Tag::HtmlBlock => without_inline_images("paragraph", None, frame.nodes),
+        Tag::CodeBlock(_) => {
+            let code: String = frame
+                .nodes
+                .iter()
+                .filter_map(|node| node["text"].as_str())
+                .collect();
+            let code = code.strip_suffix('\n').unwrap_or(&code);
+            let content = if code.is_empty() {
+                vec![]
             } else {
-                3
+                vec![json!({"type":"text","text":code})]
             };
-            vec![json!({"type":"heading", "attrs":{"level":level}, "content":frame.nodes})]
+            vec![json!({"type":"codeBlock", "attrs":{"language":null}, "content":content})]
         }
-        Tag::Strong | Tag::Emphasis => {
-            let kind = if matches!(tag, Tag::Strong) {
-                "bold"
-            } else {
-                "italic"
+        Tag::BlockQuote(_) => {
+            let mut children = blocks(frame.nodes);
+            if children.is_empty() {
+                children.push(node("paragraph", vec![]));
+            }
+            vec![node("blockquote", children)]
+        }
+        Tag::Heading { level, .. } => {
+            without_inline_images("heading", Some(json!({"level":level as u8})), frame.nodes)
+        }
+        Tag::Strong | Tag::Emphasis | Tag::Strikethrough => {
+            let kind = match tag {
+                Tag::Strong => "bold",
+                Tag::Emphasis => "italic",
+                _ => "strike",
             };
             mark(&mut frame.nodes, json!({"type":kind}));
             frame.nodes
@@ -103,7 +239,7 @@ fn finish(mut frame: Frame<'_>) -> Vec<Value> {
             if let Some(checked) = frame.checked {
                 // The current TaskItem extension disallows nested block lists.
                 vec![
-                    json!({"type":"taskItem", "attrs":{"checked":checked}, "content":paragraphs(children)}),
+                    json!({"type":"taskItem", "attrs":{"checked":checked}, "content":task_item_content(children)}),
                 ]
             } else {
                 let mut children = children;
@@ -119,14 +255,13 @@ fn finish(mut frame: Frame<'_>) -> Vec<Value> {
             if frame.nodes.last().is_some_and(|n| n["text"] == " | ") {
                 frame.nodes.pop();
             }
-            vec![node("paragraph", frame.nodes)]
+            without_inline_images("paragraph", None, frame.nodes)
         }
         Tag::TableCell => {
             frame.nodes.push(json!({"type":"text","text":" | "}));
             frame.nodes
         }
-        // Quotes keep paragraph boundaries; images become their alt-text children.
-        // Strikethrough loses only its unsupported mark, never its text.
+        // Images become their alt-text children.
         _ => frame.nodes,
     }
 }
@@ -148,9 +283,13 @@ fn text_nodes(text: &str) -> Vec<Value> {
     nodes
 }
 
+/// The editor's code mark excludes every other mark, so code text takes no further mark.
 fn mark(nodes: &mut [Value], value: Value) {
     for node in nodes {
-        if node["type"] == "text" {
+        let is_code = node["marks"]
+            .as_array()
+            .is_some_and(|marks| marks.iter().any(|mark| mark["type"] == "code"));
+        if node["type"] == "text" && !is_code {
             if node.get("marks").is_none() {
                 node["marks"] = json!([]);
             }
@@ -185,20 +324,40 @@ fn blocks(nodes: Vec<Value>) -> Vec<Value> {
     result
 }
 
-fn paragraphs(nodes: Vec<Value>) -> Vec<Value> {
+/// A task item's content: `paragraph (paragraph | image)*`, in document order.
+fn task_item_content(nodes: Vec<Value>) -> Vec<Value> {
     let mut result = vec![];
-    for value in nodes {
-        let children = value["content"].as_array().cloned().unwrap_or_default();
-        if matches!(value["type"].as_str(), Some("paragraph" | "heading")) {
-            result.push(node("paragraph", children));
-        } else {
-            result.extend(paragraphs(children));
-        }
-    }
-    if result.is_empty() {
-        result.push(node("paragraph", vec![]));
+    paragraphs_and_images(nodes, &mut result);
+    if result.first().is_none_or(|n| n["type"] != "paragraph") {
+        result.insert(0, node("paragraph", vec![]));
     }
     result
+}
+
+fn paragraphs_and_images(nodes: Vec<Value>, result: &mut Vec<Value>) {
+    for value in nodes {
+        match value["type"].as_str() {
+            Some("image") => result.push(value),
+            Some("paragraph" | "heading") => {
+                let children = value["content"].as_array().cloned().unwrap_or_default();
+                result.push(node("paragraph", children));
+            }
+            // A task item holds no code block, so its text stays as lines of a paragraph.
+            Some("codeBlock") => {
+                let code: String = value["content"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|child| child["text"].as_str())
+                    .collect();
+                result.push(node("paragraph", text_nodes(&code)));
+            }
+            _ => {
+                let children = value["content"].as_array().cloned().unwrap_or_default();
+                paragraphs_and_images(children, result);
+            }
+        }
+    }
 }
 
 fn lists(items: Vec<Value>, start: Option<u64>) -> Vec<Value> {
@@ -224,6 +383,31 @@ fn lists(items: Vec<Value>, start: Option<u64>) -> Vec<Value> {
             .push(item);
     }
     result
+}
+
+/// Adjacent text with the same marks is one text node, as in the editor's own documents.
+fn merge_text(nodes: &mut Vec<Value>) {
+    let mut merged: Vec<Value> = Vec::with_capacity(nodes.len());
+    for mut value in nodes.drain(..) {
+        if let Some(children) = value.get_mut("content").and_then(Value::as_array_mut) {
+            merge_text(children);
+        }
+        if let Some(previous) = merged.last_mut()
+            && previous["type"] == "text"
+            && value["type"] == "text"
+            && previous.get("marks") == value.get("marks")
+        {
+            let text = format!(
+                "{}{}",
+                previous["text"].as_str().unwrap_or_default(),
+                value["text"].as_str().unwrap_or_default()
+            );
+            previous["text"] = Value::String(text);
+            continue;
+        }
+        merged.push(value);
+    }
+    *nodes = merged;
 }
 
 pub(super) fn escape(text: &str) -> String {

@@ -181,8 +181,7 @@ fn notes_context_carries_the_saved_note_within_the_context_limit() {
     );
     assert!(context.starts_with("Staging, build 4.2.1"));
     assert!(context.contains("SESSION_NOTE"));
-    assert!(context.contains("Setup"));
-    assert!(context.contains("Pay with the saved card"));
+    assert!(context.contains("## Setup\n\nPay with the saved card"));
     assert!(!context.contains("<p>"));
 
     assert_eq!(notes_session_context("", "<p></p>"), "");
@@ -241,7 +240,7 @@ fn a_list_heavy_note_rewrite_within_the_note_limit_is_accepted() {
     });
     let body = "- item\n".repeat(MAX_NOTE_REWRITE_BYTES / 7);
     let raw = serde_json::json!({"version":3,"requestId":"request-1","markdown":"Listed.","outcome":{"kind":"edit","patch":{"kind":"note","bodyMarkdown":body}}}).to_string();
-    let parsed = response::interpret(&raw, &contract, &ChatTarget::Session, 0).unwrap();
+    let parsed = response::interpret(&raw, &contract, &ChatTarget::Session, 0, &[]).unwrap();
     let (_, after) = parsed.values.unwrap();
     assert!(after.document_json.len() > MAX_CHAT_RECORD_CONTEXT_BYTES);
 }
@@ -257,4 +256,34 @@ fn only_released_contract_versions_are_accepted() {
     // Version 1 never shipped in a release (#84 was squashed with v2), so it is not a stored format.
     let v1 = serde_json::json!({"version": 1, "requestId": "r", "recordKind": "finding"});
     assert!(serde_json::from_value::<ChatResponseContract>(v1).is_err());
+}
+
+#[test]
+fn every_refinement_contract_names_the_markdown_the_parser_keeps() {
+    use crate::domain::{
+        ChatResponseContract, ChatResponseContractV2, ChatResponsePurpose, RefinementRecordKind,
+    };
+    for record_kind in [
+        RefinementRecordKind::Note,
+        RefinementRecordKind::Finding,
+        RefinementRecordKind::TestCasesDraft,
+    ] {
+        let contract = ChatResponseContract::Current(ChatResponseContractV2 {
+            version: 3,
+            request_id: "request-1".into(),
+            purpose: ChatResponsePurpose::Refinement { record_kind },
+            note_source: None,
+            local_edit: false,
+        });
+        let text = response::instructions(&contract);
+        for form in [
+            "# to ###### for heading levels 1 to 6",
+            "``` fences",
+            "~~strike~~",
+            "<u>underline</u>",
+            "![alt](qa-scribe-attachment://<id>)",
+        ] {
+            assert!(text.contains(form), "{record_kind:?} misses {form}");
+        }
+    }
 }

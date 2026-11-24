@@ -4,15 +4,39 @@ use super::html::{
 };
 use crate::attachments::is_raster_image_data_url;
 
+mod escaped;
 mod images;
 mod lists;
 
 pub use images::preserve_managed_attachment_images;
 
 const EDITOR_HTML_TAGS: &[&str] = &[
-    "a", "b", "br", "em", "h2", "h3", "i", "img", "input", "li", "ol", "p", "strong", "ul",
+    "a",
+    "b",
+    "blockquote",
+    "br",
+    "code",
+    "em",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hr",
+    "i",
+    "img",
+    "input",
+    "li",
+    "ol",
+    "p",
+    "pre",
+    "s",
+    "strong",
+    "u",
+    "ul",
 ];
-const SELF_CLOSING_EDITOR_HTML_TAGS: &[&str] = &["br", "img", "input"];
+const SELF_CLOSING_EDITOR_HTML_TAGS: &[&str] = &["br", "hr", "img", "input"];
 const REMOVED_EDITOR_HTML_TAGS: &[&str] = &[
     "embed", "form", "iframe", "math", "meta", "object", "script", "style", "svg", "template",
 ];
@@ -162,7 +186,7 @@ fn strip_response_fence(response: &str) -> String {
 
 fn repair_escaped_editor_html(value: &str) -> String {
     let trimmed = value.trim();
-    if should_decode_escaped_editor_html(trimmed) {
+    if escaped::should_decode_escaped_editor_html(trimmed) {
         decode_basic_html_entities(trimmed)
     } else {
         trimmed.to_string()
@@ -272,6 +296,7 @@ fn sanitize_opening_editor_tag(tag_name: &str, raw_tag: &str) -> Option<String> 
         "ol" => Some(lists::sanitize_ordered_list_tag(raw_tag)),
         "li" => Some(sanitize_list_item_tag(raw_tag)),
         "br" => Some("<br>".to_string()),
+        "hr" => Some("<hr>".to_string()),
         _ => Some(format!("<{tag_name}>")),
     }
 }
@@ -395,82 +420,6 @@ fn find_closing_tag_end(value: &str, start: usize, tag_name: &str) -> Option<usi
     let relative_start = find_case_insensitive(&value[start..], &needle)?;
     let close_start = start + relative_start;
     find_html_tag_end(value, close_start + 2).map(|close_end| close_end + 1)
-}
-
-fn should_decode_escaped_editor_html(value: &str) -> bool {
-    let lower = value.to_ascii_lowercase();
-    if !contains_escaped_editor_opening_tag(&lower) {
-        return false;
-    }
-
-    contains_escaped_editor_closing_tag(&lower)
-        || contains_literal_editor_tag(&lower)
-        || contains_escaped_self_closing_editor_tag(&lower)
-}
-
-fn contains_escaped_editor_opening_tag(lower: &str) -> bool {
-    EDITOR_HTML_TAGS
-        .iter()
-        .any(|tag| contains_escaped_tag_start(lower, tag, false))
-}
-
-fn contains_escaped_editor_closing_tag(lower: &str) -> bool {
-    EDITOR_HTML_TAGS
-        .iter()
-        .filter(|tag| !SELF_CLOSING_EDITOR_HTML_TAGS.contains(tag))
-        .any(|tag| contains_escaped_tag_start(lower, tag, true))
-}
-
-fn contains_escaped_self_closing_editor_tag(lower: &str) -> bool {
-    SELF_CLOSING_EDITOR_HTML_TAGS
-        .iter()
-        .any(|tag| contains_escaped_tag_start(lower, tag, false))
-}
-
-fn contains_literal_editor_tag(lower: &str) -> bool {
-    EDITOR_HTML_TAGS.iter().any(|tag| {
-        contains_literal_tag_start(lower, tag, false)
-            || contains_literal_tag_start(lower, tag, true)
-    })
-}
-
-fn contains_escaped_tag_start(lower: &str, tag: &str, closing: bool) -> bool {
-    let needle = if closing {
-        format!("&lt;/{tag}")
-    } else {
-        format!("&lt;{tag}")
-    };
-    contains_tag_boundary(lower, &needle, tag.len() + if closing { 5 } else { 4 })
-}
-
-fn contains_literal_tag_start(lower: &str, tag: &str, closing: bool) -> bool {
-    let needle = if closing {
-        format!("</{tag}")
-    } else {
-        format!("<{tag}")
-    };
-    contains_tag_boundary(lower, &needle, tag.len() + if closing { 2 } else { 1 })
-}
-
-fn contains_tag_boundary(lower: &str, needle: &str, boundary_offset: usize) -> bool {
-    let mut offset = 0usize;
-    while let Some(relative_start) = lower[offset..].find(needle) {
-        let start = offset + relative_start;
-        let boundary_index = start + boundary_offset;
-        if tag_boundary_matches(lower, boundary_index) {
-            return true;
-        }
-        offset = boundary_index;
-    }
-    false
-}
-
-fn tag_boundary_matches(value: &str, index: usize) -> bool {
-    value[index..]
-        .chars()
-        .next()
-        .is_some_and(|character| character.is_whitespace() || character == '/' || character == '>')
-        || value[index..].starts_with("&gt;")
 }
 
 /// `attribute_value_with_decoder` pinned to the narrow (six-entity) decoder.

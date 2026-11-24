@@ -30,8 +30,10 @@ models do not always follow the format they were asked for.
    - QA test cases, Gherkin-style scenarios, and older drafts without a format
      split at headings. The case level is 3 when the draft has a level-3
      heading, otherwise 2. A case runs from its heading to the next heading at
-     that level or above. Over level-3 cases, the level-2 heading names the
-     group. A leading label such as `Test case:`, `Scenario:`, `Feature:` or
+     that level or above, so headings at levels 4 to 6 stay inside a case.
+     Over level-3 cases, the level-2 heading names the group, and a level-1
+     heading ends that group: cases after it have none until the next
+     level-2 heading. (Amended when the editor gained levels 1 to 6.) A leading label such as `Test case:`, `Scenario:`, `Feature:` or
      `TC-1:` is dropped from the title and the group.
    - A checklist with a level-3 heading splits by headings in the same way,
      because models write a checklist as a heading per test case with its

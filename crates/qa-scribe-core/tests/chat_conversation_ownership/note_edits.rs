@@ -328,5 +328,7 @@ fn undoing_a_note_update_offers_the_suggestion_again_and_rechecks_freshness() {
     );
 }
 
+#[path = "note_images.rs"]
+mod note_images;
 #[path = "note_update_transactions.rs"]
 mod updates;

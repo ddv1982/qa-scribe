@@ -129,7 +129,12 @@ pub(super) fn finish(
         .iter()
         .find(|m| m.turn_id == request.turn_id && m.role == ChatRole::User)
         .ok_or_else(|| validation("User message is missing"))?;
-    let completion = super::chat_responses::completed(connection, user, &request.assistant_text)?;
+    let completion = super::chat_responses::completed(
+        connection,
+        &chat.session_id,
+        user,
+        &request.assistant_text,
+    )?;
     let assistant_text = completion.markdown;
     rows::text("Assistant response", &assistant_text, false)?;
     let mut readable = user.clone();

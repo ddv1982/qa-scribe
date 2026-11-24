@@ -57,9 +57,9 @@ pub fn build_chat_prompt(
 pub const NOTE_TRUNCATED_MARKER: &str = "\n[Session Note truncated to fit the context limit]";
 
 /// Session context for a Notes conversation: the stored Session context plus the
-/// saved Session Note as plain prompt text, bounded to `MAX_CHAT_CONTEXT_BYTES`.
+/// saved Session Note as Markdown (see `project_html_to_prompt_markdown`), bounded to `MAX_CHAT_CONTEXT_BYTES`.
 pub fn notes_session_context(session_context: &str, note_html: &str) -> String {
-    let note = crate::generation::project_html_to_prompt_text(note_html);
+    let note = crate::generation::project_html_to_prompt_markdown(note_html);
     let note = note.trim();
     if note.is_empty() {
         return session_context.to_string();
@@ -88,7 +88,7 @@ pub fn notes_session_context(session_context: &str, note_html: &str) -> String {
 
 /// Whether the whole saved Note fits in the Notes Session context, so the AI may rewrite it as a whole.
 pub fn notes_session_context_is_complete(session_context: &str, note_html: &str) -> bool {
-    let note = crate::generation::project_html_to_prompt_text(note_html);
+    let note = crate::generation::project_html_to_prompt_markdown(note_html);
     let note = note.trim();
     note.is_empty() || notes_session_context(session_context, note_html).ends_with(note)
 }
@@ -97,10 +97,11 @@ pub fn notes_session_context_is_complete(session_context: &str, note_html: &str)
 /// and JSON escaping, so it is only offered for Notes up to this much prompt text.
 pub const MAX_NOTE_REWRITE_BYTES: usize = 12 * 1024;
 
-/// Whether the AI may rewrite the whole Note: it sees all of it, and the rewrite fits in a reply.
+/// Whether the AI may rewrite the whole Note: it sees all of it as Markdown the parser reads
+/// back, not the plain fallback that drops rich content, and the rewrite fits in a reply.
 pub fn note_rewrite_fits(session_context: &str, note_html: &str) -> bool {
-    let note = crate::generation::project_html_to_prompt_text(note_html);
-    note.trim().len() <= MAX_NOTE_REWRITE_BYTES
+    crate::generation::project_html_to_rewritable_markdown(note_html)
+        .is_some_and(|note| note.trim().len() <= MAX_NOTE_REWRITE_BYTES)
         && notes_session_context_is_complete(session_context, note_html)
 }
 
@@ -169,5 +170,9 @@ pub(super) fn chat_instructions() -> String {
     )
 }
 
+#[cfg(test)]
+mod format_contract_tests;
+#[cfg(test)]
+mod image_position_tests;
 #[cfg(test)]
 mod tests;

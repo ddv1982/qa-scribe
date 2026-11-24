@@ -45,13 +45,8 @@ const ManagedImage = Image.extend({
 export function richTextEditorExtensions(placeholder?: string) {
   const extensions: Extensions = [
     StarterKit.configure({
-      blockquote: false,
-      code: false,
-      codeBlock: false,
-      heading: { levels: [2, 3] },
-      horizontalRule: false,
+      heading: { levels: [1, 2, 3, 4, 5, 6] },
       link: false,
-      strike: false,
     }),
     Link.configure({
       autolink: true,

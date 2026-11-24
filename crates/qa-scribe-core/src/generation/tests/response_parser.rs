@@ -138,16 +138,19 @@ fn rich_html_parser_repairs_escaped_editor_fragments() {
 }
 
 #[test]
-fn rich_html_parser_repairs_mixed_literal_and_escaped_fragments() {
-    let parsed = parse_rich_html_fragment_response(
-        "<h2>Gmail login doesn't work</h2>\nGmail login doesn't work\n&lt;p&gt;Gmail displays an error message.&lt;/p&gt;\n&lt;ol&gt;&lt;li&gt;Go to Gmail.&lt;/li&gt;&lt;/ol&gt;",
-        &test_marker(),
+fn rich_html_parser_keeps_escapes_once_literal_editor_tags_are_present() {
+    // Genuine HTML already has an encoding boundary, as in the frontend's `normalizeEditorHtml`:
+    // escapes inside it are text, never legacy markup to decode again.
+    let mixed = "<h2>Gmail login</h2>\n&lt;p&gt;Gmail displays an error.&lt;/p&gt;";
+    assert_eq!(
+        parse_rich_html_fragment_response(mixed, &test_marker()),
+        mixed
     );
-
-    assert!(parsed.contains("<h2>Gmail login doesn't work</h2>"));
-    assert!(parsed.contains("<p>Gmail displays an error message.</p>"));
-    assert!(parsed.contains("<ol><li>Go to Gmail.</li></ol>"));
-    assert!(!parsed.contains("&lt;ol&gt;"));
+    let code = "<h2>Sample</h2><pre><code>&lt;p&gt;Hello&lt;/p&gt;\n&lt;br&gt;</code></pre><hr>";
+    assert_eq!(
+        parse_rich_html_fragment_response(code, &test_marker()),
+        code
+    );
 }
 
 #[test]
@@ -376,4 +379,17 @@ fn escaped_summary_response_can_restore_attachment_images() {
     assert!(preserved.contains("data-attachment-id=\"attachment-1\""));
     assert!(!preserved.contains("&lt;img"));
     assert!(!preserved.contains("src=\"attachments/session/attachment-1_gmail-error.png\""));
+}
+
+#[test]
+fn generated_rich_html_keeps_the_rich_editor_tags_without_attributes() {
+    let sanitized = sanitize_generated_rich_html(
+        r#"<h1 class="a">One</h1><h4 id="b">Four</h4><h5 style="x">Five</h5><h6 onclick="x()">Six</h6><p><s style="c">gone</s> <u title="u">under</u> <code class="c">x()</code></p><pre class="language-sql"><code class="language-sql">SELECT 1;
+SELECT 2;</code></pre><blockquote cite="https://example.test"><p>Quote</p></blockquote><hr class="rule" /><hr></hr>"#,
+    );
+
+    assert_eq!(
+        sanitized,
+        "<h1>One</h1><h4>Four</h4><h5>Five</h5><h6>Six</h6><p><s>gone</s> <u>under</u> <code>x()</code></p><pre><code>SELECT 1;\nSELECT 2;</code></pre><blockquote><p>Quote</p></blockquote><hr><hr>"
+    );
 }

@@ -71,7 +71,7 @@
   vertical-align: middle;
 }
 
-.markdown-content code {
+:is(.rich-editor, .markdown-content) code {
   padding: var(--space-1);
   background: var(--surface-sunken);
   border-radius: var(--radius-sm);
@@ -79,7 +79,7 @@
   font-size: 0.9em;
 }
 
-.markdown-content pre {
+:is(.rich-editor, .markdown-content) pre {
   max-width: 100%;
   padding: var(--space-3);
   overflow: auto;
@@ -90,12 +90,12 @@
   overflow-wrap: normal;
 }
 
-.markdown-content pre code {
+:is(.rich-editor, .markdown-content) pre code {
   padding: 0;
   background: transparent;
 }
 
-.markdown-content blockquote {
+:is(.rich-editor, .markdown-content) blockquote {
   padding-left: var(--space-3);
   border-left: 3px solid var(--border-strong);
   color: var(--text-secondary);
@@ -125,7 +125,7 @@
   background: var(--surface-sunken);
 }
 
-.markdown-content hr {
+:is(.rich-editor, .markdown-content) hr {
   margin: var(--space-4) 0;
   border: 0;
   border-top: 1px solid var(--border-default);

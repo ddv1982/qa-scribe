@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../tauri', () => ({
   getAttachmentPreviewDataUrl: vi.fn(),
-  EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
-  SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'img', 'input'],
+  EDITOR_HTML_TAGS: ['a', 'b', 'blockquote', 'br', 'code', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'input', 'li', 'ol', 'p', 'pre', 's', 'strong', 'u', 'ul'],
+  SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'hr', 'img', 'input'],
   MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
 }))
 
@@ -173,6 +173,24 @@ describe('editorHtml', () => {
         '<p><a href="/tickets/1" target="_blank" rel="noreferrer">t</a></p>',
       )
     })
+  })
+
+  it('keeps headings 1 to 6, code, quotes, rules, strike and underline without attributes', () => {
+    expect(normalizeEditorHtml(
+      '<h1 class="a" type="x">One</h1><h4 id="b">Four</h4><h5 start="2">Five</h5><h6 data-type="taskList">Six</h6>'
+      + '<p><s style="color:red">gone</s> <u title="u">under</u> <code class="c">x()</code> <em type="x">i</em></p>'
+      + '<pre class="language-sql"><code class="language-sql">SELECT 1;\nSELECT 2;</code></pre><blockquote cite="https://example.test"><p>Quote</p></blockquote><hr class="rule" />',
+    )).toBe(
+      '<h1>One</h1><h4>Four</h4><h5>Five</h5><h6>Six</h6><p><s>gone</s> <u>under</u> <code>x()</code> <em>i</em></p>'
+      + '<pre><code>SELECT 1;\nSELECT 2;</code></pre><blockquote><p>Quote</p></blockquote><hr>',
+    )
+  })
+
+  it('keeps a divider as content and HTML samples inside a code block as text', () => {
+    expect(normalizeEditorHtml('<hr>')).toBe('<hr>')
+    expect(normalizeEditorHtml('<p></p><hr><p></p>')).toBe('<p></p><hr><p></p>')
+    const code = '<h2>Sample</h2><pre><code>&lt;p&gt;Hello&lt;/p&gt;\n&lt;br&gt;</code></pre><hr>'
+    expect(normalizeEditorHtml(code)).toBe(code)
   })
 
   it('accepts only safe rich editor links and images', () => {

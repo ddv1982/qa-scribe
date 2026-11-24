@@ -22,6 +22,23 @@ export const criticalScenarios = Object.freeze([
   'summary-recovery',
 ])
 
+const editorRichContentSpec = 'editor-rich-content.e2e.mjs'
+
+/** Authors rich content, then restarts the app on the same data to apply an Ask AI Update. */
+function editorRichContentInvocations(temporaryRoot, artifacts) {
+  return ['author', 'restart'].map((phase, index) => ({
+    id: index ? 'editor-rich-content-restart' : 'editor-rich-content',
+    ...(index ? { restartOf: 'editor-rich-content' } : {}),
+    environment: {
+      QA_SCRIBE_E2E_SPEC: editorRichContentSpec,
+      QA_SCRIBE_E2E_EDITOR_PHASE: phase,
+      QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data'),
+      QA_SCRIBE_E2E_ARTIFACTS: join(artifacts, phase),
+      QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures'),
+    },
+  }))
+}
+
 export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, platform = process.platform) {
   const requestedSpec = environment.QA_SCRIBE_E2E_SPEC?.trim()
   const requestedScenario = environment.QA_SCRIBE_E2E_SCENARIO?.trim()
@@ -44,6 +61,11 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
         QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures'),
       },
     }))
+  }
+
+  if (requestedSpec === editorRichContentSpec) {
+    if (requestedScenario) throw new Error('Rich editor content runs its phases serially')
+    return editorRichContentInvocations(temporaryRoot, artifacts)
   }
 
   if (requestedSpec === 'ask-ai-ownership-migration.e2e.mjs') {
@@ -98,7 +120,11 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
   if (!requestedSpec && !requestedScenario) {
     // session-lifecycle already executes the complete Chat-to-Note workflow.
     // Keep its standalone spec selectable without replaying it in every gate.
-    for (const id of ['chat-images', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
+    for (const id of ['chat-images', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'editor-rich-content'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
+      if (id === 'editor-rich-content') {
+        plan.push(...editorRichContentInvocations(join(temporaryRoot, id), join(artifacts, id)))
+        continue
+      }
       const provider = id.startsWith('chat-tool-authorization-') ? id.slice('chat-tool-authorization-'.length) : null
       plan.push({ id, environment: {
         QA_SCRIBE_E2E_SPEC: provider ? 'chat-tool-authorization.workflow.mjs' : id === 'manual-formats' ? 'creation-composer.e2e.mjs' : `${id}.e2e.mjs`,

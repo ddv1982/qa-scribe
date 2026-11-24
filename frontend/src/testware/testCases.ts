@@ -64,7 +64,8 @@ export function splitTestCases(document: RichEditorDocument, format: string | nu
 
 /**
  * The case level is 3 when any level-3 heading exists, else 2 when any level-2 heading exists. A case
- * starts at a heading at that level with text and runs until the next heading at that level or above.
+ * starts at a heading at that level with text and runs until the next heading at that level or above,
+ * so levels 4 to 6 stay inside a case. A level-1 heading also ends the group a level-2 heading named.
  */
 function splitByHeadings(nodes: JSONContent[]): TestCaseSplit | null {
   const level = [3, 2].find((candidate) => nodes.some((node) => headingLevel(node) === candidate))
@@ -75,6 +76,7 @@ function splitByHeadings(nodes: JSONContent[]): TestCaseSplit | null {
   for (const node of nodes) {
     const nodeLevel = headingLevel(node)
     if (level === 3 && nodeLevel === 2) group = caseTitle(plainText(node)) || null
+    if (nodeLevel === 1) group = null
     if (nodeLevel !== null && nodeLevel <= level) open = false
     if (nodeLevel === level && plainText(node)) {
       builder.startCase({ group: level === 3 ? group : null, title: caseTitle(plainText(node)), node })

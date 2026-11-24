@@ -12,6 +12,9 @@ fn render(node: &Value) -> String {
             text = match mark["type"].as_str() {
                 Some("bold") => format!("<strong>{text}</strong>"),
                 Some("italic") => format!("<em>{text}</em>"),
+                Some("strike") => format!("<s>{text}</s>"),
+                Some("code") => format!("<code>{text}</code>"),
+                Some("underline") => format!("<u>{text}</u>"),
                 Some("link") => format!(
                     "<a href=\"{}\" target=\"_blank\" rel=\"noopener noreferrer\">{text}</a>",
                     escape(mark["attrs"]["href"].as_str().unwrap_or_default())
@@ -39,8 +42,13 @@ fn render(node: &Value) -> String {
             .unwrap_or_default(),
     );
     match node["type"].as_str() {
-        Some("heading") if node["attrs"]["level"] == 2 => format!("<h2>{content}</h2>"),
-        Some("heading") => format!("<h3>{content}</h3>"),
+        Some("heading") => {
+            let level = node["attrs"]["level"].as_u64().unwrap_or(2).clamp(1, 6);
+            format!("<h{level}>{content}</h{level}>")
+        }
+        Some("codeBlock") => format!("<pre><code>{content}</code></pre>"),
+        Some("blockquote") => format!("<blockquote>{content}</blockquote>"),
+        Some("horizontalRule") => "<hr>".into(),
         Some("bulletList") => format!("<ul>{content}</ul>"),
         Some("orderedList") => format!(
             "<ol start=\"{}\">{content}</ol>",

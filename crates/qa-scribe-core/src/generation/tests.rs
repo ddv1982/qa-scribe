@@ -7,6 +7,8 @@ use super::*;
 mod acceptance_criteria_prompt;
 #[path = "tests/images.rs"]
 mod images;
+#[path = "tests/markdown_projection.rs"]
+mod markdown_projection;
 #[path = "tests/prompt_and_projection.rs"]
 mod prompt_and_projection;
 #[path = "tests/response_parser.rs"]

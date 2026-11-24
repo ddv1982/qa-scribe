@@ -223,7 +223,7 @@ fn image_label_from_source(source: Option<&str>) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-fn redact_data_urls(value: &str) -> String {
+pub(super) fn redact_data_urls(value: &str) -> String {
     let mut output = String::with_capacity(value.len());
     let mut index = 0usize;
     while let Some(relative_start) = find_case_insensitive(&value[index..], "data:") {

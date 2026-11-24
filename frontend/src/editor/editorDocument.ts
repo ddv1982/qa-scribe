@@ -35,13 +35,63 @@ export function richEditorDocumentFromHtml(html: string): RichEditorDocument {
   if (!normalizedHtml) return emptyRichEditorDocument
 
   try {
-    return normalizeRichEditorDocument({
-      schemaVersion: 1,
-      doc: generateJSON(normalizedHtml, richTextEditorExtensions()) as JSONContent,
-    })
+    const { html: codeHtml, guard } = withInlineCodeSpaces(normalizedHtml)
+    const doc = generateJSON(codeHtml, richTextEditorExtensions()) as JSONContent
+    return normalizeRichEditorDocument({ schemaVersion: 1, doc: guard ? withoutGuard(doc, guard) : doc })
   } catch {
     return richEditorDocumentFromPlainText(stripHtml(normalizedHtml))
   }
+}
+
+// HTML parsing collapses each white space run, but inline code keeps its spaces, as the editor
+// wrote them: the parser keeps white space inside an element styled `white-space: pre`. A line
+// end in inline code reads as a space, as before, not as a hard break. The parser still trims
+// the end of a block, so code ending a block with a space gets a guard after it, removed once
+// parsed. The guard is a private-use run longer than any in the decoded text, where adjacent
+// text nodes already read joined, so authored text never matches it.
+function withInlineCodeSpaces(html: string): { html: string; guard?: string } {
+  if (!/<code[\s>]/i.test(html)) return { html }
+  const template = document.createElement('template')
+  template.innerHTML = html
+  let guard = '\uE002'
+  while ((template.content.textContent ?? '').includes(guard)) guard += '\uE002'
+  let guarded = false
+  template.content.querySelectorAll('code').forEach((code) => {
+    if (code.closest('pre')) return
+    code.style.whiteSpace = 'pre'
+    const texts = document.createTreeWalker(code, NodeFilter.SHOW_TEXT)
+    while (texts.nextNode()) texts.currentNode.nodeValue = (texts.currentNode.nodeValue ?? '').replace(/\r\n?|\n/g, ' ')
+    if (/\s$/.test(code.textContent ?? '') && endsItsBlock(code)) {
+      code.after(guard)
+      guarded = true
+    }
+  })
+  return guarded ? { html: template.innerHTML, guard } : { html: template.innerHTML }
+}
+
+const inlineElements = new Set(['A', 'B', 'CODE', 'EM', 'I', 'LABEL', 'S', 'SPAN', 'STRIKE', 'STRONG', 'U'])
+
+// Nothing but white space and line breaks follows the node up to its block, or up to a block
+// that ends the paragraph the parser infers around loose inline content.
+function endsItsBlock(node: Node): boolean {
+  for (let current: Node | null = node; current && inlineElements.has(current.nodeName); current = current.parentNode) {
+    for (let next = current.nextSibling; next; next = next.nextSibling) {
+      if (next.nodeType === Node.TEXT_NODE) {
+        if ((next.nodeValue ?? '').trim()) return false
+      } else if (next.nodeName !== 'BR') {
+        return !inlineElements.has(next.nodeName) && next.nodeName !== 'IMG'
+      }
+    }
+  }
+  return true
+}
+
+function withoutGuard(node: JSONContent, guard: string): JSONContent {
+  if (!node.content) return node
+  const content = node.content
+    .map((child) => (child.type === 'text' ? { ...child, text: (child.text ?? '').replaceAll(guard, '') } : withoutGuard(child, guard)))
+    .filter((child) => child.type !== 'text' || child.text)
+  return { ...node, content }
 }
 
 export function richEditorDocumentFromPlainText(value: string): RichEditorDocument {

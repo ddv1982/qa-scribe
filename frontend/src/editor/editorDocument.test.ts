@@ -69,6 +69,22 @@ describe('editorDocument', () => {
     }
   })
 
+  it('reads inline code ending in a space the same after an HTML round trip', () => {
+    const document = richEditorDocumentFromHtml('<p><code>a </code><code>b</code> and <code>end </code></p>')
+    expect(richEditorDocumentsEqual(document, richEditorDocumentFromHtml(richEditorDocumentToHtml(document)))).toBe(true)
+    expect(richEditorDocumentToHtml(document)).toBe('<p><code>a b</code> and <code>end </code></p>')
+  })
+
+  it('keeps the trailing spaces of inline code before a nested list in a tight list item', () => {
+    const document = richEditorDocumentFromHtml('<ul><li><code>run  </code><ul><li>Sub</li></ul></li></ul>')
+    expect(richEditorDocumentToHtml(document)).toContain('<code>run  </code>')
+  })
+
+  it('keeps authored private-use text next to inline code that ends a paragraph', () => {
+    const document = richEditorDocumentFromHtml('<p><code>x </code></p><p><b>&#xE002;</b><strong>&#xE002;</strong></p>')
+    expect(richEditorDocumentToPlainText(document)).toContain('\uE002\uE002')
+  })
+
   it('retains a non-default ordered list start through HTML and stored JSON', () => {
     const document = richEditorDocumentFromHtml('<ol start="7"><li><p>Seventh</p></li><li><p>Eighth</p></li></ol>')
     const stored = richEditorDocumentToStoredBody(document)
@@ -162,6 +178,15 @@ describe('editorDocument', () => {
     const html = richEditorDocumentToHtml(preserveManagedImageNodes(original, generated))
 
     expect(html.match(/data-attachment-id="attachment-1"/g)).toHaveLength(1)
+  })
+
+  it('keeps an image where the rewrite placed it and appends only the one it left out', () => {
+    const original = richEditorDocumentFromHtml(`<p>A</p>${managedAttachmentImageHtml('first', 'first.png')}<p>B</p>${managedAttachmentImageHtml('second', 'second.png')}`)
+    const generated = richEditorDocumentFromHtml(`${managedAttachmentImageHtml('second', 'second.png')}<p>B, reworded</p>`)
+
+    const types = preserveManagedImageNodes(original, generated).doc.content?.map((node) => node.attrs?.attachmentId ?? node.type)
+
+    expect(types).toEqual(['second', 'paragraph', 'first'])
   })
 
   it('preserves safe external image nodes from the original document', () => {

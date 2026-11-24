@@ -24,12 +24,13 @@ export type ClipboardImageReference = {
 export function formatRecordForClipboard(record: ClipboardRecord): ClipboardPayload {
   const title = record.title.trim()
   const editorDocument = richEditorDocumentFromHtml(record.bodyHtml)
-  const plainParts = [title ? `## ${title}` : '', renderMarkdownFromDocument(editorDocument)]
+  const codeBlocks: CodeBlocks = { opener: placeholderOpener(`${title}${JSON.stringify(editorDocument.doc)}`), fenced: [] }
+  const plainParts = [title ? `## ${title}` : '', renderMarkdownFromDocument(editorDocument, codeBlocks)]
     .map((part) => trimBlankLines(part))
     .filter(Boolean)
 
   return {
-    plain: trimBlankLines(plainParts.join('\n\n')),
+    plain: restoreCodeBlocks(trimBlankLines(plainParts.join('\n\n')), codeBlocks),
     html: renderClipboardHtml(title, editorDocument),
   }
 }
@@ -90,9 +91,12 @@ export function managedAttachmentReferencesForClipboard(record: ClipboardRecord)
 // The default renderToMarkdown mappings are overridden where the pinned
 // clipboard format differs: text is not HTML-entity-escaped (this is plain
 // text, not markup), italic uses `*`, headings get a separating blank line,
-// task lists render checkbox markers, nested lists indent, and label==href
-// links stay bare.
-function renderMarkdownFromDocument(editorDocument: RichEditorDocument): string {
+// task lists render checkbox markers, list item blocks stay in order at the item's
+// content column, code blocks have no language, inline code outgrows backticks inside
+// it, and label==href links stay bare.
+// Each code block renders as a placeholder line, so the white space cleanup between blocks
+// leaves its code alone; `restoreCodeBlocks` puts the fenced code back.
+function renderMarkdownFromDocument(editorDocument: RichEditorDocument, codeBlocks: CodeBlocks): string {
   if (!editorDocument.doc.content?.length) return ''
 
   return renderToMarkdown({
@@ -110,10 +114,17 @@ function renderMarkdownFromDocument(editorDocument: RichEditorDocument): string 
           listItemMarkdown(node, children, parent),
         taskList: ({ children }: { children?: string | string[] }) => `\n${joinChildren(children)}`,
         taskItem: ({ node, children }: { node: ProseMirrorNode; children?: string | string[] }) =>
-          `- [${node.attrs.checked ? 'x' : ' '}] ${joinChildren(children).trim()}\n`,
+          `- [${node.attrs.checked ? 'x' : ' '}] ${indentContinuation(joinChildren(children).trim(), 2)}\n`,
+        // A plain code block: no language after the fence, which grows past any fence inside.
+        codeBlock: ({ node }: { node: ProseMirrorNode }) => {
+          const fence = codeFence(node.textContent)
+          codeBlocks.fenced.push(`${fence}\n${node.textContent}\n${fence}`)
+          return `\n${codeBlocks.opener}${codeBlocks.fenced.length - 1}${placeholderCloser}\n`
+        },
       },
       markMapping: {
         italic: ({ children }: { children?: string | string[] }) => `*${joinChildren(children)}*`,
+        code: ({ children }: { children?: string | string[] }) => codeSpan(joinChildren(children)),
         link: ({ mark, children }: { mark: Mark; children?: string | string[] }) => {
           const href = typeof mark.attrs.href === 'string' ? mark.attrs.href : ''
           const label = joinChildren(children)
@@ -128,25 +139,32 @@ function renderMarkdownFromDocument(editorDocument: RichEditorDocument): string 
 
 function listItemMarkdown(node: ProseMirrorNode, children: string | string[] | undefined, parent?: ProseMirrorNode): string {
   const rendered = Array.isArray(children) ? children : [children ?? '']
-  const bodyParts: string[] = []
-  const nestedParts: string[] = []
-
+  let body = ''
+  let firstBlock = ''
   node.forEach((child, _offset, index) => {
     const part = rendered[index] ?? ''
-    if (child.type.name === 'bulletList' || child.type.name === 'orderedList') {
-      nestedParts.push(indentLines(part.trim()))
-    } else {
-      bodyParts.push(part)
-    }
+    if (!firstBlock && part.trim()) firstBlock = child.type.name
+    // A nested list follows the line before it directly, so the list stays tight, except an
+    // ordered list starting past 1, which CommonMark reads right after a line as its text, and a
+    // bare marker (an item starting with a divider), which turns that line into a heading.
+    const isList = child.type.name === 'bulletList' || child.type.name === 'orderedList'
+    const bareMarker = !(part.trim().split('\n')[0] ?? '').includes(' ')
+    const separator = bareMarker || (child.type.name === 'orderedList' && orderedListStart(child) !== 1) ? '\n\n' : '\n'
+    body = isList ? `${body.replace(/\n+$/, '')}${separator}${part.trim()}\n` : `${body}${part}`
   })
 
   const marker = parent?.type.name === 'orderedList' ? `${orderedListPosition(node, parent)}.` : '-'
-  const line = `${marker} ${bodyParts.join('').trim()}`
-  return nestedParts.length ? `${line}\n${nestedParts.join('\n')}\n` : `${line}\n`
+  // `- ---` reads as a divider in place of the item, so a divider first goes on the next line.
+  if (firstBlock === 'horizontalRule') return `${marker}${indentContinuation(`\n${body.trim()}`, marker.length + 1)}\n`
+  return `${marker} ${indentContinuation(body.trim(), marker.length + 1)}\n`
+}
+
+function orderedListStart(list: ProseMirrorNode): number {
+  return Number.isInteger(list.attrs.start) ? Number(list.attrs.start) : 1
 }
 
 function orderedListPosition(node: ProseMirrorNode, parent: ProseMirrorNode): number {
-  const start = Number.isInteger(parent.attrs.start) ? Number(parent.attrs.start) : 1
+  const start = orderedListStart(parent)
   let position = start
   parent.forEach((child, _offset, index) => {
     if (child === node) position = start + index
@@ -154,11 +172,59 @@ function orderedListPosition(node: ProseMirrorNode, parent: ProseMirrorNode): nu
   return position
 }
 
-function indentLines(value: string): string {
-  return value
+function codeFence(code: string): string {
+  let fence = '```'
+  while (code.includes(fence)) fence += '`'
+  return fence
+}
+
+// The fence outgrows every backtick run in the code; a space pads code that starts or ends
+// with a backtick, or starts and ends with a space while holding more than spaces, since
+// CommonMark strips one space each side then.
+function codeSpan(code: string): string {
+  const longest = Math.max(0, ...(code.match(/`+/g) ?? []).map((run) => run.length))
+  const fence = '`'.repeat(longest + 1)
+  const spaced = code.startsWith(' ') && code.endsWith(' ') && /[^ ]/.test(code)
+  const pad = code.startsWith('`') || code.endsWith('`') || spaced ? ' ' : ''
+  return `${fence}${pad}${code}${pad}${fence}`
+}
+
+// Further blocks of a list item (paragraphs, code, quotes, dividers) sit at its content column.
+function indentContinuation(body: string, width: number): string {
+  const indent = ' '.repeat(width)
+  return body
     .split('\n')
-    .map((line) => (line.trim() ? `  ${line}` : line))
+    .map((line, index) => (index > 0 && line.trim() ? `${indent}${line}` : line))
     .join('\n')
+}
+
+type CodeBlocks = { opener: string; fenced: string[] }
+
+const placeholderCloser = '\uE001'
+
+// A placeholder starts with a run of private-use characters longer than any run in the record,
+// so literal text never reads as a placeholder.
+function placeholderOpener(source: string): string {
+  let opener = '\uE000'
+  while (source.includes(opener)) opener += '\uE000'
+  return opener
+}
+
+// Each placeholder line becomes its fenced code. The first line keeps the placeholder's prefix
+// (list markers, indent, quote markers); later lines take it with each list marker turned into
+// spaces, so they sit at the item's content column. An empty code line keeps the trimmed prefix.
+function restoreCodeBlocks(value: string, codeBlocks: CodeBlocks): string {
+  const placeholder = new RegExp(`^(.*?)${codeBlocks.opener}(\\d+)${placeholderCloser}$`, 'gm')
+  return value.replace(placeholder, (_match, prefix: string, index: string) => {
+    const continuation = prefix.replace(/(?:[-*+]|\d+[.)])(?= |$)/g, (marker) => ' '.repeat(marker.length))
+    return (codeBlocks.fenced[Number(index)] ?? '')
+      .split('\n')
+      .map((line, lineIndex) => {
+        const linePrefix = lineIndex === 0 ? prefix : continuation
+        return line ? `${linePrefix}${line}` : linePrefix.trimEnd()
+      })
+      .join('\n')
+  })
 }
 
 function joinChildren(children: string | string[] | undefined): string {

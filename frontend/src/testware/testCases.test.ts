@@ -229,6 +229,13 @@ describe('splitTestCases', () => {
     expect(result?.trailing).toHaveLength(2)
   })
 
+  it('keeps levels 4 to 6 inside a case and lets a level-1 heading close the case and clear the group', () => {
+    const result = split('<h2>Group</h2><h3>One</h3><h4>Setup</h4><p>a</p><h6>Note</h6><h1>Appendix</h1><h3>Two</h3><p>b</p>', 'qa_cases')
+    expect(result?.cases.map(({ group, title, content, lead }) => [group, title, content.length, lead.length])).toEqual([['Group', 'One', 4, 0], [null, 'Two', 2, 1]])
+    const levelTwo = split('<h2>First</h2><h5>Deep</h5><p>a</p><h1>Part</h1><p>loose</p><h2>Second</h2>', 'gherkin')
+    expect(levelTwo?.cases.map(({ group, title, content, lead }) => [group, title, content.length, lead.length])).toEqual([[null, 'First', 3, 0], [null, 'Second', 1, 2]])
+  })
+
   it('reads heading text through marks and links, and strips one leading label', () => {
     const result = split([
       '<h3>Test case: <strong>Bold</strong> and <a href="https://example.test">linked</a></h3>',
