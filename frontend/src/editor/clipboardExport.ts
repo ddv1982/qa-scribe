@@ -93,8 +93,7 @@ export function managedAttachmentReferencesForClipboard(record: ClipboardRecord)
 // text, not markup), italic uses `*`, headings get a separating blank line,
 // task lists render checkbox markers, list item blocks stay in order at the item's
 // content column, code blocks have no language, inline code outgrows backticks inside
-// it, label==href links stay bare, and table cells escape pipes and write line breaks
-// as <br>.
+// it, label==href links stay bare, and table cells are rendered by `tableCellMarkdown`.
 // Each code block renders as a placeholder line, so the white space cleanup between blocks
 // leaves its code alone; `restoreCodeBlocks` puts the fenced code back.
 function renderMarkdownFromDocument(editorDocument: RichEditorDocument, codeBlocks: CodeBlocks): string {
@@ -123,8 +122,8 @@ function renderMarkdownFromDocument(editorDocument: RichEditorDocument, codeBloc
           return `\n${codeBlocks.opener}${codeBlocks.fenced.length - 1}${placeholderCloser}\n`
         },
         // A table cell is one line of a GFM pipe table, as Ask AI's projection writes it.
-        tableHeader: ({ children }: { children?: string | string[] }) => tableCellMarkdown(children),
-        tableCell: ({ children }: { children?: string | string[] }) => tableCellMarkdown(children),
+        tableHeader: ({ node }: { node: ProseMirrorNode }) => tableCellMarkdown(node),
+        tableCell: ({ node }: { node: ProseMirrorNode }) => tableCellMarkdown(node),
       },
       markMapping: {
         italic: ({ children }: { children?: string | string[] }) => `*${joinChildren(children)}*`,
@@ -176,8 +175,67 @@ function orderedListPosition(node: ProseMirrorNode, parent: ProseMirrorNode): nu
   return position
 }
 
-function tableCellMarkdown(children: string | string[] | undefined): string {
-  return joinChildren(children).trim().replaceAll('|', '\\|').replaceAll('\n', '<br>')
+// A cell is rendered here rather than from its rendered children, so it reads back as the same
+// cell: each line break is `<br>`, at the cell's edges too; literal text is escaped, so `<br>` or
+// `*` typed in a cell stays text; and each mark wraps the longest run of text it covers on a line,
+// so marks nest and close before each `<br>`. Every `|`, also in code, is escaped last.
+function tableCellMarkdown(cell: ProseMirrorNode): string {
+  const lines: ProseMirrorNode[][] = [[]]
+  cell.descendants((node) => {
+    if (node.type.name === 'hardBreak') lines.push([])
+    else if (node.isText) lines.at(-1)?.push(node)
+    return true
+  })
+  return lines.map((line) => cellInlineMarkdown(line).trim()).join('<br>').replaceAll('|', '\\|')
+}
+
+function cellInlineMarkdown(nodes: ProseMirrorNode[]): string {
+  let markdown = ''
+  for (let index = 0; index < nodes.length; ) {
+    const node = nodes[index]
+    let widest: { mark: Mark; end: number } | null = null
+    for (const mark of node.marks) {
+      if (mark.type.name === 'code') continue
+      let end = index + 1
+      while (end < nodes.length && mark.isInSet(nodes[end].marks)) end += 1
+      if (!widest || end > widest.end) widest = { mark, end }
+    }
+    if (!widest) {
+      markdown += node.marks.some((mark) => mark.type.name === 'code') ? codeSpan(node.text ?? '') : escapeCellText(node.text ?? '')
+      index += 1
+      continue
+    }
+    const { mark, end } = widest
+    const run = nodes.slice(index, end)
+    markdown += wrapCellRun(mark, cellInlineMarkdown(run.map((child) => child.mark(mark.removeFromSet(child.marks)))), run)
+    index = end
+  }
+  return markdown
+}
+
+const cellDelimiters: Record<string, [string, string]> = { bold: ['**', '**'], italic: ['*', '*'], strike: ['~~', '~~'], underline: ['<u>', '</u>'] }
+
+// Delimiters go inside the run's outer spaces, where CommonMark reads them as opening and closing.
+function wrapCellRun(mark: Mark, inner: string, run: ProseMirrorNode[]): string {
+  if (mark.type.name === 'link') {
+    const href = typeof mark.attrs.href === 'string' ? mark.attrs.href : ''
+    const label = run.map((node) => node.text ?? '').join('')
+    if (!href) return inner
+    if (label === href && run.every((node) => node.marks.length === 1)) return href
+    return `[${inner}](${href})`
+  }
+  const delimiters = cellDelimiters[mark.type.name]
+  const [, before = '', core = '', after = ''] = /^(\s*)([\s\S]*?)(\s*)$/.exec(inner) ?? []
+  return delimiters && core ? `${before}${delimiters[0]}${core}${delimiters[1]}${after}` : inner
+}
+
+// The characters that would start inline Markdown, as the Rust projection escapes them; `|` is
+// left to the cell. `_` inside a word and `&` that starts no entity read as text already.
+function escapeCellText(text: string): string {
+  return text.replace(/[\\`*[\]<~]|_|&(?=[a-zA-Z0-9#]+;)/g, (character, offset: number) => {
+    if (character === '_' && /[\p{L}\p{N}]/u.test(text[offset - 1] ?? '') && /[\p{L}\p{N}]/u.test(text[offset + 1] ?? '')) return character
+    return `\\${character}`
+  })
 }
 
 function codeFence(code: string): string {

@@ -186,6 +186,18 @@ describe('clipboardExport', () => {
     expect(payload.plain).toBe(['| Head |', '| --- |', '| a \\| b `   x   `! [link](https://example.test/a(b)) **Run**`c \\| d`**now** |'].join('\n'))
   })
 
+  // A GFM reader takes `<br>` in a cell as a line break and backslash escapes as literal text.
+  it.each([
+    ['line breaks at the edges', '<br>alpha<br>', '<br>alpha<br>'],
+    ['a break-only cell', '<br>', '<br>'],
+    ['literal markup', '&lt;br&gt; *lit* _u_ a_b [x] ~s~ `c` \\ &amp;amp;', '\\<br> \\*lit\\* \\_u\\_ a_b \\[x\\] \\~s\\~ \\`c\\` \\\\ \\&amp;'],
+    ['bold across a break', '<strong>alpha<br>beta</strong>', '**alpha**<br>**beta**'],
+    ['italic inside bold', '<strong>a <em>b</em> c</strong>', '**a *b* c**'],
+  ])('writes %s in a table cell so it reads back the same', (_case, cellHtml, cellMarkdown) => {
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: `<table><tbody><tr><th><p>Head</p></th></tr><tr><td><p>${cellHtml}</p></td></tr></tbody></table>` })
+    expect(payload.plain).toBe(['| Head |', '| --- |', `| ${cellMarkdown} |`].join('\n'))
+  })
+
   it('converts task list metadata into portable checkbox markers', () => {
     const payload = formatRecordForClipboard({
       title: 'Regression pass',
