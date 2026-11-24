@@ -70,8 +70,9 @@ describe(`Ask AI Application Insights evidence with ${provider}`, () => {
     }, approval), 'all approval details must fit the panel horizontally')
     await browser.saveScreenshot(join(artifacts, 'log-query-approval.png'))
     await click('button=Approve this query', approval)
-    await browser.waitUntil(async () => await query.isExisting() && (await query.getText()).includes("'denied'"),
-      { timeoutMsg: 'the second query to the same target must ask again' })
+    await browser.waitUntil(() => browser.execute((selector) =>
+      document.querySelector(selector)?.textContent?.includes("'denied'") === true,
+    `${approval} [aria-label="Full KQL"]`), { timeoutMsg: 'the second query to the same target must ask again' })
     await click('button=Deny', approval)
 
     const card = `${panel} [aria-label="Suggested results"]`
