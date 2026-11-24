@@ -9,6 +9,7 @@ import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table
 import { DOMParser as ProseMirrorDOMParser, Fragment, Slice, type Node as ProseMirrorNode, type ParseOptions, type ResolvedPos, type Schema } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import type { EditorView } from '@tiptap/pm/view'
+import { keepInlineCodeSpaces } from './inlineCodeSpaces'
 
 // Spans are kept as attributes because the table commands read them, but they are always 1.
 const cellAttributes = () => ({
@@ -24,14 +25,24 @@ const singleParagraphCell = (tag: 'td' | 'th') => ({
   renderHTML: () => [tag, 0] as const,
 })
 
-/** Every block a pasted cell holds becomes one line of its single paragraph. */
+/**
+ * Every block a pasted cell holds becomes one line of its single paragraph. Inline code keeps its
+ * spaces, as when the editor reads HTML, whether the cell is read, pasted or copied.
+ */
 function cellParagraph(element: Node, schema: Schema, preserveWhitespace?: ParseOptions['preserveWhitespace']): Fragment {
-  const parsed = ProseMirrorDOMParser.fromSchema(schema).parse(element, { preserveWhitespace })
+  const copy = element.cloneNode(true)
+  const guard = copy instanceof Element ? keepInlineCodeSpaces(copy) : null
+  const parsed = ProseMirrorDOMParser.fromSchema(schema).parse(copy, { preserveWhitespace })
   const inline: ProseMirrorNode[] = []
   parsed.descendants((node) => {
     if (!node.isTextblock) return true
     const lines: ProseMirrorNode[] = []
     node.forEach((child) => {
+      if (guard && child.isText) {
+        const text = (child.text ?? '').replaceAll(guard, '')
+        if (!text) return
+        child = schema.text(text, child.marks)
+      }
       if (!node.type.spec.code || !child.isText) return void lines.push(child)
       ;(child.text ?? '').split('\n').forEach((line, index) => {
         if (index > 0) lines.push(schema.nodes.hardBreak.create())
