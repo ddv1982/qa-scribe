@@ -75,6 +75,11 @@ describe('editorDocument', () => {
     expect(richEditorDocumentToHtml(document)).toBe('<p><code>a b</code> and <code>end </code></p>')
   })
 
+  it('keeps the trailing spaces of inline code before a nested list in a tight list item', () => {
+    const document = richEditorDocumentFromHtml('<ul><li><code>run  </code><ul><li>Sub</li></ul></li></ul>')
+    expect(richEditorDocumentToHtml(document)).toContain('<code>run  </code>')
+  })
+
   it('keeps authored private-use text next to inline code that ends a paragraph', () => {
     const document = richEditorDocumentFromHtml('<p><code>x </code></p><p><b>&#xE002;</b><strong>&#xE002;</strong></p>')
     expect(richEditorDocumentToPlainText(document)).toContain('\uE002\uE002')

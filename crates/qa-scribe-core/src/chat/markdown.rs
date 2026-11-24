@@ -345,16 +345,7 @@ fn paragraphs_and_images(nodes: Vec<Value>, result: &mut Vec<Value>) {
                     .flatten()
                     .filter_map(|child| child["text"].as_str())
                     .collect();
-                let mut lines = vec![];
-                for (index, line) in code.trim_end_matches('\n').split('\n').enumerate() {
-                    if index > 0 {
-                        lines.push(json!({"type":"hardBreak"}));
-                    }
-                    if !line.is_empty() {
-                        lines.push(json!({"type":"text","text":line}));
-                    }
-                }
-                result.push(node("paragraph", lines));
+                result.push(node("paragraph", text_nodes(&code)));
             }
             _ => {
                 let children = value["content"].as_array().cloned().unwrap_or_default();

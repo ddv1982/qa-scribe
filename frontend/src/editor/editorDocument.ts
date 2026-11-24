@@ -71,11 +71,16 @@ function withInlineCodeSpaces(html: string): { html: string; guard?: string } {
 
 const inlineElements = new Set(['A', 'B', 'CODE', 'EM', 'I', 'LABEL', 'S', 'SPAN', 'STRIKE', 'STRONG', 'U'])
 
-// Nothing but white space and line breaks follows the node up to its block.
+// Nothing but white space and line breaks follows the node up to its block, or up to a block
+// that ends the paragraph the parser infers around loose inline content.
 function endsItsBlock(node: Node): boolean {
   for (let current: Node | null = node; current && inlineElements.has(current.nodeName); current = current.parentNode) {
     for (let next = current.nextSibling; next; next = next.nextSibling) {
-      if (next.nodeType === Node.TEXT_NODE ? (next.nodeValue ?? '').trim() : next.nodeName !== 'BR') return false
+      if (next.nodeType === Node.TEXT_NODE) {
+        if ((next.nodeValue ?? '').trim()) return false
+      } else if (next.nodeName !== 'BR') {
+        return !inlineElements.has(next.nodeName) && next.nodeName !== 'IMG'
+      }
     }
   }
   return true

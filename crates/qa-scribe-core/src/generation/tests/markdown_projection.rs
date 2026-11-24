@@ -306,6 +306,7 @@ fn a_link_destination_with_parentheses_or_brackets_stays_whole() {
         "https://example.test/a(b",
         "https://example.test/a\\b",
         "https://example.test/<x>",
+        "https://example.test/a)&copy;",
     ] {
         let html = format!("<p><a href=\"{}\">ticket</a> after</p>", html_text(href));
         let nodes = round_trip(&html);
@@ -319,6 +320,16 @@ fn a_link_destination_with_parentheses_or_brackets_stays_whole() {
         );
         assert_eq!(content[1]["text"], " after", "{html} -> {}", project(&html));
     }
+}
+
+/// The editor accepts a URL with a space; a browser reads it as `%20`, and so does the link.
+#[test]
+fn a_link_with_a_space_keeps_its_link_as_the_encoded_url() {
+    let nodes = round_trip("<p><a href=\"https://example.test/a b\">ticket</a></p>");
+    assert_eq!(
+        nodes[0]["content"][0]["marks"][0]["attrs"]["href"],
+        "https://example.test/a%20b"
+    );
 }
 
 #[test]

@@ -362,21 +362,28 @@ fn code_span(code: &str) -> String {
     format!("{fence}{pad}{code}{pad}{fence}")
 }
 
-/// A destination with parentheses, angle brackets, backslashes or white space goes in angle brackets,
-/// where only `<`, `>` and `\` need escaping, so the parser reads back the whole URL.
+/// White space is percent-encoded, as a browser reads it, since the parser links no URL with a
+/// space. A destination with parentheses, angle brackets or backslashes goes in angle brackets,
+/// where `<`, `>` and `\` are escaped; `&` is escaped in both forms so no entity is decoded.
 fn link_destination(href: &str) -> String {
-    if !href.contains(|c: char| c.is_whitespace() || "()<>\\".contains(c)) {
-        return href.to_string();
-    }
+    let bracketed = href.contains(|c: char| "()<>\\".contains(c));
     let mut escaped = String::with_capacity(href.len() + 2);
-    escaped.push('<');
+    if bracketed {
+        escaped.push('<');
+    }
     for character in href.chars() {
-        if "<>\\".contains(character) {
+        if character.is_ascii_whitespace() {
+            escaped.push_str(&format!("%{:02X}", character as u32));
+            continue;
+        }
+        if character == '&' || (bracketed && "<>\\".contains(character)) {
             escaped.push('\\');
         }
         escaped.push(character);
     }
-    escaped.push('>');
+    if bracketed {
+        escaped.push('>');
+    }
     escaped
 }
 

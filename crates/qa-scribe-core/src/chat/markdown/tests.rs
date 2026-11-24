@@ -139,6 +139,15 @@ fn a_code_block_in_a_checklist_item_keeps_its_text() {
 }
 
 #[test]
+fn a_code_block_in_a_checklist_item_keeps_its_trailing_blank_lines() {
+    let nodes = parse("- [ ] Run\n\n  ```\n  az login\n\n  ```");
+    assert_eq!(
+        nodes[0]["content"][0]["content"][1],
+        json!({"type":"paragraph","content":[text("az login"), {"type":"hardBreak"}]})
+    );
+}
+
+#[test]
 fn a_checklist_item_starting_with_an_image_gets_its_leading_paragraph() {
     let image = json!({"type":"image","attrs":{"src":"qa-scribe-attachment://att-1","alt":"shot.png","attachmentId":"att-1"}});
     let nodes = super::parse_with_images(
