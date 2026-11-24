@@ -133,7 +133,7 @@ function renderMarkdownFromDocument(editorDocument: RichEditorDocument, codeBloc
           const label = joinChildren(children)
           if (!href) return label
           if (!label || label === href) return href
-          return `[${label}](${href})`
+          return `[${label}](${linkDestination(href)})`
         },
       },
     },
@@ -224,7 +224,7 @@ function wrapCellRun(mark: Mark, inner: string, run: ProseMirrorNode[]): string 
     const label = run.map((node) => node.text ?? '').join('')
     if (!href) return inner
     if (label === href && run.every((node) => node.marks.length === 1)) return href
-    return `[${inner}](${href})`
+    return `[${inner}](${linkDestination(href)})`
   }
   const delimiters = cellDelimiters[mark.type.name]
   const [, before = '', core = '', after = ''] = /^(\s*)([\s\S]*?)(\s*)$/.exec(inner) ?? []
@@ -238,6 +238,21 @@ function escapeCellText(text: string): string {
     if (character === '_' && /[\p{L}\p{N}]/u.test(text[offset - 1] ?? '') && /[\p{L}\p{N}]/u.test(text[offset + 1] ?? '')) return character
     return `\\${character}`
   })
+}
+
+// As the Rust Notes projection writes it: white space percent-encoded, a destination with
+// parentheses, angle brackets or backslashes in angle brackets with those escaped, and `&` escaped
+// in both forms, so a Markdown reader gets the whole URL back.
+function linkDestination(href: string): string {
+  const bracketed = /[()<>\\]/.test(href)
+  const escaped = [...href]
+    .map((character) => {
+      if (/\s/.test(character) && character.charCodeAt(0) < 128) return `%${character.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`
+      if (character === '&' || (bracketed && '<>\\'.includes(character))) return `\\${character}`
+      return character
+    })
+    .join('')
+  return bracketed ? `<${escaped}>` : escaped
 }
 
 function codeFence(code: string): string {

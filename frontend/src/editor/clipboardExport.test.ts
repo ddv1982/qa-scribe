@@ -183,7 +183,7 @@ describe('clipboardExport', () => {
   it('keeps pipes, code spaces, links and code inside bold intact in a table cell', () => {
     const cell = 'a | b <code>  x  </code>! <a href="https://example.test/a(b)">link</a> <strong>Run<code>c | d</code>now</strong>'
     const payload = formatRecordForClipboard({ title: '', bodyHtml: `<table><tbody><tr><th><p>Head</p></th></tr><tr><td><p>${cell}</p></td></tr></tbody></table>` })
-    expect(payload.plain).toBe(['| Head |', '| --- |', '| a \\| b `   x   `! [link](https://example.test/a(b)) **Run**`c \\| d`**now** |'].join('\n'))
+    expect(payload.plain).toBe(['| Head |', '| --- |', '| a \\| b `   x   `! [link](<https://example.test/a(b)>) **Run**`c \\| d`**now** |'].join('\n'))
   })
 
   // A GFM reader takes `<br>` in a cell as a line break and backslash escapes as literal text.
@@ -339,6 +339,18 @@ describe('clipboardExport', () => {
 
       literal *stars* and _underscores_ and # hash"
     `)
+  })
+
+  it.each([
+    ['https://example.test/?q=)', '<https://example.test/?q=)>'],
+    ['https://example.test/a(b', '<https://example.test/a(b>'],
+    ['https://example.test/a\\b', '<https://example.test/a\\\\b>'],
+    ['https://example.test/a&copy;', 'https://example.test/a\\&copy;'],
+  ])('keeps a link to %s whole in paragraphs and table cells', (href, destination) => {
+    const link = `<a href="${href.replace(/&/g, '&amp;')}">ticket</a>`
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: `<p>${link}</p><table><tbody><tr><th><p>${link}</p></th></tr></tbody></table>` })
+    expect(payload.plain).toContain(`[ticket](${destination})`)
+    expect(payload.plain).toContain(`| [ticket](${destination}) |`)
   })
 
   it('renders label-equals-href links as bare URLs (golden)', () => {
