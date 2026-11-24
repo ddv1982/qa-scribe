@@ -89,3 +89,21 @@ fn a_managed_image_in_a_cell_becomes_its_alt_text_since_a_cell_holds_no_image() 
         ]})]
     );
 }
+
+/// An empty text node is not a valid editor node, so an image without alt text reads as "Image".
+#[test]
+fn a_managed_image_without_alt_text_in_a_cell_reads_as_image() {
+    let image = json!({"type":"image","attrs":{"src":"qa-scribe-attachment://att-1","attachmentId":"att-1","alt":""}});
+    let nodes = parse_with_images(
+        "| A |\n| - |\n| ![](qa-scribe-attachment://att-1) |",
+        &[image],
+    )
+    .unwrap();
+    assert_eq!(
+        nodes,
+        vec![json!({"type":"table","content":[
+            row("tableHeader", vec![vec![text("A")]]),
+            row("tableCell", vec![vec![text("Image")]]),
+        ]})]
+    );
+}

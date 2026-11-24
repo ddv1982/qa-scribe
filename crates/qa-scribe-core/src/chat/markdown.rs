@@ -301,7 +301,8 @@ fn table_cell(nodes: Vec<Value>) -> Value {
         .into_iter()
         .map(|value| match value["type"].as_str() {
             Some("image") => {
-                json!({"type":"text","text":value["attrs"]["alt"].as_str().unwrap_or("Image")})
+                let alt = value["attrs"]["alt"].as_str().filter(|alt| !alt.is_empty());
+                json!({"type":"text","text":alt.unwrap_or("Image")})
             }
             _ => value,
         })
