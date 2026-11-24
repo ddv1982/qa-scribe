@@ -7,6 +7,9 @@ use super::html::{
 };
 use super::html_projection::{project_html_to_prompt_text, redact_data_urls};
 
+mod list;
+use list::list;
+
 const VOID_TAGS: &[&str] = &["br", "hr", "img", "input"];
 /// Elements nested deeper than the Markdown parser follows make the Note fall back to the plain
 /// projection, so the recursive walk and drop of the tree stay within the thread stack.
@@ -346,89 +349,6 @@ fn safe_link(href: &str) -> bool {
     ["http://", "https://", "mailto:"]
         .iter()
         .any(|scheme| lower.starts_with(scheme))
-}
-
-fn list(name: &str, tag: &str, children: &[Node]) -> String {
-    let start = attribute_value(tag, "start")
-        .and_then(|value| value.trim().parse::<i64>().ok())
-        .unwrap_or(1);
-    let mut items = vec![];
-    for child in children {
-        let Node::Element {
-            name: child_name,
-            children: item,
-            ..
-        } = child
-        else {
-            continue;
-        };
-        if child_name != "li" {
-            continue;
-        }
-        let marker = if let Some(checked) = checkbox(item) {
-            format!("- [{}] ", if checked { "x" } else { " " })
-        } else if name == "ol" {
-            format!("{}. ", start + items.len() as i64)
-        } else {
-            "- ".into()
-        };
-        let indent = " ".repeat(if name == "ol" { marker.len() } else { 2 });
-        let mut text = String::new();
-        for (index, (block, is_list)) in kinded_blocks(&unwrap_item(item)).iter().enumerate() {
-            // A nested list stays tight under its item; further paragraphs get a blank line.
-            let separator = match (index, is_list) {
-                (0, _) => "",
-                (_, true) => "\n",
-                _ => "\n\n",
-            };
-            text.push_str(separator);
-            text.push_str(&indent_lines(
-                block,
-                if index == 0 { "" } else { &indent },
-                &indent,
-            ));
-        }
-        items.push(format!("{marker}{text}").trim_end().to_string());
-    }
-    items.join("\n")
-}
-
-fn checkbox(item: &[Node]) -> Option<bool> {
-    item.iter().find_map(|node| match node {
-        Node::Element { name, tag, .. } if name == "input" => {
-            Some(attribute_value(tag, "checked").is_some())
-        }
-        Node::Element { name, children, .. } if name == "label" => checkbox(children),
-        _ => None,
-    })
-}
-
-/// A task item's checkbox wrappers carry no content, and its `div` only wraps paragraphs.
-fn unwrap_item(item: &[Node]) -> Vec<&Node> {
-    let mut nodes = vec![];
-    for node in item {
-        match node {
-            Node::Element { name, .. } if name == "input" || name == "label" => {}
-            Node::Element { name, children, .. } if name == "div" => {
-                nodes.extend(unwrap_item(children))
-            }
-            other => nodes.push(other),
-        }
-    }
-    nodes
-}
-
-fn indent_lines(block: &str, first: &str, rest: &str) -> String {
-    block
-        .split('\n')
-        .enumerate()
-        .map(|(index, line)| match (index, line.is_empty()) {
-            (_, true) => String::new(),
-            (0, false) => format!("{first}{line}"),
-            _ => format!("{rest}{line}"),
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
 }
 
 fn code_block(children: &[Node]) -> String {
