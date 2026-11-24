@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
 import { richTextEditorExtensions } from './editorExtensions'
 import { normalizeEditorHtml } from './editorHtml'
+import { managedAttachmentProtocol } from './htmlUtils'
 
 const spans = { colspan: 1, rowspan: 1, colwidth: null }
 const paragraph = (...content: JSONContent[]): JSONContent => ({ type: 'paragraph', ...(content.length ? { content } : {}) })
@@ -122,6 +123,38 @@ describe('pasting at a caret inside a cell', () => {
     expect(editor!.getJSON().content?.filter((node) => node.type === 'table')).toEqual([
       table(row(header(text('aX'), hardBreak, text('Ybc')), header(text('xyz'))), row(cell(text('1')), cell(text('2')))),
     ])
+  })
+
+  const image = { type: 'image', attrs: expect.objectContaining({ attachmentId: 'shot-1', alt: 'shot' }) as Record<string, unknown> }
+  const shotHtml = `<img src="${managedAttachmentProtocol}shot-1" alt="shot">`
+  const untouched = table(row(header(text('abc')), header(text('xyz'))), row(cell(text('1')), cell(text('2'))))
+
+  // A cell holds no image, so a pasted image goes after the table, as an uploaded one does.
+  it('puts a pasted image after the table and leaves selected cell text in place', () => {
+    editorAtAbc(1).commands.setTextSelection({ from: 5, to: 6 })
+    editor!.view.pasteHTML(shotHtml, new Event('paste') as ClipboardEvent)
+    expect(editor!.getJSON().content?.slice(0, 2)).toEqual([untouched, image])
+  })
+
+  it('pastes the text of mixed content in the cell and its images after the table', () => {
+    editorAtAbc(1).view.pasteHTML(`<p>X</p>${shotHtml}<p>Y</p>`, new Event('paste') as ClipboardEvent)
+    expect(editor!.getJSON().content?.slice(0, 2)).toEqual([
+      table(row(header(text('aX'), hardBreak, text('Ybc')), header(text('xyz'))), row(cell(text('1')), cell(text('2')))),
+      image,
+    ])
+  })
+
+  it('puts an image dropped from outside the editor after the table', () => {
+    editorAtAbc(0)
+    // jsdom has no layout, so the drop lands where posAtCoords says: between "a" and "bc".
+    editor!.view.posAtCoords = () => ({ pos: 5, inside: -1 })
+    const drop = Object.assign(new Event('drop', { bubbles: true, cancelable: true }), {
+      clientX: 0,
+      clientY: 0,
+      dataTransfer: { getData: (type: string) => (type === 'text/html' ? shotHtml : ''), types: ['text/html'] },
+    })
+    editor!.view.dom.dispatchEvent(drop)
+    expect(editor!.getJSON().content?.slice(0, 2)).toEqual([untouched, image])
   })
 
   it('still pastes a table over the cells from the caret on', () => {

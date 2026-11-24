@@ -7,7 +7,7 @@
 import { Extension, type JSONContent } from '@tiptap/core'
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table'
 import { DOMParser as ProseMirrorDOMParser, Fragment, Slice, type Node as ProseMirrorNode, type ParseOptions, type ResolvedPos, type Schema } from '@tiptap/pm/model'
-import { Plugin, PluginKey, TextSelection, type Selection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, Selection, TextSelection } from '@tiptap/pm/state'
 import { CellSelection } from '@tiptap/pm/tables'
 import type { EditorView } from '@tiptap/pm/view'
 import { keepInlineCodeSpaces } from './inlineCodeSpaces'
@@ -22,20 +22,23 @@ const cellAttributes = () => ({
 const singleParagraphCell = (tag: 'td' | 'th') => ({
   content: 'paragraph',
   addAttributes: cellAttributes,
-  parseHTML: () => [{ tag, getContent: (node: Node, schema: Schema) => cellParagraph(node, schema) }],
+  parseHTML: () => [{ tag, getContent: (node: Node, schema: Schema) => Fragment.from(cellContent(node, schema).line) }],
   renderHTML: () => [tag, 0] as const,
 })
 
 /**
- * Every block a pasted cell holds becomes one line of its single paragraph. Inline code keeps its
- * spaces, as when the editor reads HTML, whether the cell is read, pasted or copied.
+ * Every block a pasted cell holds becomes one line of its single paragraph, and its images, which
+ * a cell cannot hold, are returned beside it. Inline code keeps its spaces, as when the editor
+ * reads HTML, whether the cell is read, pasted or copied.
  */
-function cellParagraph(element: Node, schema: Schema, preserveWhitespace?: ParseOptions['preserveWhitespace']): Fragment {
+function cellContent(element: Node, schema: Schema, preserveWhitespace?: ParseOptions['preserveWhitespace']): { line: ProseMirrorNode; images: ProseMirrorNode[] } {
   const copy = element.cloneNode(true)
   const guard = copy instanceof Element ? keepInlineCodeSpaces(copy) : null
   const parsed = ProseMirrorDOMParser.fromSchema(schema).parse(copy, { preserveWhitespace })
   const inline: ProseMirrorNode[] = []
+  const images: ProseMirrorNode[] = []
   parsed.descendants((node) => {
+    if (node.type.name === 'image') images.push(node)
     if (!node.isTextblock) return true
     const lines: ProseMirrorNode[] = []
     node.forEach((child) => {
@@ -55,15 +58,15 @@ function cellParagraph(element: Node, schema: Schema, preserveWhitespace?: Parse
     inline.push(...lines)
     return false
   })
-  return Fragment.from(schema.nodes.paragraph.create(null, inline))
+  return { line: schema.nodes.paragraph.create(null, inline), images }
 }
 
 /**
- * Clipboard content without a table, pasted or dropped in a cell, becomes lines of that cell.
- * Parsed as blocks, ProseMirror would wrap each block in a cell of its own to fit the row, and
- * the table paste would then write them over the cells from the caret on. Content with a table
- * still fills cells, and so do blocks pasted over selected cells, one block per cell, as
- * prosemirror-tables pastes them.
+ * Clipboard content without a table, pasted or dropped in a cell, becomes lines of that cell,
+ * followed by its images for `insertInCell` to put after the table. Parsed as blocks, ProseMirror
+ * would wrap each block in a cell of its own to fit the row, and the table paste would then write
+ * them over the cells from the caret on. Content with a table still fills cells, and so do blocks
+ * pasted over selected cells, one block per cell, as prosemirror-tables pastes them.
  */
 class TableClipboardParser extends ProseMirrorDOMParser {
   constructor(schema: Schema, private readonly selection: () => Selection) {
@@ -72,21 +75,47 @@ class TableClipboardParser extends ProseMirrorDOMParser {
 
   override parseSlice(dom: Node, options: ParseOptions = {}): Slice {
     if (!options.context || !inTableCell(options.context) || holdsTable(dom) || this.selection() instanceof CellSelection) return super.parseSlice(dom, options)
-    return new Slice(cellParagraph(dom, this.schema, options.preserveWhitespace), 1, 1)
+    const { line, images } = cellContent(dom, this.schema, options.preserveWhitespace)
+    return images.length === 0 ? new Slice(Fragment.from(line), 1, 1) : new Slice(Fragment.from([line, ...images]), 1, 0)
   }
 }
 
 /**
- * Whole paragraphs copied from an editor keep closed ends after parsing, so the paste would split
- * the table around them; at a caret in a cell their lines join the caret's line instead.
+ * Pasted or dropped between `from` and `to` in a cell, a paragraph's lines join the cell's line
+ * and images go after the table, as an uploaded image does. ProseMirror would split the table
+ * around either: whole paragraphs copied from an editor keep closed ends after parsing, and a
+ * cell holds no image. Images alone leave the cell as it was.
  */
-function pasteClosedParagraphInCell(view: EditorView, _event: ClipboardEvent, slice: Slice): boolean {
-  const { selection } = view.state
-  const closed = slice.openStart === 0 || slice.openEnd === 0
-  if (!closed || slice.content.childCount !== 1 || slice.content.firstChild?.type.name !== 'paragraph') return false
-  if (!(selection instanceof TextSelection) || !inTableCell(selection.$from)) return false
-  view.dispatch(view.state.tr.replaceSelection(new Slice(slice.content, 1, 1)).scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste'))
+function insertInCell(view: EditorView, from: number, to: number, slice: Slice, uiEvent: 'paste' | 'drop'): boolean {
+  const nodes: ProseMirrorNode[] = []
+  slice.content.forEach((node) => void nodes.push(node))
+  const line = nodes[0]?.type.name === 'paragraph' ? nodes[0] : null
+  const images = nodes.slice(line ? 1 : 0)
+  const closedLine = line !== null && images.length === 0 && (slice.openStart === 0 || slice.openEnd === 0)
+  const $from = view.state.doc.resolve(from)
+  const afterTable = positionAfterTable($from)
+  if (afterTable === null || !inTableCell($from) || (!closedLine && images.length === 0) || images.some((node) => node.type.name !== 'image')) return false
+  const tr = view.state.tr
+  if (line && line.content.size > 0) {
+    tr.replace(from, to, new Slice(Fragment.from(line), 1, 1))
+    tr.setSelection(TextSelection.create(tr.doc, tr.mapping.map(to)))
+  }
+  const at = tr.mapping.map(afterTable)
+  tr.insert(at, images)
+  if (!line?.content.size) tr.setSelection(Selection.near(tr.doc.resolve(tr.mapping.map(at)), -1))
+  view.dispatch(tr.scrollIntoView().setMeta('paste', uiEvent === 'paste').setMeta('uiEvent', uiEvent))
   return true
+}
+
+function pasteInCell(view: EditorView, _event: ClipboardEvent, slice: Slice): boolean {
+  const { selection } = view.state
+  return selection instanceof TextSelection && insertInCell(view, selection.from, selection.to, slice, 'paste')
+}
+
+/** A drop that moves content within the editor is left to ProseMirror, which deletes the source. */
+function dropInCell(view: EditorView, event: DragEvent, slice: Slice, moved: boolean): boolean {
+  const target = moved ? null : view.posAtCoords({ left: event.clientX, top: event.clientY })
+  return target !== null && insertInCell(view, target.pos, target.pos, slice, 'drop')
 }
 
 /** The position after the table around `$position`, where content a cell cannot hold goes. */
@@ -137,7 +166,7 @@ export const editorTableExtensions = [
     addProseMirrorPlugins() {
       const { editor } = this
       const clipboardParser = new TableClipboardParser(editor.schema, () => editor.state.selection)
-      return [...(this.parent?.() ?? []), headerRowPlugin(), new Plugin({ props: { clipboardParser, handlePaste: pasteClosedParagraphInCell } })]
+      return [...(this.parent?.() ?? []), headerRowPlugin(), new Plugin({ props: { clipboardParser, handlePaste: pasteInCell, handleDrop: dropInCell } })]
     },
   }),
   TableRow,
