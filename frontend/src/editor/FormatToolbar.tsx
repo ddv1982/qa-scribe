@@ -269,8 +269,9 @@ function setBlockStyle(editor: Editor | null, value: string) {
   const chain = editor.chain().focus()
   const level = headingLevels.find((candidate) => value === `h${candidate}`)
   // A heading leaves every quote and list around it, so the splitter sees it as a case heading;
-  // a code block leaves every quote.
-  if (level) chain.command(liftUntil((range) => range.depth === 0)).setNode('heading', { level }).run()
+  // a code block leaves every quote. Clearing first lifts each selected block on its own, as a
+  // range over several list items has no lift target.
+  if (level) chain.clearNodes().command(liftUntil((range) => range.depth === 0)).setNode('heading', { level }).run()
   else if (value === 'codeBlock') chain.command(liftUntil((range) => !hasAncestor(range, 'blockquote'))).setCodeBlock().run()
   else if (value === 'blockquote') chain.clearNodes().setBlockquote().run()
   else chain.clearNodes().setParagraph().run()

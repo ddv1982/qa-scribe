@@ -33,12 +33,15 @@ async function renderEditor(html = '<p>Evidence</p>') {
   return { editor, html: () => richEditorDocumentToHtml(onChange.mock.lastCall?.[0] ?? richEditorDocumentFromHtml(html)) }
 }
 
-function selectText(editor: HTMLElement) {
+function selectText(editor: HTMLElement, { all = false } = {}) {
   editor.focus()
-  const textNode = editor.querySelector('p, h1, h2, h3, h4, h5, h6, pre code')?.firstChild
-  if (!textNode) throw new Error('editor text missing')
+  const textNodes = [...editor.querySelectorAll('p, h1, h2, h3, h4, h5, h6, pre code')].flatMap((block) => (block.firstChild ? [block.firstChild] : []))
+  const first = textNodes[0]
+  const last = all ? textNodes.at(-1) : first
+  if (!first || !last) throw new Error('editor text missing')
   const range = document.createRange()
-  range.selectNodeContents(textNode)
+  range.setStart(first, 0)
+  range.setEnd(last, last.textContent?.length ?? 0)
   const selection = window.getSelection()
   selection?.removeAllRanges()
   selection?.addRange(range)
@@ -103,6 +106,17 @@ describe('FormatToolbar', () => {
     selectText(editor)
     chooseBlockStyle(value)
     await waitFor(() => expect(html()).toBe(`${expected}<p></p>`))
+  })
+
+  it.each([
+    ['<ul><li><p>One</p></li><li><p>Two</p></li></ul>'],
+    ['<blockquote><ol><li><p>One</p></li><li><p>Two</p></li></ol></blockquote>'],
+  ])('turns every selected list item into a heading in %s', async (source) => {
+    const { editor, html } = await renderEditor(source)
+    selectText(editor, { all: true })
+    chooseBlockStyle('h2')
+    // jsdom maps the selection end into the trailing empty paragraph, so only the start is fixed.
+    await waitFor(() => expect(html()).toMatch(/^<h2>One<\/h2><h2>Two<\/h2>(<h2><\/h2>)?<p><\/p>$/))
   })
 
   it('returns a heading to Normal', async () => {
