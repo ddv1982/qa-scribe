@@ -90,6 +90,7 @@ export class CaseSaveQueue {
       const entry = this.entries.get(testCase.id)
       if (!entry) return testCase
       entry.confirmed = testCase
+      entry.resultError = undefined
       return this.display(entry)
     })
   }

@@ -63,6 +63,61 @@ fn a_valid_suggestion_is_saved_without_changing_the_case() {
 }
 
 #[test]
+fn an_empty_suggestion_list_keeps_the_clarifying_question() {
+    let f = fixture();
+    let started = start(
+        &f,
+        &write(&f, &begin(&f), "What should I record?"),
+        ChatRequestIntent::Message,
+    )
+    .unwrap();
+    let chat = f
+        .service
+        .finish_chat_turn(ChatFinishRequest {
+            scope: scope(&started.chat),
+            turn_id: started.turn_id,
+            assistant_text: json!({
+                "version": 2, "requestId": started.chat.messages.last().unwrap().id,
+                "markdown": "I need the environment.",
+                "question": {"prompt": "Which environment?", "choices": ["Staging", "Production"]},
+                "testRunSuggestions": []
+            })
+            .to_string(),
+        })
+        .unwrap();
+    let response = chat.messages.last().unwrap().response.as_ref().unwrap();
+    assert_eq!(response.warning, None);
+    assert_eq!(
+        response.question.as_ref().unwrap().prompt,
+        "Which environment?"
+    );
+    assert_eq!(offered_count(&f), 0);
+}
+
+#[test]
+fn notes_only_suggestions_accept_missing_or_null_rationale() {
+    let f = fixture();
+    let chat = offer(
+        &f,
+        json!([
+            {"caseId": f.run.cases[0].id, "notesMarkdown": "Retried on build 4.2."},
+            {"caseId": f.run.cases[1].id, "notesMarkdown": "Retried on build 4.3.", "rationale": null}
+        ]),
+    );
+    assert_eq!(
+        chat.messages
+            .last()
+            .unwrap()
+            .response
+            .as_ref()
+            .unwrap()
+            .warning,
+        None
+    );
+    assert_eq!(offered_count(&f), 2);
+}
+
+#[test]
 fn a_foreign_case_is_rejected() {
     let f = fixture();
     let other = f
@@ -70,6 +125,26 @@ fn a_foreign_case_is_rejected() {
         .start_test_run(&f.draft_id, vec![case(None, "Other")])
         .unwrap();
     let chat = offer(&f, json!([suggested(&other.cases[0].id)]));
+    assert!(
+        chat.messages
+            .last()
+            .unwrap()
+            .response
+            .as_ref()
+            .unwrap()
+            .warning
+            .is_some()
+    );
+    assert_eq!(offered_count(&f), 0);
+}
+
+#[test]
+fn notes_expanding_past_the_document_limit_are_not_offered() {
+    let f = fixture();
+    let chat = offer(
+        &f,
+        json!([{"caseId": f.run.cases[0].id, "notesMarkdown": "- [ ] x\n".repeat(1000)}]),
+    );
     assert!(
         chat.messages
             .last()
@@ -98,6 +173,7 @@ fn empty_rows_and_results_without_rationale_are_rejected() {
     for row in [
         json!({"caseId": id, "notesMarkdown": " ", "rationale": "Empty"}),
         json!({"caseId": id, "result": "passed", "rationale": " "}),
+        json!({"caseId": id, "result": "passed"}),
     ] {
         let chat = offer(&f, json!([row]));
         assert!(

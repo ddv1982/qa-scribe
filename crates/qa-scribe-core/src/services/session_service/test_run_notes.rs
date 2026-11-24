@@ -12,11 +12,12 @@ use crate::{
         chat::{MAX_CHAT_IMAGE_BYTES, validate_chat_image},
         managed_import::PreparedManagedAttachment,
     },
-    domain::{AttachmentDraft, TestCaseNoteImage, TestCaseNotes, TestRunCase},
+    domain::{
+        AttachmentDraft, TEST_CASE_NOTES_MAX_BYTES, TestCaseNoteImage, TestCaseNotes, TestRunCase,
+    },
     error::validation,
 };
 
-const MAX_DOCUMENT_BYTES: usize = 64 * 1024;
 const MAX_IMAGES: usize = 8;
 
 pub struct PreparedTestCaseNotes {
@@ -217,7 +218,7 @@ fn prepare_image(session: &str, image: &TestCaseNoteImage) -> Result<PreparedMan
 }
 
 fn parse(body: &str) -> Result<Value> {
-    if body.len() > MAX_DOCUMENT_BYTES {
+    if body.len() > TEST_CASE_NOTES_MAX_BYTES {
         return Err(validation("Result notes are too long"));
     }
     let document: Value =
@@ -258,7 +259,7 @@ pub(super) fn append_suggested_notes(case: &TestRunCase, addition: &str) -> Resu
         .expect("validated suggestion blocks");
     content.append(blocks);
     let body_json = document.to_string();
-    if body_json.len() > MAX_DOCUMENT_BYTES {
+    if body_json.len() > TEST_CASE_NOTES_MAX_BYTES {
         return Err(validation(
             "Result notes are too long to append this suggestion",
         ));

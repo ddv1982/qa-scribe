@@ -94,11 +94,12 @@ type ScreenQueue = { runId: string; sessionId: string; queue: CaseSaveQueue; bac
 /** Keeps a queue that left the screen until its saves have settled, then tells the views. */
 function drain(left: ScreenQueue) {
   const reads = readsForRun(left.runId)
+  const barrier = editBarriers.get(left.runId)
   if (draining.get(left.runId) === left.queue) return
-  if (!reads.length && left.queue.idle && !left.queue.hasPendingNotes && !left.queue.hasFailedSave) return
+  if (!barrier && !reads.length && left.queue.idle && !left.queue.hasPendingNotes) return
   draining.set(left.runId, left.queue)
-  void Promise.allSettled(reads).then(() => left.queue.whenIdle()).then(() => {
-    if (draining.get(left.runId) === left.queue && !left.queue.hasPendingNotes && !left.queue.hasFailedSave) draining.delete(left.runId)
+  void Promise.all([barrier, Promise.allSettled(reads)]).then(() => left.queue.whenIdle()).then(() => {
+    if (draining.get(left.runId) === left.queue && !left.queue.hasPendingNotes) draining.delete(left.runId)
     for (const listener of drainedListeners) listener({ sessionId: left.sessionId, failed: left.background.failed })
   })
 }

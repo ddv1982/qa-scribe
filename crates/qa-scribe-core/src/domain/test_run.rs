@@ -17,6 +17,8 @@ pub const TEST_RUN_BODY_JSON_MAX_TOTAL_LENGTH: usize = 2 * RICH_BODY_JSON_MAX_LE
 /// Maximum length for a test case's Remark.
 pub const TEST_CASE_REMARK_MAX_LENGTH: usize = 500;
 
+pub(crate) const TEST_CASE_NOTES_MAX_BYTES: usize = 64 * 1024;
+
 /// The Result a tester records for one test case in a test run.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]

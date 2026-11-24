@@ -117,6 +117,11 @@ pub(crate) fn interpret(
     }
     let test_run_suggestions = match envelope.test_run_suggestions {
         Some(rows)
+            if rows.is_empty() && contract.purpose() == ChatResponsePurpose::TestRunRecording =>
+        {
+            vec![]
+        }
+        Some(rows)
             if contract.purpose() == ChatResponsePurpose::TestRunRecording
                 && envelope.question.is_none() =>
         {

@@ -132,6 +132,19 @@ describe('Saving test result notes', () => {
 })
 
 describe('Applying a suggested result', () => {
+  it('refreshes test run counts when the tester leaves during an update', async () => {
+    const user = userEvent.setup()
+    await renderOpen(stored())
+    let finish!: (outcomes: TestRunSuggestionOutcome[]) => void
+    writeSuggestion.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    await user.click(screen.getByRole('button', { name: 'Apply fixture suggestion' }))
+    expect(writeSuggestion).toHaveBeenCalledOnce()
+    await user.click(screen.getByRole('button', { name: 'Leave test run' }))
+    api.listTestRuns.mockClear()
+    await act(async () => { finish([]) })
+    expect(api.listTestRuns).toHaveBeenCalledWith('session-1')
+  })
+
   it('drains a pending case save and an image read before calling the command', async () => {
     const user = userEvent.setup()
     const row = await renderOpen(stored())

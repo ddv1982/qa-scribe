@@ -293,12 +293,14 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
         const rows = await listChatHistory({ kind: 'session', sessionId: owner.sessionId })
         if (!current()) return
         setRecoveryRows(rows.filter(row => row.unresolvedStages.length || ['running', 'failed', 'interrupted', 'cancelled'].includes(row.lastTurnStatus ?? '')))
-        const unfinished = unfinishedConversations(rows, ctx.conversations.attention(owner.sessionId)).find(item => sameOwner(item.owner, owner))
-        if (unfinished && !forceNew) { attempts.current.delete(key); await openConversation(unfinished.reference, unfinished.origin, unfinished.reason, preparing); return }
         const latest = rows.find(row => !row.archived && sameOwner(row.owner, owner))
-        if (owner.kind === 'test_run' && !forceNew && latest?.hasTestRunSuggestions) {
+        const latestWithSuggestions = owner.kind === 'test_run' && latest?.hasTestRunSuggestions ? latest : undefined
+        const unfinished = unfinishedConversations(rows, ctx.conversations.attention(owner.sessionId)).find(item =>
+          sameOwner(item.owner, owner) && (!latestWithSuggestions || item.reference.draftId === latestWithSuggestions.reference.draftId))
+        if (unfinished && !forceNew) { attempts.current.delete(key); await openConversation(unfinished.reference, unfinished.origin, unfinished.reason, preparing); return }
+        if (!forceNew && latestWithSuggestions) {
           attempts.current.delete(key)
-          await openConversation(latest.reference, undefined, '', preparing)
+          await openConversation(latestWithSuggestions.reference, undefined, '', preparing)
           return
         }
         const bound = ctx.conversations.bind(captured.reference)

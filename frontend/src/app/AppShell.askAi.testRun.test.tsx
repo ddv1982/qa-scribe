@@ -122,7 +122,7 @@ describe('Ask AI on a test run', () => {
     expect(api.startChatJob).toHaveBeenCalledWith(expect.objectContaining({ intent: { kind: action === 'Send' ? 'composer' : 'retry' } }), expect.any(Function))
   })
 
-  it('refuses Send after a case save has failed', async () => {
+  it('refuses Send after a case save fails and recovers on reopening the run', async () => {
     await openRun()
     const input = await askAi()
     api.setTestCaseResult.mockRejectedValueOnce(new Error('Disk full'))
@@ -132,9 +132,19 @@ describe('Ask AI on a test run', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     await within(screen.getByRole('complementary', { name: 'Ask AI' })).findByText(/Retry the failed test case save before continuing/)
     expect(api.startChatJob).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close Ask AI' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to test cases' }))
+    fireEvent.click(within(await screen.findByRole('region', { name: 'Test runs' })).getAllByRole('button')[0])
+    await screen.findByRole('button', { name: 'Copy report' })
+    const reopened = await askAi()
+    fireEvent.change(reopened, { target: { value: 'Record the saved result' } })
+    api.startChatJob.mockRejectedValueOnce({ kind: 'validation', message: 'Test request stopped' })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(api.startChatJob).toHaveBeenCalledTimes(1))
   })
 
-  it('names each suggestion action, reports an applied row, and keeps Undo after closing the panel', async () => {
+  it('keeps an applied suggestion and Undo reachable ahead of an older failed conversation', async () => {
     const testCase = { ...newer.cases[0], suggestionFingerprint: 'base' }
     api.getTestRun.mockImplementation(async id => id === newer.id ? { ...newer, cases: [testCase] } : older)
     const initial: TestRunSuggestion = {
@@ -154,8 +164,12 @@ describe('Ask AI on a test run', () => {
     })
     api.listChatHistory.mockImplementation(async () => chat ? [{
       reference: { sessionId: chat.sessionId, draftId: chat.draftId }, owner: chat.owner, createdAt: at,
-      lastActiveAt: at, lastActiveOrder: 1, preview: '', archived: false, submission: null,
+      lastActiveAt: at, lastActiveOrder: 2, preview: '', archived: false, submission: null,
       hasContent: true, hasTestRunSuggestions: true, lastTurnStatus: 'completed', unresolvedStages: [],
+    }, {
+      reference: { sessionId: chat.sessionId, draftId: 'older-failed-chat' }, owner: chat.owner, createdAt: at,
+      lastActiveAt: at, lastActiveOrder: 1, preview: '', archived: false, submission: null,
+      hasContent: true, lastTurnStatus: 'failed', unresolvedStages: [],
     }] : [])
     const applied = { ...initial, appliedFingerprint: 'applied' }
     api.applyAllTestRunSuggestions.mockImplementationOnce(async () => {
