@@ -179,6 +179,13 @@ describe('clipboardExport', () => {
     )
   })
 
+  // Phase 2's inline fixes hold inside a cell, and every pipe in a cell, also in code, is escaped.
+  it('keeps pipes, code spaces, links and code inside bold intact in a table cell', () => {
+    const cell = 'a | b <code>  x  </code>! <a href="https://example.test/a(b)">link</a> <strong>Run<code>c | d</code>now</strong>'
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: `<table><tbody><tr><th><p>Head</p></th></tr><tr><td><p>${cell}</p></td></tr></tbody></table>` })
+    expect(payload.plain).toBe(['| Head |', '| --- |', '| a \\| b `   x   `! [link](https://example.test/a(b)) **Run**`c \\| d`**now** |'].join('\n'))
+  })
+
   it('converts task list metadata into portable checkbox markers', () => {
     const payload = formatRecordForClipboard({
       title: 'Regression pass',

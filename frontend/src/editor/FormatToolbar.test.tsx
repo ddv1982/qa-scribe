@@ -210,6 +210,23 @@ describe('FormatToolbar', () => {
       expect(screen.queryByRole('group', { name: 'Table' })).not.toBeInTheDocument()
     })
 
+    // A cell holds one paragraph, so a block style other than Normal leaves the cell as it is.
+    it.each(['h2', 'codeBlock', 'blockquote'])('keeps a table cell a paragraph for the %s block style', async (value) => {
+      const { editor, html } = await renderEditor(twoByTwo)
+      selectText(editor, { index: 2 })
+      chooseBlockStyle(value)
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(html()).toBe(`${twoByTwo}<p></p>`)
+    })
+
+    it('turns the selected blocks before a table into headings and keeps the table', async () => {
+      const { editor, html } = await renderEditor(`<p>One</p><p>Two</p>${twoByTwo}`)
+      selectText(editor, { all: true })
+      chooseBlockStyle('h2')
+      await waitFor(() => expect(html()).toMatch(/^<h2>One<\/h2><h2>Two<\/h2>/))
+      expect(html()).toContain(twoByTwo)
+    })
+
     it('keeps the editor selection when a table control is pressed', async () => {
       const { editor } = await renderEditor(twoByTwo)
       selectText(editor, { index: 2 })

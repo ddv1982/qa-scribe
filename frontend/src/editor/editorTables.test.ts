@@ -50,6 +50,15 @@ describe('editor tables', () => {
     )])
   })
 
+  // A cell ends its block, so inline code ending a cell keeps its edge spaces, with or without a paragraph.
+  it('keeps the spaces of inline code that ends a cell', () => {
+    const html = '<table><tr><th><p>Run <code> a b </code></p></th><td><code>x  </code></td></tr><tr><td><code>  y</code><br>next</td><td>z <code> w </code><br></td></tr></table>'
+    expect(richEditorDocumentFromHtml(html).doc.content).toEqual([table(
+      row(header(text('Run '), text(' a b ', 'code')), header(text('x  ', 'code'))),
+      row(cell(text('  y', 'code'), { type: 'hardBreak' }, text('next')), cell(text('z '), text(' w ', 'code'), { type: 'hardBreak' })),
+    )])
+  })
+
   it('pastes a table as a rectangular table with a header row and one paragraph per cell', () => {
     const content = paste('<table><tr><td><p>Field</p><p>name</p></td><td>Value</td></tr><tr><td colspan="2">only</td></tr></table>')
     expect(content.find((node) => node.type === 'table')).toEqual(table(
