@@ -31,7 +31,10 @@ fn case(group: Option<&str>, title: &str) -> TestRunCaseDraft {
 
 /// A run of four cases: one without a group, then two groups.
 fn fixture() -> Fixture {
-    let service = SessionService::in_memory().unwrap();
+    fixture_with(SessionService::in_memory().unwrap())
+}
+
+fn fixture_with(service: SessionService) -> Fixture {
     let session_id = service
         .create_session(SessionDraft {
             title: "Checkout".into(),
@@ -287,7 +290,7 @@ fn a_long_report_is_cut_after_a_whole_line_and_marked() {
 }
 
 #[test]
-fn a_test_run_conversation_never_offers_or_accepts_a_change() {
+fn a_test_run_conversation_rejects_record_refinements() {
     let f = fixture();
     let chat = write(&f, &begin(&f), "Post the results to PAY-12");
     for intent in [
@@ -325,7 +328,7 @@ fn a_test_run_conversation_never_offers_or_accepts_a_change() {
     let started = start(&f, &chat, ChatRequestIntent::Message).unwrap();
     let user = started.chat.messages.last().unwrap().clone();
     let contract = f.service.response_contract(&user.id).unwrap().unwrap();
-    assert_eq!(contract.purpose(), ChatResponsePurpose::Conversation);
+    assert_eq!(contract.purpose(), ChatResponsePurpose::TestRunRecording);
     assert_eq!(contract.version(), 2);
     let reply = json!({"version":2,"requestId":user.id,"markdown":"Marked every case as passed.",
         "refinement":{"kind":"test_cases_draft","title":"Rewritten","bodyMarkdown":"- Passed: everything"}});
@@ -350,7 +353,7 @@ fn a_test_run_conversation_never_offers_or_accepts_a_change() {
     let response = finished.messages.last().unwrap().response.clone().unwrap();
     assert_eq!(
         response.warning.as_deref(),
-        Some("This response is retained as text without interactive choices.")
+        Some("No results were suggested. The reply did not contain a usable suggestion.")
     );
     let run = f.service.get_test_run(&f.run.id).unwrap();
     assert!(
@@ -448,3 +451,6 @@ fn an_oversized_focused_case_refuses_the_report() {
     ));
     assert!(error.contains("focused test case is too long"), "{error}");
 }
+
+#[path = "test_run_conversation/suggestions.rs"]
+mod suggestions;

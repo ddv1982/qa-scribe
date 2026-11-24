@@ -10,6 +10,7 @@ mod chat_images;
 mod chat_ownership;
 mod chat_questions;
 mod chat_refinements;
+mod chat_test_run_suggestions;
 mod creation;
 mod schema;
 mod session_sheet;
@@ -76,7 +77,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 25;
+pub const SCHEMA_VERSION: i32 = 26;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();
@@ -148,6 +149,9 @@ fn initialize(connection: &Connection) -> Result<()> {
         }
         if found < 25 {
             test_runs::migrate_result_notes(tx)?;
+        }
+        if found < 26 {
+            tx.execute_batch(chat_test_run_suggestions::SCHEMA)?;
         }
         if migrations_run {
             assert_no_foreign_key_violations(tx)?;

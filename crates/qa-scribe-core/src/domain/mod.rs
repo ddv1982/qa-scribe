@@ -16,6 +16,7 @@ mod record_write;
 mod session;
 mod settings;
 mod test_run;
+mod test_run_suggestion;
 mod validation;
 mod visual;
 
@@ -32,5 +33,6 @@ pub use model_selection::*;
 pub use session::*;
 pub use settings::*;
 pub use test_run::*;
+pub use test_run_suggestion::*;
 pub use validation::*;
 pub use visual::*;

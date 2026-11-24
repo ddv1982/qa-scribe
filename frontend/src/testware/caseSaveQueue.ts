@@ -16,6 +16,7 @@ type Entry = {
   savedImages: Set<string>
   notesDraft?: NotesDraft
   notesError?: string
+  resultError?: boolean
 }
 
 export type CaseSaveListener = {
@@ -93,6 +94,10 @@ export class CaseSaveQueue {
     })
   }
 
+  get hasFailedSave(): boolean {
+    return [...this.entries.values()].some(entry => entry.resultError || entry.notesError)
+  }
+
   get hasPendingNotes(): boolean {
     return [...this.entries.values()].some(entry => Boolean(entry.notesDraft))
   }
@@ -148,6 +153,7 @@ export class CaseSaveQueue {
     this.inFlight += 1
     void save.then((saved) => {
       entry.confirmed = saved
+      if (writeResult) entry.resultError = false
       for (const image of images ?? []) entry.savedImages.add(image.id)
       if (draft && entry.notesDraft === draft) entry.notesDraft = undefined
       const resultSettled = writeResult && sameValue({ ...valueOf(saved), ...entry.changes }, valueOf(saved))
@@ -160,7 +166,10 @@ export class CaseSaveQueue {
     }, (cause: unknown) => {
       entry.sending = false
       entry.savingResult = undefined
-      if (writeResult) entry.changes = {}
+      if (writeResult) {
+        entry.changes = {}
+        entry.resultError = true
+      }
       if (toCommandError(cause).kind === 'notFound') entry.notesDraft = undefined
       else if (draft && entry.notesDraft === draft) entry.notesError = formatError(cause)
       this.show(entry)

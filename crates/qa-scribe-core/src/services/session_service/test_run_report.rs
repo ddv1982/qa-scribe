@@ -1,5 +1,7 @@
 //! Saved test run context for Ask AI.
 
+use std::collections::BTreeMap;
+
 use rusqlite::{Connection, OptionalExtension};
 
 use super::{SessionService, test_runs::test_run};
@@ -18,6 +20,12 @@ const RESULT_ORDER: [TestCaseResult; 4] = [
     TestCaseResult::NotRun,
 ];
 
+#[derive(PartialEq, Eq)]
+pub struct TestRunChatSnapshot {
+    pub report: String,
+    pub sources: BTreeMap<String, String>,
+}
+
 impl SessionService {
     /// The report of the stored test run `run_id` of the Session, with its
     /// current results. Fails when the run no longer exists.
@@ -31,10 +39,27 @@ impl SessionService {
         run_id: &str,
         case_id: Option<&str>,
     ) -> Result<String> {
-        let connection = self.database.connection();
-        require_run(connection, session_id, run_id)?;
-        let run = test_run(connection, run_id)?;
-        report(&run, case_id)
+        self.test_run_chat_snapshot(session_id, run_id, case_id)
+            .map(|snapshot| snapshot.report)
+    }
+
+    pub fn test_run_chat_snapshot(
+        &self,
+        session_id: &str,
+        run_id: &str,
+        case_id: Option<&str>,
+    ) -> Result<TestRunChatSnapshot> {
+        self.database.with_immediate_tx(|tx| {
+            require_run(tx, session_id, run_id)?;
+            let run = test_run(tx, run_id)?;
+            let report = report(&run, case_id)?;
+            let sources = run
+                .cases
+                .into_iter()
+                .map(|case| (case.id, case.suggestion_fingerprint))
+                .collect();
+            Ok(TestRunChatSnapshot { report, sources })
+        })
     }
 }
 

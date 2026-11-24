@@ -72,6 +72,9 @@ pub struct TestRunCase {
     /// stored on it. `None` without a linked Finding.
     pub finding_title: Option<String>,
     pub updated_at: String,
+    #[serde(default)]
+    #[specta(optional)]
+    pub suggestion_fingerprint: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]

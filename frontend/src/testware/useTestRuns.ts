@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from 'react'
 import { deleteTestRun, getTestRun, listTestRuns, saveTestCaseNotes, setTestCaseResult, startTestRun, type TestRun, type TestRunCaseDraft, type TestRunSummary } from '../tauri'
 import { CaseSaveQueue, type CasePatch, type CaseSaveListener } from './caseSaveQueue'
 import { latestTestRunIds } from './testRuns'
@@ -15,7 +15,9 @@ export const BACKGROUND_SAVE_ERROR = 'A change to a test run could not be saved.
  * a run reopened afterwards must still wait for them.
  */
 const draining = new Map<string, CaseSaveQueue>()
-const onScreen = new Set<CaseSaveQueue>()
+const onScreen = new Map<string, CaseSaveQueue>()
+const editBarriers = new Map<string, Promise<void>>()
+const barrierListeners = new Set<() => void>()
 const noteImageReads = new Map<Promise<unknown>, string>()
 
 export function trackNoteImageRead<T>(runId: string, read: Promise<T>): Promise<T> {
@@ -27,8 +29,38 @@ function readsForRun(runId: string): Promise<unknown>[] {
   return [...noteImageReads].flatMap(([read, owner]) => owner === runId ? [read] : [])
 }
 
+export function isTestRunEditBlocked(runId: string): boolean {
+  return editBarriers.has(runId)
+}
+
+function subscribeToBarriers(listener: () => void) {
+  barrierListeners.add(listener)
+  return () => { barrierListeners.delete(listener) }
+}
+
+export async function acquireTestRunEditBarrier(runId: string): Promise<() => void> {
+  if (isTestRunEditBlocked(runId)) throw new Error('Wait for the current test run action to finish.')
+  let resolve!: () => void
+  editBarriers.set(runId, new Promise<void>(done => { resolve = done }))
+  const notify = () => barrierListeners.forEach(listener => listener())
+  const release = () => { editBarriers.delete(runId); resolve(); notify() }
+  notify()
+  try {
+    await Promise.allSettled(readsForRun(runId))
+    const queue = onScreen.get(runId) ?? draining.get(runId)
+    await queue?.whenIdle()
+    if (queue?.hasFailedSave || queue?.hasPendingNotes) {
+      throw new Error('Retry the failed test case save before continuing.')
+    }
+    return release
+  } catch (cause) {
+    release()
+    throw cause
+  }
+}
+
 function runQueues() {
-  return new Set([...onScreen, ...draining.values()])
+  return new Set([...onScreen.values(), ...draining.values()])
 }
 
 export function hasPendingTestRunNotes(): boolean {
@@ -47,6 +79,7 @@ export async function flushPendingTestRunNotes(): Promise<boolean> {
 export function forgetDrainingTestRuns() {
   draining.clear()
   onScreen.clear()
+  editBarriers.clear()
 }
 
 /**
@@ -82,6 +115,7 @@ export function useTestRuns(sessionId: string | null) {
   /** The newest test run of each draft, with its cases, for the coverage line. */
   const [latestRuns, setLatestRuns] = useState<TestRun[]>([])
   const [open, setOpen] = useState<OpenTestRun | null>(null)
+  const editsBlocked = useSyncExternalStore(subscribeToBarriers, () => Boolean(open && isTestRunEditBlocked(open.runId)))
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -120,7 +154,7 @@ export function useTestRuns(sessionId: string | null) {
     const current = queueRef.current
     queueRef.current = null
     if (!current) return
-    onScreen.delete(current.queue)
+    if (onScreen.get(current.runId) === current.queue) onScreen.delete(current.runId)
     current.queue.detach()
     leftRef.current = current
     drain(current)
@@ -137,7 +171,7 @@ export function useTestRuns(sessionId: string | null) {
       const existing = draining.get(next.runId)
       const queue = existing ?? saveQueue(next.run, listener)
       draining.delete(next.runId)
-      onScreen.add(queue)
+      onScreen.set(next.runId, queue)
       queueRef.current = { runId: next.runId, sessionId: next.run.sessionId, background, queue }
       if (existing) next = { ...next, run: { ...next.run, cases: queue.attach(next.run.cases, listener) } }
     }
@@ -192,6 +226,7 @@ export function useTestRuns(sessionId: string | null) {
       // Saves made before the run was left land first, so what is read is what is stored. The pause
       // lets a remark committed as its input unmounts join them.
       await Promise.resolve()
+      await editBarriers.get(runId)
       await Promise.allSettled(readsForRun(runId))
       await draining.get(runId)?.whenIdle()
       const run = await getTestRun(runId)
@@ -226,22 +261,22 @@ export function useTestRuns(sessionId: string | null) {
   }, [refresh, show])
 
   /** Changes one case of the open run: `{ result }` from a result button, `{ remark }` from the remark field. */
-  const changeCase = useCallback((caseId: string, patch: CasePatch) => {
+  const changeCase = useCallback((caseId: string, patch: CasePatch, completingImageRead = false) => {
     setError(null)
     const current = queueRef.current
     if (current?.queue.has(caseId)) {
-      current.queue.change(caseId, patch)
+      if (completingImageRead || !isTestRunEditBlocked(current.runId)) current.queue.change(caseId, patch)
       return
     }
     // The run just left the screen: its queue stores the change in the background.
     const left = leftRef.current
     if (left?.queue.has(caseId)) {
-      left.queue.change(caseId, patch)
+      if (completingImageRead || !isTestRunEditBlocked(left.runId)) left.queue.change(caseId, patch)
       drain(left)
       return
     }
-    for (const queue of draining.values()) {
-      if (queue.has(caseId)) { queue.change(caseId, patch); break }
+    for (const [runId, queue] of draining) {
+      if (queue.has(caseId) && (completingImageRead || !isTestRunEditBlocked(runId))) { queue.change(caseId, patch); break }
     }
   }, [])
 
@@ -255,6 +290,7 @@ export function useTestRuns(sessionId: string | null) {
   }, [])
 
   const deleteRun = useCallback(async (runId: string) => {
+    await editBarriers.get(runId)
     const wasOpen = openRef.current?.runId === runId ? openRef.current : null
     // No save may land on a case after it is deleted, so every save of the run settles first.
     if (queueRef.current?.runId === runId) detachQueue()
@@ -274,7 +310,7 @@ export function useTestRuns(sessionId: string | null) {
     }
   }, [detachQueue, openRun, refresh, show])
 
-  return { summaries, latestRuns, open, starting, startError, error, openRun, close, keepForDraft, start, changeCase, readSavedRun, deleteRun }
+  return { summaries, latestRuns, open, editsBlocked, starting, startError, error, openRun, close, keepForDraft, start, changeCase, readSavedRun, deleteRun }
 }
 
 function saveQueue(run: TestRun, listener: CaseSaveListener) {

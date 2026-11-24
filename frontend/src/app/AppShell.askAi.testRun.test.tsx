@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 // The harness mocks the Tauri bridge, so it loads before the views that read test runs through it.
 import { cleanupControllerTest, getTauriMock, renderWithControllerStartup, setupControllerTest, useAppController } from './useAppController.testHarness'
@@ -8,6 +8,7 @@ import { draftFixture } from '../test/fixtures'
 import { formatDateTime } from '../ui/format'
 import { AppShell } from './AppShell'
 import { presentRun, type ShownTestRun } from './conversationPresentation'
+import { trackNoteImageRead } from '../testware/useTestRuns'
 import { chatFixture, chatJobFixture } from './useSessionChat.testSupport'
 
 const api = getTauriMock()
@@ -82,6 +83,54 @@ describe('Ask AI on a test run', () => {
     expect(screen.getByRole('textbox', { name: 'Message' })).toBe(input)
     expect(input).toHaveValue('Post the results to PAY-12')
     expect(api.beginTestRunChat).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['Send', 'Retry response'] as const)('%s waits for tracked image reads and a pending result save', async action => {
+    if (action === 'Retry response') {
+      const launch = api.beginTestRunChat.getMockImplementation()!
+      const fallback = api.getConversation.getMockImplementation()!
+      let failed: ChatState | null = null
+      api.getConversation.mockImplementation(async ref => failed?.draftId === ref.draftId ? failed : fallback(ref))
+      api.beginTestRunChat.mockImplementation(async request => {
+        const current = await launch(request)
+        failed = { ...current, messages: [{
+          id: 'failed-user', turnId: 'failed-turn', role: 'user', text: 'Record the result',
+          images: [], status: 'failed', errorMessage: 'Timed out', aiRunId: null, createdAt: at,
+        }] }
+        return failed
+      })
+    }
+    await openRun()
+    const input = await askAi()
+    if (action === 'Send') fireEvent.change(input, { target: { value: 'Record the result' } })
+    let finishRead!: () => void
+    const read = trackNoteImageRead(newer.id, new Promise<void>(resolve => { finishRead = resolve }))
+    let finishSave!: (value: TestRun['cases'][number]) => void
+    api.setTestCaseResult.mockImplementationOnce(() => new Promise(resolve => { finishSave = resolve }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Result for Pay by card' })).getByRole('button', { name: 'Passed' }))
+    api.startChatJob.mockRejectedValueOnce({ kind: 'validation', message: 'Test request stopped' })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: action })) })
+    try {
+      expect(api.startChatJob).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: 'Passed' })).toBeDisabled()
+      await act(async () => { finishRead(); await read })
+      expect(api.startChatJob).not.toHaveBeenCalled()
+    } finally {
+      await act(async () => { finishRead(); finishSave({ ...newer.cases[0], result: 'passed' }); await read })
+    }
+    expect(api.startChatJob).toHaveBeenCalledWith(expect.objectContaining({ intent: { kind: action === 'Send' ? 'composer' : 'retry' } }), expect.any(Function))
+  })
+
+  it('refuses Send after a case save has failed', async () => {
+    await openRun()
+    const input = await askAi()
+    api.setTestCaseResult.mockRejectedValueOnce(new Error('Disk full'))
+    fireEvent.click(screen.getByRole('button', { name: 'Passed' }))
+    await screen.findByText(/Disk full/)
+    fireEvent.change(input, { target: { value: 'Record the result' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await within(screen.getByRole('complementary', { name: 'Ask AI' })).findByText(/Retry the failed test case save before continuing/)
+    expect(api.startChatJob).not.toHaveBeenCalled()
   })
 
   it('shows no proposal for the run and labels each message with the test run', async () => {

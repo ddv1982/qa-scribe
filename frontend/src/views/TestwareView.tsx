@@ -146,6 +146,7 @@ export function TestwareView({
           onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding}
           onSelectRun={(runId) => void testRuns.openRun(runId, draft.id)} onBack={testRuns.close}
           onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase} onReadSavedRun={testRuns.readSavedRun}
+          editsBlocked={testRuns.editsBlocked}
           askAi={recordChat?.onAskAiRun ? { expanded: recordChat.openRunId === testRuns.open.runId, onOpen: recordChat.onAskAiRun } : undefined} />
       ) : null}
       onSelectedRecordChange={selectDraft}

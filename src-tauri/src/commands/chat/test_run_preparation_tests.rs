@@ -86,7 +86,7 @@ fn prompt(prepared: &lifecycle::PreparedChat) -> String {
 }
 
 #[test]
-fn each_turn_carries_the_current_run_report_and_the_read_only_rule() {
+fn each_turn_carries_the_current_run_report_and_the_suggestion_rule() {
     let (service, chat, run, dir) = fixture();
     let first =
         lifecycle::prepare_with_images(&service, &request(&chat, ChatSendIntent::Composer), &dir)
@@ -94,7 +94,7 @@ fn each_turn_carries_the_current_run_report_and_the_read_only_rule() {
     let text = prompt(&first);
     assert!(text.contains("TEST_RUN_REPORT_JSON"), "{text}");
     assert!(
-        text.contains("Results and result notes cannot be changed from this conversation"),
+        text.contains("Never claim to have recorded a Result"),
         "{text}"
     );
     assert!(
@@ -108,7 +108,7 @@ fn each_turn_carries_the_current_run_report_and_the_read_only_rule() {
         ChatTarget::Session,
         "no record snapshot"
     );
-    assert!(text.contains("No refinement field"), "{text}");
+    assert!(text.contains("testRunSuggestions"), "{text}");
 
     let finished = service
         .finish_chat_turn_with_ai_run(

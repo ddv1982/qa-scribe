@@ -2,6 +2,7 @@ import { startChatJob, type ChatRef, type ChatSendIntent, type ChatState, type G
 import { statusOwns } from './sessionChat.workspaces'
 import { chatIsWorking, chatScope, unresolvedChatReason, type ChatWorkspace, type SessionChatContext } from './sessionChat.types'
 import { actionRequestText, occupiedChoiceReason, questionReason, sameChatTarget } from './sessionChat.questions'
+import { acquireTestRunEditBarrier } from '../testware/useTestRuns'
 import { isCommandError } from '../ui/format'
 
 type Dependencies = {
@@ -60,6 +61,8 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
       if (entry.inputVersion !== startVersion || entry.composer !== '' || entry.composerImages.length || entry.imageFailures.length) throw new Error(occupiedChoiceReason)
     }
     if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
+    const release = entry.owner?.kind === 'test_run' ? await acquireTestRunEditBarrier(entry.owner.runId) : undefined
+    if (entry.retired) { release?.(); return }
     const chat = entry.chat
     const inputVersion = entry.inputVersion
     const modeVersion = entry.modeVersion
@@ -83,6 +86,8 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
       entry.pendingStart = { ...pendingStart, state: 'uncertain', outcome: rejected ? 'rejected' : 'unknown' }
       await refresh(entry.reference).catch(() => undefined)
       throw cause
+    } finally {
+      release?.()
     }
     if (entry.retired) return
     ++entry.refreshEpoch

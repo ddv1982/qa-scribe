@@ -30,16 +30,17 @@ const resultKeys: Record<string, RecordedResult> = { p: 'passed', f: 'failed', b
 /**
  * A test run shows copied test cases with autosaved results and notes.
  */
-export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack, onDelete, onChangeCase, onReadSavedRun, onCreateFinding, onOpenFinding }: {
+export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = false, onSelectRun, onBack, onDelete, onChangeCase, onReadSavedRun, onCreateFinding, onOpenFinding }: {
   open: OpenTestRun
   /** The draft's test runs, newest first. */
   draftRuns: TestRunSummary[]
   error: string | null
+  editsBlocked?: boolean
   onSelectRun: (runId: string) => void
   onBack: () => void
   onDelete: (runId: string) => Promise<boolean>
   /** Changes one field of a case; the other keeps its value, so a remark and a result never overwrite each other. */
-  onChangeCase: (caseId: string, patch: CasePatch) => void
+  onChangeCase: (caseId: string, patch: CasePatch, completingImageRead?: boolean) => void
   onReadSavedRun?: (runId: string) => Promise<TestRun>
   /** Starts a Finding from a failed case; without it no Create Finding is offered. */
   onCreateFinding?: (testCase: TestRunCase) => void
@@ -61,7 +62,7 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
       || (event.target instanceof Element && event.target.closest('.test-run-notes'))) return
     const testCase = cases[index]
     const result = resultKeys[event.key.toLowerCase()]
-    if (result) {
+    if (result && !editsBlocked) {
       event.preventDefault()
       onChangeCase(testCase.id, { result: testCase.result === result ? 'not_run' : result })
       return
@@ -104,7 +105,7 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
           {/* Kept together, so a narrow header never leaves the delete icon alone on a line. */}
           <span className="test-run-leave">
             <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
-            <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete test run" tooltip="Delete test run" tooltipAlign="end"
+            <ActionButton variant="destructive-quiet" disabled={editsBlocked} iconOnly icon={Trash2} aria-label="Delete test run" tooltip="Delete test run" tooltipAlign="end"
               onClick={() => setConfirmingDelete(true)} />
           </span>
         </div>
@@ -118,7 +119,7 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
       ) : (
         <div className="test-run-cases">
           {cases.map((testCase, index) => (
-            <TestRunCaseRow key={testCase.id} testCase={testCase}
+            <TestRunCaseRow key={testCase.id} testCase={testCase} editsBlocked={editsBlocked}
               finding={<CaseFinding testCase={testCase} onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding} />}
               group={testCase.groupTitle && testCase.groupTitle !== cases[index - 1]?.groupTitle ? testCase.groupTitle : null}
               toggleRef={(element) => { toggleRefs.current[index] = element }}
@@ -176,15 +177,16 @@ function CopyReportButton({ run, readSavedRun }: { run: TestRun; readSavedRun?: 
   </>
 }
 
-function TestRunCaseRow({ onAskAi, testCase, group, finding, toggleRef, onKeyDown, onChangeCase }: {
+function TestRunCaseRow({ onAskAi, editsBlocked, testCase, group, finding, toggleRef, onKeyDown, onChangeCase }: {
   testCase: EditableTestCase
   onAskAi?: () => void
+  editsBlocked: boolean
   group: string | null
   /** What follows the remark: the linked Finding, or Create Finding for a failed case. */
   finding: ReactNode
   toggleRef: (element: HTMLButtonElement | null) => void
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void
-  onChangeCase: (caseId: string, patch: CasePatch) => void
+  onChangeCase: (caseId: string, patch: CasePatch, completingImageRead?: boolean) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const document = useMemo(() => expanded ? testRunCaseDocument(testCase) : null, [expanded, testCase])
@@ -196,11 +198,11 @@ function TestRunCaseRow({ onAskAi, testCase, group, finding, toggleRef, onKeyDow
         <ChevronRight size={16} className="disclosure-chevron" aria-hidden="true" />
         <span>{title}</span>
       </button>
-      <Segmented label={`Result for ${title}`} allowDeselect options={resultOptions}
+      <Segmented disabled={editsBlocked} label={`Result for ${title}`} allowDeselect options={resultOptions}
         value={result === 'not_run' ? null : result}
         onChange={(next) => onChangeCase(id, { result: next ?? 'not_run' })} />
       <div className="test-run-outcome">
-        <TestRunNotes testCase={testCase} onChange={(patch) => onChangeCase(id, patch)} />
+        <TestRunNotes testCase={testCase} readOnly={editsBlocked} onChange={(patch, imageRead) => onChangeCase(id, patch, imageRead)} />
         {finding}
         {onAskAi ? <ActionButton variant="quiet" icon={Sparkles} aria-label={`Ask AI about this case: ${title}`} onClick={onAskAi}>Ask AI about this case</ActionButton> : null}
       </div>

@@ -86,6 +86,11 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
         last_active_at,
         pending_response,
         proposals: super::chat_refinements::read(connection, id)?,
+        test_run_suggestions: if kind == "test_run" {
+            super::test_run_suggestions::read(connection, id)?
+        } else {
+            vec![]
+        },
         session_id: row.0,
         draft_id: id.into(),
         revision: row.1,
