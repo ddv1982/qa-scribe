@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import editorStyles from '../styles/editor.css?raw'
 import { FormatToolbar } from './FormatToolbar'
 import { RichTextEditor } from './RichTextEditor'
 import { richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
@@ -70,6 +71,16 @@ describe('slash menu', () => {
     expect(editor).toHaveAttribute('aria-controls', screen.getByRole('listbox').id)
     expect(editor).toHaveAttribute('aria-activedescendant', listed[0].id)
     expect(editor).toHaveAttribute('aria-autocomplete', 'list')
+  })
+
+  it('layers the positioned menu above sticky headers', async () => {
+    render(<style>{editorStyles}</style>)
+    await renderEditor('<p>Evidence</p><p></p>')
+    typeAt('', '/')
+    const list = await screen.findByRole('listbox', { name: 'Insert block' })
+    const wrapper = list.parentElement!
+    await waitFor(() => expect(getComputedStyle(wrapper).position).toBe('absolute'))
+    expect(Number(getComputedStyle(wrapper).zIndex)).toBeGreaterThan(2)
   })
 
   it('moves the highlight with ArrowDown and ArrowUp, wrapping at both ends', async () => {

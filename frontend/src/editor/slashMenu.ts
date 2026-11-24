@@ -14,7 +14,7 @@ function renderSlashMenu() {
   let unmount: (() => void) | null = null
   return {
     onStart: (props: SuggestionProps<SlashMenuItem, SlashMenuItem>) => {
-      component = new ReactRenderer(SlashMenuList, { props, editor: props.editor })
+      component = new ReactRenderer(SlashMenuList, { props, editor: props.editor, className: 'slash-menu-popup' })
       unmount = props.mount(component.element)
     },
     onUpdate: (props: SuggestionProps<SlashMenuItem, SlashMenuItem>) => component?.updateProps(props),

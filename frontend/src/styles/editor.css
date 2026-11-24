@@ -420,8 +420,11 @@
 
 /* The slash menu: a list of blocks under the caret. Focus stays in the editor, so the highlighted
    option carries the selection colour instead of a focus ring. */
-.slash-menu {
+.slash-menu-popup {
   z-index: 40;
+}
+
+.slash-menu {
   display: flex;
   flex-direction: column;
   width: 220px;

@@ -22,6 +22,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Tests can load a stylesheet explicitly to inspect its computed styles.
+    css: { include: [/\?raw$/] },
     // Bound JSDOM contention on developer desktops and shared CI hosts.
     maxWorkers: 2,
     // The slowest test takes about two seconds on an idle machine, but shared CI
