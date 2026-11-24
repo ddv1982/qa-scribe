@@ -61,11 +61,11 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
       if (entry.inputVersion !== startVersion || entry.composer !== '' || entry.composerImages.length || entry.imageFailures.length) throw new Error(occupiedChoiceReason)
     }
     if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
+    const inputVersion = entry.inputVersion
+    const modeVersion = entry.modeVersion
     const release = entry.owner?.kind === 'test_run' ? await acquireTestRunEditBarrier(entry.owner.runId) : undefined
     if (entry.retired) { release?.(); return }
     const chat = entry.chat
-    const inputVersion = entry.inputVersion
-    const modeVersion = entry.modeVersion
     let result: StartChatJobResult
     const previousUser = chat.messages.filter(message => message.role === 'user').at(-1)
     const pendingStart = { state: 'starting' as const, intent, previousJobId: entry.job?.jobId ?? null,

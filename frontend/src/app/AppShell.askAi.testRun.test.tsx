@@ -122,6 +122,35 @@ describe('Ask AI on a test run', () => {
     expect(api.startChatJob).toHaveBeenCalledWith(expect.objectContaining({ intent: { kind: action === 'Send' ? 'composer' : 'retry' } }), expect.any(Function))
   })
 
+  it('keeps typing that happens while Send waits for the test run to settle', async () => {
+    await openRun()
+    const input = await askAi()
+    fireEvent.change(input, { target: { value: 'Record the result' } })
+    let finishRead!: () => void
+    const read = trackNoteImageRead(newer.id, new Promise<void>(resolve => { finishRead = resolve }))
+    api.startChatJob.mockImplementationOnce(async ({ scope: { sessionId, draftId } }: { scope: ChatRef }) => {
+      const reference = { sessionId, draftId }
+      const saved = await api.getConversation(reference)
+      return {
+        chat: { ...saved, revision: saved.revision + 1, composer: '', messages: [{
+          id: 'sent-user', turnId: 'sent-turn', role: 'user', text: saved.composer,
+          images: [], status: 'running', errorMessage: null, aiRunId: null, createdAt: at,
+        }] },
+        status: chatJobFixture({ chat: { reference }, partialText: null }),
+      }
+    })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Send' })) })
+    try {
+      expect(screen.getByRole('button', { name: 'Passed' })).toBeDisabled()
+      expect(api.startChatJob).not.toHaveBeenCalled()
+      fireEvent.change(input, { target: { value: 'Keep this next message' } })
+    } finally {
+      await act(async () => { finishRead(); await read })
+    }
+    expect(await screen.findByText('Record the result')).toBeVisible()
+    expect(input).toHaveValue('Keep this next message')
+  })
+
   it.each(['keep the saved Result', 'reopen the run'])('refuses Send after a case save fails until the tester can %s', async recovery => {
     await openRun()
     const input = await askAi()
