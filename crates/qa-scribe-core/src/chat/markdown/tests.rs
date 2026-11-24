@@ -83,6 +83,25 @@ fn strike_inline_code_and_underline_become_marks() {
     );
 }
 
+/// The editor's code mark excludes every other mark, so inline code inside bold, italic, strike,
+/// underline or a link keeps only its code mark.
+#[test]
+fn inline_code_inside_other_marks_keeps_only_its_code_mark() {
+    for markdown in [
+        "**`x`**",
+        "*`x`*",
+        "~~`x`~~",
+        "<u>`x`</u>",
+        "[`x`](https://example.test)",
+    ] {
+        assert_eq!(
+            parse(markdown),
+            vec![json!({"type":"paragraph","content":[marked("x", "code")]})],
+            "{markdown}"
+        );
+    }
+}
+
 #[test]
 fn underline_nests_with_other_marks() {
     let nodes = parse("<U>**bold** plain</U>");

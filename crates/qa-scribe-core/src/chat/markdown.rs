@@ -283,9 +283,13 @@ fn text_nodes(text: &str) -> Vec<Value> {
     nodes
 }
 
+/// The editor's code mark excludes every other mark, so code text takes no further mark.
 fn mark(nodes: &mut [Value], value: Value) {
     for node in nodes {
-        if node["type"] == "text" {
+        let is_code = node["marks"]
+            .as_array()
+            .is_some_and(|marks| marks.iter().any(|mark| mark["type"] == "code"));
+        if node["type"] == "text" && !is_code {
             if node.get("marks").is_none() {
                 node["marks"] = json!([]);
             }
