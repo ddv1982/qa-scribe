@@ -133,7 +133,18 @@ fn literal_markdown_in_text_survives_projection_and_parsing() {
 
 #[test]
 fn literal_markdown_in_a_heading_stays_heading_text() {
-    for text in ["# inner", "Uses C#", "Closing ##", "<u>x</u> *y*"] {
+    for text in [
+        "# inner",
+        "Uses C#",
+        "Closing ##",
+        "<u>x</u> *y*",
+        "##",
+        "#",
+        "a #",
+        "- not a list",
+        "1. not ordered",
+        "> not a quote",
+    ] {
         let html = format!("<h2>{}</h2>", html_text(text));
         assert_eq!(
             round_trip(&html),
@@ -251,6 +262,43 @@ fn a_note_within_the_nesting_bound_keeps_its_markdown() {
     );
 }
 
+#[test]
+fn inline_code_keeps_its_spaces_through_a_rewrite() {
+    for code in [
+        "echo    hello",
+        " fail ",
+        "  x  ",
+        " lead",
+        "trail ",
+        "   ",
+        " `tick` ",
+    ] {
+        let html = format!("<p>Run<code>{}</code>now</p>", html_text(code));
+        assert_eq!(
+            round_trip(&html),
+            vec![serde_json::json!({"type":"paragraph","content":[
+                {"type":"text","text":"Run"}, code_text(code), {"type":"text","text":"now"},
+            ]})],
+            "{html} -> {}",
+            project(&html)
+        );
+    }
+}
+
+#[test]
+fn a_heading_with_a_hard_break_stays_one_heading() {
+    let html = "<h2>First<br>Second</h2><p>Body</p>";
+    assert_eq!(
+        round_trip(html),
+        vec![
+            serde_json::json!({"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":"First Second"}]}),
+            text_line(&["Body"]),
+        ],
+        "{html} -> {}",
+        project(html)
+    );
+}
+
 /// Every Note the projector writes as Markdown is one the parser reads back as Markdown, and a
 /// Note it cannot is not offered for a whole-note rewrite.
 #[test]
@@ -290,27 +338,4 @@ fn the_projection_and_the_parser_share_one_nesting_bound() {
         "</blockquote>".repeat(46)
     );
     assert!(!crate::chat::note_rewrite_fits("", &html));
-}
-
-#[test]
-fn inline_code_keeps_its_spaces_through_a_rewrite() {
-    for code in [
-        "echo    hello",
-        " fail ",
-        "  x  ",
-        " lead",
-        "trail ",
-        "   ",
-        " `tick` ",
-    ] {
-        let html = format!("<p>Run<code>{}</code>now</p>", html_text(code));
-        assert_eq!(
-            round_trip(&html),
-            vec![serde_json::json!({"type":"paragraph","content":[
-                {"type":"text","text":"Run"}, code_text(code), {"type":"text","text":"now"},
-            ]})],
-            "{html} -> {}",
-            project(&html)
-        );
-    }
 }

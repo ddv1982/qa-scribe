@@ -152,19 +152,7 @@ fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
             "blockquote" => quote(children),
             "hr" => "---".into(),
             "img" => image(tag),
-            heading if heading.starts_with('h') => {
-                let level = heading[1..].parse::<usize>().unwrap_or(2);
-                let text = paragraph(children.iter());
-                if text.is_empty() {
-                    String::new()
-                } else {
-                    // A trailing `#` run would read as the heading's closing sequence.
-                    let run = text.len() - text.trim_end_matches('#').len();
-                    let (body, hashes) = text.split_at(text.len() - run);
-                    let escape = if run > 0 { "\\" } else { "" };
-                    format!("{} {body}{escape}{hashes}", "#".repeat(level))
-                }
-            }
+            heading if heading.starts_with('h') => heading_line(heading, children),
             "p" => paragraph(children.iter()),
             _ => blocks(&children.iter().collect::<Vec<_>>()).join("\n\n"),
         };
@@ -185,6 +173,27 @@ fn paragraph<'a>(nodes: impl Iterator<Item = &'a Node>) -> String {
         .join("\n")
         .trim_matches('\n')
         .to_string()
+}
+
+/// A heading on its one ATX line: a hard break reads as a space, so the whole heading stays the
+/// case title, and a line start opens no block there. A trailing `#` run after a space, or as the
+/// whole text, would close the heading, so its first `#` is escaped.
+fn heading_line(name: &str, children: &[Node]) -> String {
+    let marker = "#".repeat(name[1..].parse::<usize>().unwrap_or(2));
+    let text = join_inline(children.iter().map(inline))
+        .split('\n')
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let body = text.trim_end_matches('#');
+    if text.is_empty() {
+        String::new()
+    } else if body.len() < text.len() && (body.is_empty() || body.ends_with(' ')) {
+        format!("{marker} {body}\\{}", &text[body.len()..])
+    } else {
+        format!("{marker} {text}")
+    }
 }
 
 fn inline(node: &Node) -> String {
