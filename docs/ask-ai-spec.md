@@ -69,9 +69,17 @@ Saving: Update writes the saved {noun}. Pending edits in the open editor are sav
 | Footer | "Add conversation to note" | none | none |
 | Example prompts | Note set | Test case set | Finding set |
 
-Anything not in this table must be identical.
+The Note, Test case and Finding panels otherwise follow the same rules.
 
-**Test run (read-only).** A test run also has Ask AI, on its run screen before Copy report. It is the one source the panel only reads: the source line says "Test run" above "{draft title}, {run date}", every message sends the test run report (draft title, run date, totals, each case with its result, remark and linked Finding) built from the stored results, and there is no suggestion card, Update action or Jira-draft action. The AI can use the CLI's tools under the usual permission prompts, for example to post the results to Jira or Confluence, but it can never set or rewrite a result. The panel closes when the tester goes back to the test cases, opens another test run or draft, or leaves the Test cases tab. See [ADR 0012](adr/0012-test-runs-are-frozen-copies.md).
+### Test run
+
+Ask AI appears before Copy report on the test run screen. The source line says "Test run" above "{draft title}, {test run date}". Send and Retry wait for pending case saves and send the report built from the saved test run. The CLI's tools remain available under their usual permissions. The panel closes when the tester goes back to the test cases, opens another test run or draft, or leaves the Test cases tab.
+
+When a reply suggests Results or additions to Result notes, it shows a **Suggested results** card. Each suggested test case gets one row with the case title, the current and proposed Result, the rationale and the notes to append. A proposed Result requires a rationale. A later phase adds suggested log evidence to the same row. See [ADR 0013](adr/0013-ask-ai-suggests-test-run-results.md).
+
+1. **Suggested.** "Update" applies that row. "Apply all" applies the eligible rows and reports the out-of-date rows it skipped. These actions are the only way a suggestion writes to a case. The app appends the proposed notes to any saved notes, including a legacy remark.
+2. **Applied.** The row shows "Undo" while the case still matches the applied update. Undo restores the exact previous Result, Result notes and legacy remark and returns the row to Suggested.
+3. **Out of date.** A mismatch with the saved base disables Update. A mismatch with the applied state disables Undo. The row asks the tester to request a fresh suggestion.
 
 ## Keyboard and focus
 
