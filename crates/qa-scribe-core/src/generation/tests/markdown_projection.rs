@@ -300,6 +300,28 @@ fn a_heading_with_a_hard_break_stays_one_heading() {
 }
 
 #[test]
+fn a_link_destination_with_parentheses_or_brackets_stays_whole() {
+    for href in [
+        "https://example.test/?q=)",
+        "https://example.test/a(b",
+        "https://example.test/a\\b",
+        "https://example.test/<x>",
+    ] {
+        let html = format!("<p><a href=\"{}\">ticket</a> after</p>", html_text(href));
+        let nodes = round_trip(&html);
+        let content = &nodes[0]["content"];
+        assert_eq!(content[0]["text"], "ticket", "{html} -> {}", project(&html));
+        assert_eq!(
+            content[0]["marks"][0]["attrs"]["href"],
+            href,
+            "{html} -> {}",
+            project(&html)
+        );
+        assert_eq!(content[1]["text"], " after", "{html} -> {}", project(&html));
+    }
+}
+
+#[test]
 fn an_exclamation_mark_before_a_link_stays_text() {
     let html = "<p>Wow!<a href=\"https://e.com\">link</a> and <strong>bold!</strong><a href=\"https://e.com\">two</a></p>";
     let nodes = round_trip(html);

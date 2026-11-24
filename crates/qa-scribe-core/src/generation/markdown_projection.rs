@@ -238,7 +238,7 @@ fn inline(node: &Node) -> String {
         "u" => outside_spaces(&content, |inner| format!("<u>{inner}</u>")),
         "a" => match attribute_value(tag, "href").map(|href| href.trim().to_string()) {
             Some(href) if safe_link(&href) && !content.trim().is_empty() => {
-                format!("[{content}]({href})")
+                format!("[{content}]({})", link_destination(&href))
             }
             _ => content,
         },
@@ -360,6 +360,24 @@ fn code_span(code: &str) -> String {
         ""
     };
     format!("{fence}{pad}{code}{pad}{fence}")
+}
+
+/// A destination with parentheses, angle brackets, backslashes or white space goes in angle brackets,
+/// where only `<`, `>` and `\` need escaping, so the parser reads back the whole URL.
+fn link_destination(href: &str) -> String {
+    if !href.contains(|c: char| c.is_whitespace() || "()<>\\".contains(c)) {
+        return href.to_string();
+    }
+    let mut escaped = String::with_capacity(href.len() + 2);
+    escaped.push('<');
+    for character in href.chars() {
+        if "<>\\".contains(character) {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+    escaped.push('>');
+    escaped
 }
 
 fn safe_link(href: &str) -> bool {

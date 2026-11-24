@@ -124,6 +124,20 @@ fn a_managed_image_in_a_checklist_item_stays_in_that_item() {
     );
 }
 
+/// A task item holds only paragraphs and images, so a code block in one keeps its text as lines.
+#[test]
+fn a_code_block_in_a_checklist_item_keeps_its_text() {
+    assert_eq!(
+        parse("- [ ] Run\n\n  ```\n  az login\n  az account show\n  ```"),
+        vec![json!({"type":"taskList","content":[
+            {"type":"taskItem","attrs":{"checked":false},"content":[
+                {"type":"paragraph","content":[text("Run")]},
+                {"type":"paragraph","content":[text("az login"), {"type":"hardBreak"}, text("az account show")]},
+            ]},
+        ]})]
+    );
+}
+
 #[test]
 fn a_checklist_item_starting_with_an_image_gets_its_leading_paragraph() {
     let image = json!({"type":"image","attrs":{"src":"qa-scribe-attachment://att-1","alt":"shot.png","attachmentId":"att-1"}});
