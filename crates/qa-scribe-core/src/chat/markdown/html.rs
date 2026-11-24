@@ -63,6 +63,10 @@ fn render(node: &Value) -> String {
                 if checked { " checked=\"checked\"" } else { "" }
             )
         }
+        Some("table") => format!("<table><tbody>{content}</tbody></table>"),
+        Some("tableRow") => format!("<tr>{content}</tr>"),
+        Some("tableHeader") => format!("<th>{content}</th>"),
+        Some("tableCell") => format!("<td>{content}</td>"),
         _ => format!("<p>{content}</p>"),
     }
 }

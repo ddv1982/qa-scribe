@@ -296,6 +296,27 @@ describe('splitTestCases', () => {
   })
 })
 
+describe('a table inside a case body', () => {
+  const table = '<table><tr><th><h2>Group in a cell</h2></th><th><h3>TC 9 Case in a cell</h3></th></tr><tr><td><ul><li><p>Item in a cell</p></li></ul></td><td><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>Check in a cell</p></li></ul></td></tr></table>'
+
+  it('never defines a case or a group', () => {
+    const result = split(`<h2>Checkout</h2><h3>Pay</h3><p>Data:</p>${table}<h3>Refund</h3><p>b</p>`, 'qa_cases')
+    expect(result?.cases.map(({ group, title, content }) => [group, title, content.map((node) => node.type)])).toEqual([
+      ['Checkout', 'Pay', ['heading', 'paragraph', 'table']],
+      ['Checkout', 'Refund', ['heading', 'paragraph']],
+    ])
+  })
+
+  it('stays inside a checklist item case and its lists are not items', () => {
+    const result = split(`<h2>Area</h2><ul><li><p>First check</p></li></ul>${table}<ul><li><p>Second check</p></li></ul>`, 'checklist')
+    expect(result?.cases.map(({ group, title, lead }) => [group, title, lead.map((node) => node.type)])).toEqual([
+      ['Area', 'First check', []],
+      ['Area', 'Second check', ['table']],
+    ])
+    expect(result?.preamble.map((node) => node.type)).toEqual(['heading'])
+  })
+})
+
 describe('checklist item titles', () => {
   it('lose a leading label and keep words that only look like one', () => {
     const item = (text: string) => `<li data-type="taskItem" data-checked="false"><p>${text}</p></li>`

@@ -33,6 +33,12 @@ const EDITOR_HTML_TAGS: &[&str] = &[
     "pre",
     "s",
     "strong",
+    "table",
+    "tbody",
+    "td",
+    "th",
+    "thead",
+    "tr",
     "u",
     "ul",
 ];

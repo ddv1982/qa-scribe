@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { readClipboardText } from '../fixtures/clipboard-readback.mjs'
+import { richContentTable } from '../fixtures/editor-rich-content-provider.mjs'
 
-// Two runner phases on the same app data: `author` writes rich content through the toolbar, and
-// `restart` reopens it in a new app process, applies a fake Ask AI Update and checks it all survives.
+// Two runner phases on the same app data: `author` writes rich content through the toolbar and
+// pastes a table, and `restart` reopens it in a new app process, applies a fake Ask AI Update that
+// adds a table column, copies the draft and checks it all survives.
 const phase = process.env.QA_SCRIBE_E2E_EDITOR_PHASE
 const artifacts = process.env.QA_SCRIBE_E2E_ARTIFACTS
 const fixture = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
@@ -49,6 +52,52 @@ async function selectBlock(text) {
   await browser.pause(100)
 }
 
+/** Puts the caret at the end of the editor block that reads `text`. */
+async function caretAtEnd(text) {
+  const missing = await browser.execute((selector, text) => {
+    const editor = document.querySelector(selector)
+    editor.focus()
+    const block = Array.from(editor.querySelectorAll('p')).find((node) => node.textContent === text)
+    if (!block) return editor.innerHTML
+    const range = document.createRange()
+    range.selectNodeContents(block)
+    range.collapse(false)
+    const selection = window.getSelection()
+    selection.removeAllRanges()
+    selection.addRange(range)
+    document.dispatchEvent(new Event('selectionchange'))
+    return null
+  }, editorSelector, text)
+  assert.equal(missing, null, `no editor paragraph reads "${text}"`)
+  await browser.pause(100)
+}
+
+/**
+ * A 3 by 4 table as Excel puts it on the clipboard: no header cells, no paragraphs, inline styles,
+ * column widths and bold and italic tags. The editor makes its first row the header row.
+ */
+const pastedTable = `<html><body><table border=0 style='border-collapse:collapse'><col width=64 span=4><tr height=20><td style='font-weight:700'>Case</td><td>Card</td><td>Amount</td><td>Result</td></tr><tr><td>TC01</td><td><b>4111</b></td><td>10.00</td><td>Passed</td></tr><tr><td>TC02</td><td>5500</td><td>0.00</td><td><i>Failed</i></td></tr></table></body></html>`
+
+/** Each row of the first table as `th|td:marks:text` cells. */
+function tableRows(bodyJson) {
+  const text = (node) => node.text ?? (node.content ?? []).map(text).join('')
+  const marks = (node) => [...new Set((node.content ?? []).flatMap((child) => [...(child.marks ?? []).map((mark) => mark.type), ...marks(child)]))]
+  const table = JSON.parse(bodyJson).doc.content.find((node) => node.type === 'table')
+  return table?.content.map((row) => row.content.map((cell) => `${cell.type === 'tableHeader' ? 'th' : 'td'}:${marks(cell).join(',')}:${text(cell)}`)) ?? null
+}
+
+const authoredTable = [
+  ['th::Case', 'th::Card', 'th::Amount', 'th::Result'],
+  ['td::TC01', 'td:bold:4111', 'td::10.00', 'td::Passed'],
+  ['td::TC02', 'td::5500', 'td::0.00', 'td:italic:Failed'],
+]
+const updatedTable = [
+  ['th::Case', 'th::Card', 'th::Amount', 'th::Result', 'th::Note'],
+  ['td::TC01', 'td:bold:4111', 'td::10.00', 'td::Passed', 'td::ok'],
+  ['td::TC02', 'td::5500', 'td::0.00', 'td:italic:Failed', 'td::retry'],
+]
+const cellsText = (rows) => rows.flat().map((cell) => cell.split(':').slice(2).join(':')).join('')
+
 /** Sets the selected block's style through the editor's own Block style control. */
 async function blockStyle(style) {
   const id = await $(editorSelector).getAttribute('id')
@@ -71,7 +120,7 @@ function outline(bodyJson) {
   return last?.[0] === 'paragraph' && !last[2] ? nodes.slice(0, -1) : nodes
 }
 
-const authoredOutline = [
+const outlineWith = (rows) => [
   ['heading', 1, 'Release 4.2'],
   ['heading', 2, 'Checkout'],
   ['heading', 3, 'TC01 Pay by card'],
@@ -81,8 +130,11 @@ const authoredOutline = [
   ['codeBlock', '', 'GET /pay'],
   ['blockquote', '', 'Payment returns a 500.'],
   ['heading', 6, 'Notes'],
+  ['paragraph', '', 'Test data'],
+  ['table', '', cellsText(rows)],
   ['heading', 3, 'TC02 Refund'],
 ]
+const authoredOutline = outlineWith(authoredTable)
 
 async function startTestRunCases(sessionId) {
   const before = (await native('list_test_runs', { sessionId })).length
@@ -124,7 +176,7 @@ describe('Rich editor content in the built native application', () => {
       await blockStyle('h1')
       await browser.waitUntil(() => browser.execute((selector) => document.querySelector(`${selector} h1`)?.textContent === 'Release 4.2', editorSelector),
         { timeoutMsg: 'the first line did not become a level-1 heading' })
-      const lines = ['Checkout', 'TC01 Pay by card', 'Setup', 'Gateway declined', 'Check the receipt', 'GET /pay', 'Payment returns a 500.', 'Notes', 'TC02 Refund', 'Refund the order.']
+      const lines = ['Checkout', 'TC01 Pay by card', 'Setup', 'Gateway declined', 'Check the receipt', 'GET /pay', 'Payment returns a 500.', 'Notes', 'Test data', 'TC02 Refund', 'Refund the order.']
       for (const line of lines) {
         assert.ok(await browser.execute((text) => document.execCommand('insertParagraph', false) && document.execCommand('insertText', false, text), line))
       }
@@ -139,13 +191,23 @@ describe('Rich editor content in the built native application', () => {
       await browser.keys([process.platform === 'darwin' ? 'Meta' : 'Control', 'u'])
       await browser.waitUntil(() => browser.execute((selector) => Boolean(document.querySelector(`${selector} u`)), editorSelector),
         { timeoutMsg: 'the underline shortcut did not apply' })
+      await caretAtEnd('Test data')
+      await browser.execute((selector, html) => {
+        const data = new DataTransfer()
+        data.setData('text/html', html)
+        data.setData('text/plain', 'Case\tCard\tAmount\tResult')
+        document.querySelector(selector).dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }))
+      }, editorSelector, pastedTable)
+      await browser.waitUntil(() => browser.execute((selector) => document.querySelectorAll(`${selector} table th`).length === 4, editorSelector),
+        { timeoutMsg: 'the pasted table did not get a header row of four cells' })
       await browser.saveScreenshot(join(artifacts, 'authored-editor.png'))
 
       await click('button=Save test cases')
       await $('button=Edit').waitForDisplayed()
       const [draft] = await native('list_drafts', { sessionId: session.id })
-      save('authored', { body: draft.body, outline: outline(draft.bodyJson) })
+      save('authored', { body: draft.body, outline: outline(draft.bodyJson), table: tableRows(draft.bodyJson) })
       assert.deepEqual(outline(draft.bodyJson), [...authoredOutline, ['paragraph', '', 'Refund the order.']])
+      assert.deepEqual(tableRows(draft.bodyJson), authoredTable)
       const cases = await startTestRunCases(session.id)
       assert.deepEqual(cases, ['TC01 Pay by card', 'TC02 Refund'])
       writeFileSync(authored, JSON.stringify({ sessionId: session.id, draftId: draft.id, bodyJson: draft.bodyJson, cases }))
@@ -169,18 +231,19 @@ describe('Rich editor content in the built native application', () => {
       await draftButton.click()
       const preview = '.record-detail-pane'
       await $(`${preview} h1`).waitForDisplayed()
-      const rendered = await browser.execute((preview) => ['h1', 'h4', 'h6', 'pre code', 'blockquote', 's', 'u']
+      const rendered = await browser.execute((preview) => ['h1', 'h4', 'h6', 'pre code', 'blockquote', 's', 'u', 'table tr:first-child', 'table tr:last-child']
         .map((tag) => [tag, document.querySelector(`${preview} ${tag}`)?.textContent ?? null]), preview)
       save('reopened', { rendered })
       assert.deepEqual(rendered, [['h1', 'Release 4.2'], ['h4', 'Setup'], ['h6', 'Notes'], ['pre code', 'GET /pay'],
-        ['blockquote', 'Payment returns a 500.'], ['s', 'Gateway declined'], ['u', 'Check the receipt']])
+        ['blockquote', 'Payment returns a 500.'], ['s', 'Gateway declined'], ['u', 'Check the receipt'],
+        ['table tr:first-child', 'CaseCardAmountResult'], ['table tr:last-child', 'TC0255000.00Failed']])
 
       const index = readdirSync(fixture).filter((name) => /^codex-exec-\d+\.started$/.test(name)).length + 1
       await click('button=Ask AI')
       const composer = await $(`${panel} textarea`)
       await composer.waitForDisplayed()
       await browser.waitUntil(async () => !(await composer.getAttribute('disabled')), { timeoutMsg: 'the composer did not become ready' })
-      await composer.setValue('Reword the refund case.')
+      await composer.setValue('Reword the refund case and add a Note column to the test data.')
       await (await (await $(panel)).$('button=Send')).click()
       await browser.waitUntil(() => existsSync(join(fixture, `codex-exec-${index}.started`)), { timeoutMsg: 'the provider was not started' })
       const payload = JSON.parse(readFileSync(join(fixture, `codex-exec-${index}.chat.json`), 'utf8'))
@@ -194,9 +257,28 @@ describe('Rich editor content in the built native application', () => {
         updated = (await native('list_drafts', { sessionId })).find((draft) => draft.id === draftId)
         return updated.bodyJson.includes('Refund the whole order.')
       }, { timeoutMsg: 'the Update did not reach the saved draft' })
-      save('updated', { body: updated.body, outline: outline(updated.bodyJson) })
-      assert.deepEqual(outline(updated.bodyJson), [...authoredOutline, ['paragraph', '', 'Refund the whole order.']])
+      save('updated', { body: updated.body, outline: outline(updated.bodyJson), table: tableRows(updated.bodyJson) })
+      assert.deepEqual(outline(updated.bodyJson), [...outlineWith(updatedTable), ['paragraph', '', 'Refund the whole order.']])
+      assert.deepEqual(tableRows(updated.bodyJson), updatedTable)
       await browser.saveScreenshot(join(artifacts, 'after-update.png'))
+
+      // In a narrow window, such as the macOS gate's, Ask AI covers the draft and its Copy button.
+      await click(`${panel} button[aria-label="Close Ask AI"]`)
+      await $(panel).waitForDisplayed({ reverse: true })
+      await click(`[aria-label="Copy ${draftTitle}"]`)
+      let copied
+      await browser.waitUntil(() => {
+        copied = readClipboardText()
+        return copied.plain.includes('| Case |')
+      }, { timeoutMsg: 'the copied draft did not reach the clipboard' })
+      save('copied', copied)
+      assert.ok(copied.plain.includes(richContentTable.join('\n')), copied.plain)
+      const tableHtml = (rows) => `<table><tbody>${rows.map((row) => `<tr>${row.map((cell) => {
+        const [kind, marks, text] = cell.split(':')
+        const inner = marks === 'bold' ? `<strong>${text}</strong>` : marks === 'italic' ? `<em>${text}</em>` : text
+        return `<${kind}><p>${inner}</p></${kind}>`
+      }).join('')}</tr>`).join('')}</tbody></table>`
+      assert.ok(copied.html.includes(tableHtml(updatedTable)), copied.html)
 
       if (await $(`${panel} [aria-label="Close Ask AI"]`).isExisting()) await click(`${panel} [aria-label="Close Ask AI"]`)
       assert.deepEqual(await startTestRunCases(sessionId), cases)

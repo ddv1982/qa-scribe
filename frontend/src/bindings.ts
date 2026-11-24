@@ -90,7 +90,7 @@ export const commands = {
 };
 
 /* Constants */
-export const EDITOR_HTML_TAGS = ["a","b","blockquote","br","code","em","h1","h2","h3","h4","h5","h6","hr","i","img","input","li","ol","p","pre","s","strong","u","ul"] as const;
+export const EDITOR_HTML_TAGS = ["a","b","blockquote","br","code","em","h1","h2","h3","h4","h5","h6","hr","i","img","input","li","ol","p","pre","s","strong","table","tbody","td","th","thead","tr","u","ul"] as const;
 
 export const MANAGED_ATTACHMENT_PROTOCOL = "qa-scribe-attachment://" as const;
 

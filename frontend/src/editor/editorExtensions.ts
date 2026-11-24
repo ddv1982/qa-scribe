@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import TaskItem from '@tiptap/extension-task-item'
 import TaskList from '@tiptap/extension-task-list'
 import { managedAttachmentProtocol, isSafeEditorLinkUrl } from './editorHtml'
+import { editorTableExtensions } from './editorTables'
 import { managedAttachmentIdFromSrc } from './htmlUtils'
 
 const ManagedImage = Image.extend({
@@ -67,6 +68,7 @@ export function richTextEditorExtensions(placeholder?: string) {
     TaskItem.extend({ content: 'paragraph (paragraph | image)*' }).configure({
       nested: false,
     }),
+    ...editorTableExtensions,
   ]
 
   if (placeholder !== undefined) {

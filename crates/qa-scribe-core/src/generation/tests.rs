@@ -9,6 +9,8 @@ mod acceptance_criteria_prompt;
 mod images;
 #[path = "tests/markdown_projection.rs"]
 mod markdown_projection;
+#[path = "tests/markdown_projection_tables.rs"]
+mod markdown_projection_tables;
 #[path = "tests/prompt_and_projection.rs"]
 mod prompt_and_projection;
 #[path = "tests/response_parser.rs"]

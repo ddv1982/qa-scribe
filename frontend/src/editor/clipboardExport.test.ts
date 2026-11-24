@@ -179,6 +179,27 @@ describe('clipboardExport', () => {
     )
   })
 
+  // Phase 2's inline fixes hold inside a cell, and every pipe in a cell, also in code, is escaped.
+  it('keeps pipes, code spaces, links and code inside bold intact in a table cell', () => {
+    const cell = 'a | b <code>  x  </code>! <a href="https://example.test/a(b)">link</a> <strong>Run<code>c | d</code>now</strong>'
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: `<table><tbody><tr><th><p>Head</p></th></tr><tr><td><p>${cell}</p></td></tr></tbody></table>` })
+    expect(payload.plain).toBe(['| Head |', '| --- |', '| a \\| b `   x   `! [link](<https://example.test/a(b)>) **Run**`c \\| d`**now** |'].join('\n'))
+  })
+
+  // A GFM reader takes `<br>` in a cell as a line break and backslash escapes as literal text.
+  it.each([
+    ['line breaks at the edges', '<br>alpha<br>', '<br>alpha<br>'],
+    ['a break-only cell', '<br>', '<br>'],
+    ['literal markup', '&lt;br&gt; *lit* _u_ a_b [x] ~s~ `c` \\ &amp;amp;', '\\<br> \\*lit\\* \\_u\\_ a_b \\[x\\] \\~s\\~ \\`c\\` \\\\ \\&amp;'],
+    ['bold across a break', '<strong>alpha<br>beta</strong>', '**alpha**<br>**beta**'],
+    ['italic inside bold', '<strong>a <em>b</em> c</strong>', '**a *b* c**'],
+    ['underline under bold within a word', 'pre<strong><u>fix</u></strong>ed', 'pre<u>**fix**</u>ed'],
+    ['underline under bold and italic within a word', 'pre<strong><em><u>fix</u></em></strong>ed', 'pre<u>***fix***</u>ed'],
+  ])('writes %s in a table cell so it reads back the same', (_case, cellHtml, cellMarkdown) => {
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: `<table><tbody><tr><th><p>Head</p></th></tr><tr><td><p>${cellHtml}</p></td></tr></tbody></table>` })
+    expect(payload.plain).toBe(['| Head |', '| --- |', `| ${cellMarkdown} |`].join('\n'))
+  })
+
   it('converts task list metadata into portable checkbox markers', () => {
     const payload = formatRecordForClipboard({
       title: 'Regression pass',
@@ -318,6 +339,18 @@ describe('clipboardExport', () => {
 
       literal *stars* and _underscores_ and # hash"
     `)
+  })
+
+  it.each([
+    ['https://example.test/?q=)', '<https://example.test/?q=)>'],
+    ['https://example.test/a(b', '<https://example.test/a(b>'],
+    ['https://example.test/a\\b', '<https://example.test/a\\\\b>'],
+    ['https://example.test/a&copy;', 'https://example.test/a\\&copy;'],
+  ])('keeps a link to %s whole in paragraphs and table cells', (href, destination) => {
+    const link = `<a href="${href.replace(/&/g, '&amp;')}">ticket</a>`
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: `<p>${link}</p><table><tbody><tr><th><p>${link}</p></th></tr></tbody></table>` })
+    expect(payload.plain).toContain(`[ticket](${destination})`)
+    expect(payload.plain).toContain(`| [ticket](${destination}) |`)
   })
 
   it('renders label-equals-href links as bare URLs (golden)', () => {

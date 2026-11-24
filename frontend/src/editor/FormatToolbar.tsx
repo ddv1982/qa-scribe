@@ -3,8 +3,29 @@ import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, t
 import type { Editor } from '@tiptap/react'
 import type { NodeRange } from '@tiptap/pm/model'
 import type { Transaction } from '@tiptap/pm/state'
+import { selectedRect } from '@tiptap/pm/tables'
 import { liftTarget } from '@tiptap/pm/transform'
-import { Bold, Code, ImageIcon, Italic, Link2, List, ListChecks, ListOrdered, SeparatorHorizontal, Strikethrough, type LucideIcon } from 'lucide-react'
+import {
+  BetweenHorizontalEnd,
+  BetweenHorizontalStart,
+  BetweenVerticalEnd,
+  BetweenVerticalStart,
+  Bold,
+  Code,
+  Columns2,
+  Grid2x2X,
+  ImageIcon,
+  Italic,
+  Link2,
+  List,
+  ListChecks,
+  ListOrdered,
+  Rows2,
+  SeparatorHorizontal,
+  Strikethrough,
+  Table,
+  type LucideIcon,
+} from 'lucide-react'
 import { isSafeEditorLinkUrl } from './editorHtml'
 import { useRichEditorController, type RichEditorImageInserter, type RichEditorImageUpload } from './richEditorRegistry'
 
@@ -169,12 +190,22 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
       <ToolbarButton
         label="Divider"
         icon={SeparatorHorizontal}
-        disabled={disabled}
+        // A divider has no place in a cell; inserted there it would split the table.
+        disabled={disabled || Boolean(editor?.isActive('table'))}
         controlsId={editorId}
         command={() => editor?.chain().focus().setHorizontalRule().run()}
       />
+      <ToolbarButton
+        label="Insert table"
+        icon={Table}
+        // A cell holds one paragraph, so tables do not nest.
+        disabled={disabled || Boolean(editor?.isActive('table'))}
+        controlsId={editorId}
+        command={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+      />
       <ToolbarButton label="Link" icon={Link2} active={editor?.isActive('link')} disabled={disabled} controlsId={editorId} command={openLinkEditor} />
       <ToolbarButton label="Upload image" icon={ImageIcon} command={requestImageUpload} disabled={disabled || !onUploadImage} controlsId={editorId} />
+      {editor && !disabled && editor.isActive('table') ? <TableControls editor={editor} controlsId={editorId} /> : null}
       <input ref={fileInputRef} className="toolbar-file-input" type="file" accept="image/*" aria-label="Upload image file" onChange={handleImageSelected} />
       {linkPopover ? (
         <form className="link-editor-popover" aria-label="Edit link" onSubmit={submitLinkEditor}>
@@ -206,6 +237,38 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
           ) : null}
         </form>
       ) : null}
+    </div>
+  )
+}
+
+type TableCommand = 'addRowBefore' | 'addRowAfter' | 'addColumnBefore' | 'addColumnAfter' | 'deleteRow' | 'deleteColumn' | 'deleteTable'
+
+const tableControls: { label: string; icon: LucideIcon; command: TableCommand }[] = [
+  { label: 'Add row above', icon: BetweenHorizontalStart, command: 'addRowBefore' },
+  { label: 'Add row below', icon: BetweenHorizontalEnd, command: 'addRowAfter' },
+  { label: 'Add column left', icon: BetweenVerticalStart, command: 'addColumnBefore' },
+  { label: 'Add column right', icon: BetweenVerticalEnd, command: 'addColumnAfter' },
+  { label: 'Delete row', icon: Rows2, command: 'deleteRow' },
+  { label: 'Delete column', icon: Columns2, command: 'deleteColumn' },
+  { label: 'Delete table', icon: Grid2x2X, command: 'deleteTable' },
+]
+
+/**
+ * Row, column and table commands, shown while the cursor is in a table. Delete row and Delete
+ * column do nothing when the selection covers every row or column, so they are disabled then.
+ */
+function TableControls({ editor, controlsId }: { editor: Editor; controlsId?: string }) {
+  const rect = selectedRect(editor.state)
+  const unavailable: Partial<Record<TableCommand, boolean>> = {
+    deleteRow: rect.top === 0 && rect.bottom === rect.map.height,
+    deleteColumn: rect.left === 0 && rect.right === rect.map.width,
+  }
+  return (
+    <div className="toolbar-group" role="group" aria-label="Table">
+      <span className="toolbar-divider" aria-hidden="true" />
+      {tableControls.map(({ label, icon, command }) => (
+        <ToolbarButton key={command} label={label} icon={icon} controlsId={controlsId} disabled={unavailable[command]} command={() => editor.chain().focus()[command]().run()} />
+      ))}
     </div>
   )
 }

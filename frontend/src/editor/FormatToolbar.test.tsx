@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { FormatToolbar } from './FormatToolbar'
 import { RichTextEditor } from './RichTextEditor'
 import { richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
+import type { RichEditorImageUpload } from './richEditorRegistry'
 
 beforeAll(() => {
   // jsdom has no layout; ProseMirror measures ranges when it scrolls the selection into view.
@@ -33,10 +34,10 @@ async function renderEditor(html = '<p>Evidence</p>') {
   return { editor, html: () => richEditorDocumentToHtml(onChange.mock.lastCall?.[0] ?? richEditorDocumentFromHtml(html)) }
 }
 
-function selectText(editor: HTMLElement, { all = false } = {}) {
+function selectText(editor: HTMLElement, { all = false, index = 0 } = {}) {
   editor.focus()
   const textNodes = [...editor.querySelectorAll('p, h1, h2, h3, h4, h5, h6, pre code')].flatMap((block) => (block.firstChild ? [block.firstChild] : []))
-  const first = textNodes[0]
+  const first = textNodes[index]
   const last = all ? textNodes.at(-1) : first
   if (!first || !last) throw new Error('editor text missing')
   const range = document.createRange()
@@ -161,5 +162,124 @@ describe('FormatToolbar', () => {
       screen.getByRole('button', { name: label }).dispatchEvent(event)
       expect(event.defaultPrevented, label).toBe(true)
     }
+  })
+
+  describe('tables', () => {
+    const tableHtml = (...rows: string[][]) =>
+      `<table><tbody>${rows.map((cells, index) => `<tr>${cells.map((cell) => (index === 0 ? `<th><p>${cell}</p></th>` : `<td><p>${cell}</p></td>`)).join('')}</tr>`).join('')}</tbody></table>`
+    const twoByTwo = tableHtml(['A', 'B'], ['1', '2'])
+    const tableControls = ['Add row above', 'Add row below', 'Add column left', 'Add column right', 'Delete row', 'Delete column', 'Delete table']
+
+    it('inserts a three by three table with a header row', async () => {
+      const { editor, html } = await renderEditor()
+      selectText(editor)
+      fireEvent.click(screen.getByRole('button', { name: 'Insert table' }))
+      await waitFor(() => expect(html()).toContain(tableHtml(['', '', ''], ['', '', ''], ['', '', ''])))
+    })
+
+    it('shows the table controls only while the cursor is in a table, where a table cannot be inserted', async () => {
+      const { editor } = await renderEditor(`<p>Before</p>${twoByTwo}`)
+      selectText(editor)
+      expect(screen.queryByRole('group', { name: 'Table' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Insert table' })).toBeEnabled()
+      selectText(editor, { index: 3 })
+      const group = await screen.findByRole('group', { name: 'Table' })
+      expect(Array.from(group.querySelectorAll('button')).map((button) => button.getAttribute('aria-label'))).toEqual(tableControls)
+      expect(screen.getByRole('button', { name: 'Insert table' })).toBeDisabled()
+    })
+
+    it.each([
+      ['Add row above', tableHtml(['A', 'B'], ['', ''], ['1', '2'])],
+      ['Add row below', tableHtml(['A', 'B'], ['1', '2'], ['', ''])],
+      ['Add column left', tableHtml(['', 'A', 'B'], ['', '1', '2'])],
+      ['Add column right', tableHtml(['A', '', 'B'], ['1', '', '2'])],
+      ['Delete row', tableHtml(['A', 'B'])],
+      ['Delete column', tableHtml(['B'], ['2'])],
+    ])('%s from a body cell', async (label, expected) => {
+      const { editor, html } = await renderEditor(twoByTwo)
+      selectText(editor, { index: 2 })
+      fireEvent.click(await screen.findByRole('button', { name: label }))
+      await waitFor(() => expect(html()).toBe(`${expected}<p></p>`))
+    })
+
+    it('deletes the table', async () => {
+      const { editor, html } = await renderEditor(`<p>Keep</p>${twoByTwo}`)
+      selectText(editor, { index: 3 })
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete table' }))
+      await waitFor(() => expect(html()).not.toContain('<table'))
+      expect(html()).toContain('<p>Keep</p>')
+      expect(screen.queryByRole('group', { name: 'Table' })).not.toBeInTheDocument()
+    })
+
+    // A cell holds one paragraph, so a block style other than Normal leaves the cell as it is.
+    it.each(['h2', 'codeBlock', 'blockquote'])('keeps a table cell a paragraph for the %s block style', async (value) => {
+      const { editor, html } = await renderEditor(twoByTwo)
+      selectText(editor, { index: 2 })
+      chooseBlockStyle(value)
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(html()).toBe(`${twoByTwo}<p></p>`)
+    })
+
+    it('turns the selected blocks before a table into headings and keeps the table', async () => {
+      const { editor, html } = await renderEditor(`<p>One</p><p>Two</p>${twoByTwo}`)
+      selectText(editor, { all: true })
+      chooseBlockStyle('h2')
+      await waitFor(() => expect(html()).toMatch(/^<h2>One<\/h2><h2>Two<\/h2>/))
+      expect(html()).toContain(twoByTwo)
+    })
+
+    // Each would split the table at the caret: a divider has no place in a cell.
+    it('disables Divider in a cell', async () => {
+      const { editor } = await renderEditor(`<p>Before</p>${twoByTwo}`)
+      selectText(editor)
+      expect(screen.getByRole('button', { name: 'Divider' })).toBeEnabled()
+      selectText(editor, { index: 3 })
+      await screen.findByRole('group', { name: 'Table' })
+      expect(screen.getByRole('button', { name: 'Divider' })).toBeDisabled()
+    })
+
+    it('inserts an uploaded image after the table, not in the cell', async () => {
+      const onUploadImage = vi.fn((_: RichEditorImageUpload) => undefined)
+      const onChange = vi.fn<(value: RichEditorDocument) => void>()
+      render(
+        <>
+          <FormatToolbar editorId="editor-one" onUploadImage={onUploadImage} />
+          <RichTextEditor editorId="editor-one" value={richEditorDocumentFromHtml(tableHtml(['A', 'B'], ['1', '2'], ['3', '4']))} onChange={onChange} />
+        </>,
+      )
+      const editor = await screen.findByRole('textbox', { name: 'Note body' })
+      await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Upload image' }).disabled).toBe(false))
+      selectText(editor, { index: 2 })
+      await screen.findByRole('group', { name: 'Table' })
+      fireEvent.click(screen.getByRole('button', { name: 'Upload image' }))
+      fireEvent.change(screen.getByLabelText('Upload image file'), { target: { files: [new File(['png'], 'evidence.png', { type: 'image/png' })] } })
+      expect(onUploadImage.mock.calls[0]?.[0].insertImage('attachment-1', 'evidence.png', 'data:image/png;base64,AAAA')).toBe(true)
+      await waitFor(() => expect(onChange).toHaveBeenCalled())
+      const html = richEditorDocumentToHtml(onChange.mock.lastCall![0])
+      expect(html).toMatch(new RegExp(`^${tableHtml(['A', 'B'], ['1', '2'], ['3', '4'])}<img [^>]*data-attachment-id="attachment-1"[^>]*><p></p>$`))
+    })
+
+    // Neither command deletes every row or column of a table; Delete table does that.
+    it.each([
+      ['one row', tableHtml(['A', 'B']), { 'Delete row': false, 'Delete column': true }],
+      ['one column', tableHtml(['A'], ['1']), { 'Delete row': true, 'Delete column': false }],
+    ])('disables what cannot be deleted in a table of %s', async (_shape, html, enabled) => {
+      const { editor } = await renderEditor(html)
+      selectText(editor)
+      await screen.findByRole('group', { name: 'Table' })
+      for (const [label, isEnabled] of Object.entries(enabled)) expect(screen.getByRole<HTMLButtonElement>('button', { name: label }).disabled, label).toBe(!isEnabled)
+      expect(screen.getByRole('button', { name: 'Delete table' })).toBeEnabled()
+    })
+
+    it('keeps the editor selection when a table control is pressed', async () => {
+      const { editor } = await renderEditor(twoByTwo)
+      selectText(editor, { index: 2 })
+      await screen.findByRole('group', { name: 'Table' })
+      for (const label of tableControls) {
+        const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+        screen.getByRole('button', { name: label }).dispatchEvent(event)
+        expect(event.defaultPrevented, label).toBe(true)
+      }
+    })
   })
 })

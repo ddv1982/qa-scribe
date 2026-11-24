@@ -281,6 +281,8 @@ fn every_refinement_contract_names_the_markdown_the_parser_keeps() {
             "``` fences",
             "~~strike~~",
             "<u>underline</u>",
+            "| pipe | tables | with a header row",
+            "<br> for a line break in a table cell",
             "![alt](qa-scribe-attachment://<id>)",
         ] {
             assert!(text.contains(form), "{record_kind:?} misses {form}");

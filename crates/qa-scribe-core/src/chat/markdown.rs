@@ -7,6 +7,8 @@ use serde_json::{Value, json};
 mod html;
 pub(crate) use html::to_html;
 #[cfg(test)]
+mod table_tests;
+#[cfg(test)]
 mod tests;
 
 struct Frame<'a> {
@@ -117,6 +119,19 @@ fn parse_events(text: &str, images: Option<&[Value]>) -> Result<Option<Vec<Value
                 mark(&mut frame.nodes, json!({"type":"underline"}));
                 stack.last_mut().unwrap().nodes.extend(frame.nodes);
             }
+            // A cell holds one line of Markdown, so a line break in it is written as `<br>`.
+            Event::InlineHtml(value)
+                if is_br(&value)
+                    && stack
+                        .iter()
+                        .any(|frame| matches!(frame.tag, Some(Tag::TableCell))) =>
+            {
+                stack
+                    .last_mut()
+                    .unwrap()
+                    .nodes
+                    .push(json!({"type":"hardBreak"}));
+            }
             Event::Text(value) | Event::Html(value) | Event::InlineHtml(value) => {
                 stack.last_mut().unwrap().nodes.extend(text_nodes(&value));
             }
@@ -148,8 +163,7 @@ fn known_image(known: &[Value], source: &str) -> Result<Value> {
         .ok_or_else(|| validation("The suggestion refers to an image that is not in this content"))
 }
 
-/// Images are blocks in the editor, so an image inside a paragraph, heading or flattened table
-/// row splits it.
+/// Images are blocks in the editor, so an image inside a paragraph or heading splits it.
 fn without_inline_images(kind: &str, attrs: Option<Value>, nodes: Vec<Value>) -> Vec<Value> {
     let mut result = vec![];
     let mut run = vec![];
@@ -250,20 +264,62 @@ fn finish(mut frame: Frame<'_>) -> Vec<Value> {
             }
         }
         Tag::List(start) => lists(frame.nodes, start),
-        Tag::TableHead | Tag::TableRow => {
-            // Each cell contributes a separator; remove only the final separator.
-            if frame.nodes.last().is_some_and(|n| n["text"] == " | ") {
-                frame.nodes.pop();
+        Tag::Table(_) => vec![table(frame.nodes)],
+        Tag::TableHead => {
+            for cell in &mut frame.nodes {
+                cell["type"] = json!("tableHeader");
             }
-            without_inline_images("paragraph", None, frame.nodes)
+            vec![node("tableRow", frame.nodes)]
         }
-        Tag::TableCell => {
-            frame.nodes.push(json!({"type":"text","text":" | "}));
-            frame.nodes
-        }
+        Tag::TableRow => vec![node("tableRow", frame.nodes)],
+        Tag::TableCell => vec![table_cell(frame.nodes)],
         // Images become their alt-text children.
         _ => frame.nodes,
     }
+}
+
+/// Every row has as many cells as the header row, so the table stays rectangular.
+fn table(mut rows: Vec<Value>) -> Value {
+    let width = rows
+        .first()
+        .and_then(|row| row["content"].as_array())
+        .map_or(0, Vec::len);
+    for row in &mut rows {
+        let cells = row["content"].as_array_mut().unwrap();
+        cells.truncate(width);
+        while cells.len() < width {
+            cells.push(table_cell(vec![]));
+        }
+    }
+    node("table", rows)
+}
+
+/// A cell holds one paragraph of inline content. An image is a block in the editor, so an image
+/// in a cell stays its alt text and the rewrite keeps the image itself outside the table.
+fn table_cell(nodes: Vec<Value>) -> Value {
+    let content = nodes
+        .into_iter()
+        .map(|value| match value["type"].as_str() {
+            Some("image") => {
+                let alt = value["attrs"]["alt"].as_str().filter(|alt| !alt.is_empty());
+                json!({"type":"text","text":alt.unwrap_or("Image")})
+            }
+            _ => value,
+        })
+        .collect();
+    json!({
+        "type":"tableCell",
+        "attrs":{"colspan":1,"rowspan":1,"colwidth":null},
+        "content":[node("paragraph", content)],
+    })
+}
+
+fn is_br(html: &str) -> bool {
+    let inner = html
+        .trim_start_matches('<')
+        .trim_end_matches('>')
+        .trim_end_matches('/');
+    inner.trim().eq_ignore_ascii_case("br")
 }
 
 fn node(kind: &str, content: Vec<Value>) -> Value {

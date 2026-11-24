@@ -12,6 +12,15 @@ struct HtmlPromptProjector<'a> {
     source: &'a str,
     output: String,
     link_stack: Vec<String>,
+    table: TableState,
+}
+
+/// A table projects as pipe rows: one line per row and a separator line under the header row.
+#[derive(Default)]
+struct TableState {
+    in_cell: bool,
+    rows: usize,
+    header_cells: usize,
 }
 
 impl<'a> HtmlPromptProjector<'a> {
@@ -20,6 +29,7 @@ impl<'a> HtmlPromptProjector<'a> {
             source,
             output: String::new(),
             link_stack: Vec::new(),
+            table: TableState::default(),
         }
     }
 
@@ -63,6 +73,9 @@ impl<'a> HtmlPromptProjector<'a> {
     }
 
     fn handle_tag(&mut self, raw_tag: &str, tag: &Tag) {
+        if self.handle_table_tag(tag) {
+            return;
+        }
         match (tag.closing, tag.name.as_str()) {
             (false, "br") => self.push_newline(),
             (false, "p" | "div" | "section" | "article" | "blockquote") => self.push_block_start(),
@@ -107,6 +120,44 @@ impl<'a> HtmlPromptProjector<'a> {
         }
     }
 
+    /// Table structure, and inside a cell every line break or block boundary as a space.
+    fn handle_table_tag(&mut self, tag: &Tag) -> bool {
+        match (tag.closing, tag.name.as_str()) {
+            (false, "table") => self.table = TableState::default(),
+            (false, "tr") => {
+                self.push_newline();
+                self.push_literal("|");
+                self.table.header_cells = 0;
+            }
+            (true, "tr") => {
+                self.push_newline();
+                self.table.rows += 1;
+                if self.table.rows == 1 && self.table.header_cells > 0 {
+                    let separator = vec!["---"; self.table.header_cells].join(" | ");
+                    self.push_literal(&format!("| {separator} |\n"));
+                }
+            }
+            (false, "th" | "td") => {
+                self.table.header_cells += usize::from(tag.name == "th");
+                self.table.in_cell = true;
+                self.push_literal(" ");
+            }
+            (true, "th" | "td") => {
+                self.table.in_cell = false;
+                while self.output.ends_with(' ') {
+                    self.output.pop();
+                }
+                self.push_literal(" |");
+            }
+            (
+                _,
+                "br" | "p" | "div" | "li" | "ul" | "ol" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6",
+            ) if self.table.in_cell => self.push_text(" "),
+            _ => return false,
+        }
+        true
+    }
+
     fn push_image(&mut self, raw_tag: &str) {
         let alt = attribute_value(raw_tag, "alt")
             .map(|value| project_html_to_prompt_text(&value))
@@ -135,7 +186,10 @@ impl<'a> HtmlPromptProjector<'a> {
 
     fn push_text(&mut self, text: &str) {
         let decoded = decode_html_entities(text);
-        let redacted = redact_data_urls(&decoded);
+        let mut redacted = redact_data_urls(&decoded);
+        if self.table.in_cell {
+            redacted = redacted.replace('|', "\\|");
+        }
         for character in redacted.chars() {
             if character.is_whitespace() {
                 if !self.output.ends_with(' ') && !self.output.ends_with('\n') {
