@@ -45,8 +45,8 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
   onCreateFinding?: (testCase: TestRunCase) => void
   /** Opens the Finding a case is linked to. */
   onOpenFinding?: (findingId: string) => void
-  /** Ask AI on this test run, read-only; `expanded` while its panel is open. */
-  askAi?: { expanded: boolean; onOpen: (runId: string) => void | Promise<void> }
+  /** Ask AI on this test run; `expanded` while its panel is open. */
+  askAi?: { expanded: boolean; onOpen: (runId: string, caseId?: string) => void | Promise<void> }
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -123,6 +123,7 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
               group={testCase.groupTitle && testCase.groupTitle !== cases[index - 1]?.groupTitle ? testCase.groupTitle : null}
               toggleRef={(element) => { toggleRefs.current[index] = element }}
               onKeyDown={(event) => onCaseKeyDown(event, index)}
+              onAskAi={askAi ? () => void askAi.onOpen(run.id, testCase.id) : undefined}
               onChangeCase={onChangeCase} />
           ))}
         </div>
@@ -175,8 +176,9 @@ function CopyReportButton({ run, readSavedRun }: { run: TestRun; readSavedRun?: 
   </>
 }
 
-function TestRunCaseRow({ testCase, group, finding, toggleRef, onKeyDown, onChangeCase }: {
+function TestRunCaseRow({ onAskAi, testCase, group, finding, toggleRef, onKeyDown, onChangeCase }: {
   testCase: EditableTestCase
+  onAskAi?: () => void
   group: string | null
   /** What follows the remark: the linked Finding, or Create Finding for a failed case. */
   finding: ReactNode
@@ -200,6 +202,7 @@ function TestRunCaseRow({ testCase, group, finding, toggleRef, onKeyDown, onChan
       <div className="test-run-outcome">
         <TestRunNotes testCase={testCase} onChange={(patch) => onChangeCase(id, patch)} />
         {finding}
+        {onAskAi ? <ActionButton variant="quiet" icon={Sparkles} aria-label={`Ask AI about this case: ${title}`} onClick={onAskAi}>Ask AI about this case</ActionButton> : null}
       </div>
       {document ? (
         <div className="test-run-case-body">

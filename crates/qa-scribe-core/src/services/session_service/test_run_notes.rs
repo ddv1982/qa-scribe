@@ -265,6 +265,15 @@ pub(crate) fn summarize(body_json: String) -> TestCaseNotes {
     }
 }
 
+pub(super) fn project_body(body: &str) -> Result<String> {
+    let value: Value =
+        serde_json::from_str(body).map_err(|_| validation("Invalid test case document"))?;
+    let mut text = String::new();
+    let mut images = 0;
+    project(value.get("doc").unwrap_or(&value), &mut text, &mut images);
+    Ok(text.trim().into())
+}
+
 fn project(node: &Value, text: &mut String, image_count: &mut usize) {
     if node["type"] == "tableRow" {
         // One line per row, its cells separated by ` | `, as in `testware/testRunNotes.ts`.

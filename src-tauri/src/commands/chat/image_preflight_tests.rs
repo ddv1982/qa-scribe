@@ -23,6 +23,7 @@ fn copilot_image_rejection_preserves_durable_composer_and_creates_no_turn() {
     )
     .unwrap();
     let request = StartChatJobRequest {
+        focused_case_id: None,
         intent: crate::commands::chat::ChatSendIntent::Composer,
         context: ChatTarget::Session,
         scope: lifecycle::scope(&before),

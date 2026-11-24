@@ -1,12 +1,11 @@
-//! A test run as plain text, for the read-only conversation the run owns. Its
-//! sections and labels follow `frontend/src/testware/testRunReport.ts`, the
-//! report the tester copies; change both together.
+//! Saved test run context for Ask AI.
 
 use rusqlite::{Connection, OptionalExtension};
 
 use super::{SessionService, test_runs::test_run};
 use crate::{
     Result,
+    chat::{MAX_CHAT_TEST_RUN_REPORT_BYTES, test_run::bound_report},
     domain::{ChatState, ConversationOwner, TestCaseResult, TestRun, TestRunCase},
     error::validation,
 };
@@ -23,10 +22,19 @@ impl SessionService {
     /// The report of the stored test run `run_id` of the Session, with its
     /// current results. Fails when the run no longer exists.
     pub fn test_run_report(&self, session_id: &str, run_id: &str) -> Result<String> {
+        self.test_run_report_for_case(session_id, run_id, None)
+    }
+
+    pub fn test_run_report_for_case(
+        &self,
+        session_id: &str,
+        run_id: &str,
+        case_id: Option<&str>,
+    ) -> Result<String> {
         let connection = self.database.connection();
         require_run(connection, session_id, run_id)?;
         let run = test_run(connection, run_id)?;
-        Ok(report(&run))
+        report(&run, case_id)
     }
 }
 
@@ -80,7 +88,7 @@ fn started(created_at: &str) -> String {
 /// The title, start, totals and every case with its Result, Remark and linked
 /// Finding title. Cases without a group come first; the others follow under
 /// their group title in the order the groups first appear.
-fn report(run: &TestRun) -> String {
+fn report(run: &TestRun, focused_id: Option<&str>) -> Result<String> {
     let totals = RESULT_ORDER
         .iter()
         .map(|result| {
@@ -94,7 +102,13 @@ fn report(run: &TestRun) -> String {
         .collect::<Vec<_>>()
         .join(", ");
     let case_lines = |case: &TestRunCase| {
-        let mut lines = vec![format!("- {}: {}", label(case.result), case.title)];
+        let mut lines = vec![format!(
+            "- {}: {} (TC {} [{}])",
+            label(case.result),
+            case.title,
+            case.position + 1,
+            case.id
+        )];
         if let Some(notes) = &case.notes {
             if !notes.text.is_empty() {
                 lines.push("  Result notes:".into());
@@ -118,7 +132,18 @@ fn report(run: &TestRun) -> String {
     };
     let mut groups: Vec<(&str, Vec<&TestRunCase>)> = Vec::new();
     let mut ungrouped = Vec::new();
-    for case in &run.cases {
+    let focused = focused_id
+        .map(|id| {
+            run.cases.iter().find(|case| case.id == id).ok_or_else(|| {
+                validation("The focused test case does not belong to this test run.")
+            })
+        })
+        .transpose()?;
+    for case in run
+        .cases
+        .iter()
+        .filter(|case| Some(case.id.as_str()) != focused_id)
+    {
         match case
             .group_title
             .as_deref()
@@ -153,5 +178,22 @@ fn report(run: &TestRun) -> String {
         lines.extend(cases.into_iter().flat_map(case_lines));
         sections.push(lines.join("\n"));
     }
-    sections.join("\n\n")
+    let rest = sections.join("\n\n");
+    let Some(case) = focused else {
+        return Ok(bound_report(&rest, MAX_CHAT_TEST_RUN_REPORT_BYTES));
+    };
+    let instructions = super::test_run_notes::project_body(&case.body_json)?;
+    let focused = format!(
+        "## Focused test case\n{}\n  Case instructions (including steps and expected results):\n{}\n\n",
+        case_lines(case).join("\n"),
+        instructions
+    );
+    const FOCUSED_CASE_BYTES: usize = MAX_CHAT_TEST_RUN_REPORT_BYTES / 2;
+    if focused.len() > FOCUSED_CASE_BYTES {
+        return Err(validation(
+            "The focused test case is too long to send to Ask AI. Open Ask AI for the whole test run or shorten its Result notes.",
+        ));
+    }
+    let rest = bound_report(&rest, MAX_CHAT_TEST_RUN_REPORT_BYTES - focused.len());
+    Ok(focused + &rest)
 }

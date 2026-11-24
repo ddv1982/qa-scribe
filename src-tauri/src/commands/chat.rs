@@ -230,6 +230,8 @@ pub struct StartChatJobRequest {
     #[serde(default)]
     #[specta(optional)]
     pub context: ChatTarget,
+    #[specta(optional)]
+    pub focused_case_id: Option<String>,
     pub scope: ChatRevision,
     pub provider: AiProvider,
     pub model: String,

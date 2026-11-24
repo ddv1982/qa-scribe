@@ -11,6 +11,7 @@ export type ChatImageFailure = { id: string; filename: string; message: string; 
 
 export interface SessionChatViewState {
   responseStarting?: ChatSendIntent | ChatComposerIntent
+  focusedRunCase?: (runId: string) => string | undefined
   recordWritesPending?: boolean
   onSuggestEdit?: (assistantMessageId: string | null) => Promise<void>
   onAnswerQuestion?: (assistantMessageId: string, text: string) => Promise<void>
@@ -60,6 +61,7 @@ export const emptyChatSnapshot: ChatSnapshot = {
 }
 
 export type SessionChatContext = {
+  focusedRunCase?: (runId: string) => string | undefined
   recordWritesPending?: () => boolean
   noteRecovery: ChatNoteRecovery
   noteEligibility: NoteEligibility

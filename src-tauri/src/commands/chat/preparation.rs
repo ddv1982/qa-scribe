@@ -75,7 +75,11 @@ impl ChatPreparationSnapshot {
         // A test run conversation reads the run's current results on every turn, Retry included.
         let test_run_report = match &chat.owner {
             ConversationOwner::TestRun { session_id, run_id } => {
-                Some(service.test_run_report(session_id, run_id)?)
+                Some(service.test_run_report_for_case(
+                    session_id,
+                    run_id,
+                    request.focused_case_id.as_deref(),
+                )?)
             }
             _ => None,
         };

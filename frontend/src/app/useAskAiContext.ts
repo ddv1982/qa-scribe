@@ -252,7 +252,12 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     if (!sessionId) return Promise.resolve()
     return launchOwner({ kind: 'record', sessionId, record: { kind: target.kind, recordId: target.recordId } })
   }
-  function onAskAiRun(runId: string) {
+  const runFocus = useRef<{ runId: string; caseId: string } | null>(null)
+  function focusedRunCase(runId: string) {
+    return runFocus.current?.runId === runId ? runFocus.current.caseId : undefined
+  }
+  function onAskAiRun(runId: string, caseId?: string) {
+    runFocus.current = caseId ? { runId, caseId } : null
     if (!sessionId) return Promise.resolve()
     return launchOwner({ kind: 'test_run', sessionId, runId })
   }
@@ -319,7 +324,7 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     openRunId: visible && owner?.kind === 'test_run' ? owner.runId : null,
     focusRequest: current?.focusRequest ?? 0, panel: current, reference: current?.reference ?? null, source,
     context, contextError: source?.kind === 'unavailable' ? 'This record is no longer available in this Session.' : source?.kind === 'error' ? source.message : null,
-    capture, captureNotesContext, onAskAi, onAskAiRun, onShowRun, onSelectRecord, close, openConversation, openStage: (origin: StageOrigin) => openConversation(origin.reference, origin), revealRequest, acknowledgeReveal,
+    capture, captureNotesContext, onAskAi, onAskAiRun, focusedRunCase, onShowRun, onSelectRecord, close, openConversation, openStage: (origin: StageOrigin) => openConversation(origin.reference, origin), revealRequest, acknowledgeReveal,
     retrySource: () => { if (owner?.kind === 'record') ctx.retrySource(owner.record); else shownRun?.retry() },
     // An existing run's conversation is recovered through Ask AI on its run; a deleted run's from here.
     recovery: unfinishedConversations(recoveryRows.filter(row => row.reference.sessionId === sessionId), attention).filter(item => item.owner.kind === 'record' || runGone(item.owner, runIds)), recoveryError,

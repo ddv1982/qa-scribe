@@ -29,6 +29,7 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
     if (entry.retired) return
     if (!entry.chat) throw new Error('Chat could not be loaded. Reopen the Session to try again.')
     const context = retry ? undefined : ctx.captureContext?.(entry.sessionId, entry.owner) ?? { kind: 'session' as const }
+    const focusedCaseId = entry.owner?.kind === 'test_run' ? ctx.focusedRunCase?.(entry.owner.runId) : undefined
     const selection = { ...ctx.selection }
     if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
     if ((entry.owner?.kind === 'notes' && ctx.noteRecovery.has(entry.sessionId))) throw new Error('Recover the canonical Note before continuing Chat.')
@@ -69,7 +70,7 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
     entry.pendingStart = pendingStart; publish(entry)
     ++entry.refreshEpoch
     try {
-      result = await startChatJob({ scope: chatScope(chat), intent, context,
+      result = await startChatJob({ scope: chatScope(chat), intent, context, focusedCaseId,
         provider: selection.selectedProvider, model: selection.selectedModel,
         reasoningEffort: selection.selectedReasoningEffort }, (status) => receiveStatus(entry, status))
       if (result.chat.sessionId !== entry.sessionId || result.chat.draftId !== chat.draftId

@@ -12,10 +12,14 @@ pub const TEST_RUN_REPORT_TRUNCATED_MARKER: &str =
 /// The report within [`MAX_CHAT_TEST_RUN_REPORT_BYTES`], cut after the last
 /// whole line that fits and marked when cut.
 pub fn bounded_test_run_report(report: &str) -> String {
-    if report.len() <= MAX_CHAT_TEST_RUN_REPORT_BYTES {
+    bound_report(report, MAX_CHAT_TEST_RUN_REPORT_BYTES)
+}
+
+pub(crate) fn bound_report(report: &str, budget: usize) -> String {
+    if report.len() <= budget {
         return report.to_string();
     }
-    let mut end = MAX_CHAT_TEST_RUN_REPORT_BYTES - TEST_RUN_REPORT_TRUNCATED_MARKER.len();
+    let mut end = budget - TEST_RUN_REPORT_TRUNCATED_MARKER.len();
     while !report.is_char_boundary(end) {
         end -= 1;
     }

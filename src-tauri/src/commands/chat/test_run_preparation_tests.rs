@@ -71,6 +71,7 @@ fn compose(service: &SessionService, chat: &ChatState, text: &str) -> ChatState 
 
 fn request(chat: &ChatState, intent: ChatSendIntent) -> StartChatJobRequest {
     StartChatJobRequest {
+        focused_case_id: None,
         intent,
         context: ChatTarget::Session,
         scope: lifecycle::scope(chat),

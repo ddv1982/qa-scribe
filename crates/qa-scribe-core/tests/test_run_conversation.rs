@@ -240,10 +240,13 @@ fn the_report_lists_totals_and_every_case_with_its_current_result() {
     );
     assert_eq!(
         rest,
-        "2 passed, 1 failed, 0 blocked, 1 not run\n\n\
-         - Passed: Open the shop\n\n\
-         ### Cards\n- Passed: Pay by card\n- Not run: Pay by saved card\n\n\
-         ### Gift cards\n- Failed: Pay with a gift card\n  Remark: The gift card was refused.\n  Finding: Gift card refused"
+        format!(
+            "2 passed, 1 failed, 0 blocked, 1 not run\n\n\
+         - Passed: Open the shop (TC 1 [{}])\n\n\
+         ### Cards\n- Passed: Pay by card (TC 2 [{}])\n- Not run: Pay by saved card (TC 4 [{}])\n\n\
+         ### Gift cards\n- Failed: Pay with a gift card (TC 3 [{}])\n  Remark: The gift card was refused.\n  Finding: Gift card refused",
+            cases[0].id, cases[1].id, cases[3].id, cases[2].id
+        )
     );
     f.service
         .set_test_case_result(&cases[2].id, TestCaseResult::Blocked, None)
@@ -253,7 +256,10 @@ fn the_report_lists_totals_and_every_case_with_its_current_result() {
         changed.contains("2 passed, 0 failed, 1 blocked, 1 not run"),
         "the report reads stored results"
     );
-    assert!(changed.contains("- Blocked: Pay with a gift card\n  Finding: Gift card refused"));
+    assert!(changed.contains(&format!(
+        "- Blocked: Pay with a gift card (TC 3 [{}])\n  Finding: Gift card refused",
+        cases[2].id
+    )));
 }
 
 #[test]
@@ -405,4 +411,40 @@ fn a_deleted_run_fails_a_new_turn_and_a_retry_cleanly() {
             .len(),
         1
     );
+}
+
+#[test]
+fn the_focused_last_case_keeps_its_steps_when_the_rest_is_cut() {
+    let f = fixture();
+    let cases = (1..=500)
+        .map(|position| case(None, &format!("Case {position}: {}", "t".repeat(120))))
+        .collect();
+    let run = f.service.start_test_run(&f.draft_id, cases).unwrap();
+    let last = run.cases.last().unwrap();
+    let report = f
+        .service
+        .test_run_report_for_case(&f.session_id, &run.id, Some(&last.id))
+        .unwrap();
+    let focused = report.split("\n\n").next().unwrap();
+    assert!(
+        focused.contains(&format!("TC 500 [{}]", last.id)),
+        "{focused}"
+    );
+    assert!(focused.contains("Pay"), "{focused}");
+    assert!(report.ends_with(TEST_RUN_REPORT_TRUNCATED_MARKER));
+    assert!(report.len() <= MAX_CHAT_TEST_RUN_REPORT_BYTES);
+}
+
+#[test]
+fn an_oversized_focused_case_refuses_the_report() {
+    let f = fixture();
+    let mut huge = case(None, "Large case");
+    huge.body_json = json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"x".repeat(MAX_CHAT_TEST_RUN_REPORT_BYTES + 1)}]}]}).to_string();
+    let run = f.service.start_test_run(&f.draft_id, vec![huge]).unwrap();
+    let error = validation_message(f.service.test_run_report_for_case(
+        &f.session_id,
+        &run.id,
+        Some(&run.cases[0].id),
+    ));
+    assert!(error.contains("focused test case is too long"), "{error}");
 }
