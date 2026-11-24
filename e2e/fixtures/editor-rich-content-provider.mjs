@@ -1,7 +1,18 @@
 import assert from 'node:assert/strict'
 import { inspectContextInput } from './ask-ai-context-provider.mjs'
 
-/** The rewrite Ask AI returns: the authored draft's constructs, with the last sentence reworded. */
+/** The test data table with the Note column Ask AI adds. */
+export const richContentTable = [
+  '| Case | Card | Amount | Result | Note |',
+  '| --- | --- | --- | --- | --- |',
+  '| TC01 | **4111** | 10.00 | Passed | ok |',
+  '| TC02 | 5500 | 0.00 | *Failed* | retry |',
+]
+
+/**
+ * The rewrite Ask AI returns: the authored draft's constructs, with the last sentence reworded and
+ * a column added to the table.
+ */
 export const richContentReply = [
   '# Release 4.2', '',
   '## Checkout', '',
@@ -12,6 +23,8 @@ export const richContentReply = [
   '```', 'GET /pay', '```', '',
   '> Payment returns a 500.', '',
   '###### Notes', '',
+  'Test data', '',
+  ...richContentTable, '',
   '### TC02 Refund', '',
   'Refund the whole order.',
 ].join('\n')
