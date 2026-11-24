@@ -9,6 +9,9 @@ export const richContentTable = [
   '| TC02 | 5500 | 0.00 | *Failed* | retry |',
 ]
 
+/** The warning panel the author phase inserts through the slash menu, as a GitHub alert. */
+export const richContentPanel = ['> [!WARNING]', '> Card declined twice.']
+
 /**
  * The rewrite Ask AI returns: the authored draft's constructs, with the last sentence reworded and
  * a column added to the table.
@@ -26,7 +29,8 @@ export const richContentReply = [
   'Test data', '',
   ...richContentTable, '',
   '### TC02 Refund', '',
-  'Refund the whole order.',
+  'Refund the whole order.', '',
+  ...richContentPanel,
 ].join('\n')
 
 /** Answers a Test cases draft refinement with an edit; any other turn gets a plain answer. */

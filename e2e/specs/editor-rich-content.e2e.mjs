@@ -4,9 +4,10 @@ import { join } from 'node:path'
 import { readClipboardText } from '../fixtures/clipboard-readback.mjs'
 import { richContentTable } from '../fixtures/editor-rich-content-provider.mjs'
 
-// Two runner phases on the same app data: `author` writes rich content through the toolbar and
-// pastes a table, and `restart` reopens it in a new app process, applies a fake Ask AI Update that
-// adds a table column, copies the draft and checks it all survives.
+// Two runner phases on the same app data: `author` writes rich content through the toolbar, pastes a
+// table and inserts a warning panel through the slash menu by keyboard, and `restart` reopens it in
+// a new app process, applies a fake Ask AI Update that adds a table column and writes the panel as a
+// GitHub alert, copies the draft and checks it all survives.
 const phase = process.env.QA_SCRIBE_E2E_EDITOR_PHASE
 const artifacts = process.env.QA_SCRIBE_E2E_ARTIFACTS
 const fixture = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
@@ -109,13 +110,13 @@ async function blockStyle(style) {
 }
 
 /**
- * Each top-level node as [type, level or mark list, text], the shape both phases compare. The empty
+ * Each top-level node as [type, level, panel kind or mark list, text], the shape both phases compare. The empty
  * paragraph the editor keeps after the last block is left out.
  */
 function outline(bodyJson) {
   const text = (node) => node.text ?? (node.content ?? []).map(text).join('')
   const marks = (node) => [...new Set((node.content ?? []).flatMap((child) => (child.marks ?? []).map((mark) => mark.type)))]
-  const nodes = JSON.parse(bodyJson).doc.content.map((node) => [node.type, node.attrs?.level ?? marks(node).join(','), text(node)])
+  const nodes = JSON.parse(bodyJson).doc.content.map((node) => [node.type, node.attrs?.level ?? node.attrs?.kind ?? marks(node).join(','), text(node)])
   const last = nodes.at(-1)
   return last?.[0] === 'paragraph' && !last[2] ? nodes.slice(0, -1) : nodes
 }
@@ -135,6 +136,7 @@ const outlineWith = (rows) => [
   ['heading', 3, 'TC02 Refund'],
 ]
 const authoredOutline = outlineWith(authoredTable)
+const panelOutline = ['panel', 'warning', 'Card declined twice.']
 
 async function startTestRunCases(sessionId) {
   const before = (await native('list_test_runs', { sessionId })).length
@@ -200,13 +202,29 @@ describe('Rich editor content in the built native application', () => {
       }, editorSelector, pastedTable)
       await browser.waitUntil(() => browser.execute((selector) => document.querySelectorAll(`${selector} table th`).length === 4, editorSelector),
         { timeoutMsg: 'the pasted table did not get a header row of four cells' })
+      // Keyboard only: a new line after the last one, then the slash menu inserts a warning panel.
+      // Text goes through WebDriver's send keys to the focused editor, which keeps the caret;
+      // WebKitGTK inserts no text for printable key actions.
+      await caretAtEnd('Refund the order.')
+      await browser.keys(['Enter'])
+      await $(editorSelector).addValue('/warn')
+      const option = await $('[role="listbox"][aria-label="Insert block"] [role="option"][aria-selected="true"]')
+      await option.waitForDisplayed({ timeoutMsg: 'the slash menu did not open' })
+      assert.equal(await option.getText(), 'Warning panel')
+      assert.equal(await $(editorSelector).getAttribute('aria-activedescendant'), await option.getAttribute('id'))
+      await browser.keys(['Enter'])
+      await $(`${editorSelector} aside[data-panel="warning"]`).waitForExist({ timeoutMsg: 'Enter did not insert a warning panel' })
+      await $(editorSelector).addValue('Card declined twice.')
+      await browser.waitUntil(() => browser.execute((selector) => document.querySelector(`${selector} aside[data-panel="warning"]`)?.textContent === 'Card declined twice.', editorSelector),
+        { timeoutMsg: 'the typed text did not land in the panel' })
+      assert.equal(await $('[role="listbox"][aria-label="Insert block"]').isExisting(), false, 'the slash menu stays open after inserting')
       await browser.saveScreenshot(join(artifacts, 'authored-editor.png'))
 
       await click('button=Save test cases')
       await $('button=Edit').waitForDisplayed()
       const [draft] = await native('list_drafts', { sessionId: session.id })
       save('authored', { body: draft.body, outline: outline(draft.bodyJson), table: tableRows(draft.bodyJson) })
-      assert.deepEqual(outline(draft.bodyJson), [...authoredOutline, ['paragraph', '', 'Refund the order.']])
+      assert.deepEqual(outline(draft.bodyJson), [...authoredOutline, ['paragraph', '', 'Refund the order.'], panelOutline])
       assert.deepEqual(tableRows(draft.bodyJson), authoredTable)
       const cases = await startTestRunCases(session.id)
       assert.deepEqual(cases, ['TC01 Pay by card', 'TC02 Refund'])
@@ -231,12 +249,13 @@ describe('Rich editor content in the built native application', () => {
       await draftButton.click()
       const preview = '.record-detail-pane'
       await $(`${preview} h1`).waitForDisplayed()
-      const rendered = await browser.execute((preview) => ['h1', 'h4', 'h6', 'pre code', 'blockquote', 's', 'u', 'table tr:first-child', 'table tr:last-child']
+      const rendered = await browser.execute((preview) => ['h1', 'h4', 'h6', 'pre code', 'blockquote', 's', 'u', 'table tr:first-child', 'table tr:last-child', 'aside[data-panel="warning"]']
         .map((tag) => [tag, document.querySelector(`${preview} ${tag}`)?.textContent ?? null]), preview)
       save('reopened', { rendered })
       assert.deepEqual(rendered, [['h1', 'Release 4.2'], ['h4', 'Setup'], ['h6', 'Notes'], ['pre code', 'GET /pay'],
         ['blockquote', 'Payment returns a 500.'], ['s', 'Gateway declined'], ['u', 'Check the receipt'],
-        ['table tr:first-child', 'CaseCardAmountResult'], ['table tr:last-child', 'TC0255000.00Failed']])
+        ['table tr:first-child', 'CaseCardAmountResult'], ['table tr:last-child', 'TC0255000.00Failed'],
+        ['aside[data-panel="warning"]', 'Card declined twice.']])
 
       const index = readdirSync(fixture).filter((name) => /^codex-exec-\d+\.started$/.test(name)).length + 1
       await click('button=Ask AI')
@@ -258,13 +277,16 @@ describe('Rich editor content in the built native application', () => {
         return updated.bodyJson.includes('Refund the whole order.')
       }, { timeoutMsg: 'the Update did not reach the saved draft' })
       save('updated', { body: updated.body, outline: outline(updated.bodyJson), table: tableRows(updated.bodyJson) })
-      assert.deepEqual(outline(updated.bodyJson), [...outlineWith(updatedTable), ['paragraph', '', 'Refund the whole order.']])
+      assert.deepEqual(outline(updated.bodyJson), [...outlineWith(updatedTable), ['paragraph', '', 'Refund the whole order.'], panelOutline])
       assert.deepEqual(tableRows(updated.bodyJson), updatedTable)
       await browser.saveScreenshot(join(artifacts, 'after-update.png'))
 
       // In a narrow window, such as the macOS gate's, Ask AI covers the draft and its Copy button.
       await click(`${panel} button[aria-label="Close Ask AI"]`)
       await $(panel).waitForDisplayed({ reverse: true })
+      const updatedPanel = await $(`.record-detail-pane aside[data-panel="warning"]`)
+      await updatedPanel.waitForDisplayed({ timeoutMsg: 'the updated draft shows no warning panel' })
+      assert.equal(await updatedPanel.getText(), 'Card declined twice.')
       await click(`[aria-label="Copy ${draftTitle}"]`)
       let copied
       await browser.waitUntil(() => {
@@ -273,6 +295,8 @@ describe('Rich editor content in the built native application', () => {
       }, { timeoutMsg: 'the copied draft did not reach the clipboard' })
       save('copied', copied)
       assert.ok(copied.plain.includes(richContentTable.join('\n')), copied.plain)
+      assert.ok(copied.plain.includes('> **Warning**\n>\n> Card declined twice.'), copied.plain)
+      assert.ok(copied.html.includes('<blockquote><p><strong>Warning</strong></p><p>Card declined twice.</p></blockquote>'), copied.html)
       const tableHtml = (rows) => `<table><tbody>${rows.map((row) => `<tr>${row.map((cell) => {
         const [kind, marks, text] = cell.split(':')
         const inner = marks === 'bold' ? `<strong>${text}</strong>` : marks === 'italic' ? `<em>${text}</em>` : text
