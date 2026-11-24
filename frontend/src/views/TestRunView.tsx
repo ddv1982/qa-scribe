@@ -13,8 +13,9 @@ import { testRunCaseDocument, testRunSummaryText } from '../testware/testRuns'
 import { testRunReport } from '../testware/testRunReport'
 import type { OpenTestRun } from '../testware/useTestRuns'
 import type { CasePatch, EditableTestCase } from '../testware/caseSaveQueue'
-import type { TestCaseResult, TestRun, TestRunCase, TestRunSummary } from '../tauri'
+import type { LogEvidenceSummary, TestCaseResult, TestRun, TestRunCase, TestRunSummary } from '../tauri'
 import { formatDateTime, formatError } from '../ui/format'
+import { TestRunLogEvidence } from './TestRunLogEvidence'
 import { TestRunNotes } from './TestRunNotes'
 
 type RecordedResult = Exclude<TestCaseResult, 'not_run'>
@@ -54,6 +55,11 @@ export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = fals
   const cancelRef = useRef<HTMLButtonElement>(null)
   const toggleRefs = useRef<Array<HTMLButtonElement | null>>([])
   const { run } = open
+  const [addedEvidence, setAddedEvidence] = useState<LogEvidenceSummary[]>([])
+  const [detachedEvidence, setDetachedEvidence] = useState<string[]>([])
+  const savedEvidence = run?.logEvidence ?? []
+  const visibleEvidence = [...savedEvidence, ...addedEvidence.filter((capture) => !savedEvidence.some((saved) => saved.id === capture.id))]
+    .filter((capture) => !detachedEvidence.includes(capture.id))
   const cases = run?.cases ?? []
   const recorded = cases.filter((testCase) => testCase.result !== 'not_run').length
 
@@ -101,7 +107,7 @@ export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = fals
           ) : null}
           {run && askAi ? <ActionButton variant="secondary" className="ask-ai-trigger" icon={Sparkles} aria-expanded={askAi.expanded}
             onClick={() => void askAi.onOpen(run.id)}>Ask AI</ActionButton> : null}
-          {run ? <CopyReportButton run={run} readSavedRun={onReadSavedRun} /> : null}
+          {run ? <CopyReportButton run={{ ...run, logEvidence: visibleEvidence }} readSavedRun={onReadSavedRun} /> : null}
           {/* Kept together, so a narrow header never leaves the delete icon alone on a line. */}
           <span className="test-run-leave">
             <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
@@ -125,6 +131,10 @@ export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = fals
               toggleRef={(element) => { toggleRefs.current[index] = element }}
               onKeyDown={(event) => onCaseKeyDown(event, index)}
               onAskAi={askAi ? () => void askAi.onOpen(run.id, testCase.id) : undefined}
+              logEvidence={<TestRunLogEvidence caseId={testCase.id} disabled={editsBlocked}
+                captures={visibleEvidence.filter((capture) => capture.caseId === testCase.id)}
+                onCapture={(capture) => setAddedEvidence((previous) => [...previous, capture])}
+                onDetach={(captureId) => setDetachedEvidence((previous) => [...previous, captureId])} />}
               onChangeCase={onChangeCase} />
           ))}
         </div>
@@ -177,13 +187,14 @@ function CopyReportButton({ run, readSavedRun }: { run: TestRun; readSavedRun?: 
   </>
 }
 
-function TestRunCaseRow({ onAskAi, editsBlocked, testCase, group, finding, toggleRef, onKeyDown, onChangeCase }: {
+function TestRunCaseRow({ onAskAi, editsBlocked, testCase, group, finding, logEvidence, toggleRef, onKeyDown, onChangeCase }: {
   testCase: EditableTestCase
   onAskAi?: () => void
   editsBlocked: boolean
   group: string | null
   /** What follows the remark: the linked Finding, or Create Finding for a failed case. */
   finding: ReactNode
+  logEvidence: ReactNode
   toggleRef: (element: HTMLButtonElement | null) => void
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void
   onChangeCase: (caseId: string, patch: CasePatch, completingImageRead?: boolean) => void
@@ -209,6 +220,7 @@ function TestRunCaseRow({ onAskAi, editsBlocked, testCase, group, finding, toggl
         </> : null}
         <TestRunNotes testCase={testCase} readOnly={editsBlocked} onChange={(patch, imageRead) => onChangeCase(id, patch, imageRead)} />
         {finding}
+        {logEvidence}
         {onAskAi ? <ActionButton variant="quiet" icon={Sparkles} aria-label={`Ask AI about this case: ${title}`} onClick={onAskAi}>Ask AI about this case</ActionButton> : null}
       </div>
       {document ? (

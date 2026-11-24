@@ -39,6 +39,7 @@ fn checkout_run() -> TestRun {
         draft_title: "Checkout cases".into(),
         created_at: "2026-11-13T14:02:00.000Z".into(),
         updated_at: "2026-11-13T14:05:00Z".into(),
+        log_evidence: Vec::new(),
         cases: vec![
             case("Pay by card", TestCaseResult::Passed, Some("Fast")),
             case(

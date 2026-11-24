@@ -282,6 +282,7 @@ pub(super) fn test_run(connection: &Connection, run_id: &str) -> Result<TestRun>
                     created_at: row.get(4)?,
                     updated_at: row.get(5)?,
                     cases: Vec::new(),
+                    log_evidence: Vec::new(),
                 })
             },
         )
@@ -293,6 +294,7 @@ pub(super) fn test_run(connection: &Connection, run_id: &str) -> Result<TestRun>
     run.cases = statement
         .query_map([run_id], map_case)?
         .collect::<std::result::Result<Vec<_>, _>>()?;
+    run.log_evidence = super::test_run_log_evidence::attached_log_evidence(connection, run_id)?;
     Ok(run)
 }
 

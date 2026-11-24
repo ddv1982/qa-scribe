@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- In **Settings → Application logs**, use **Discover from Azure** to choose a subscription and Application Insights resource with your Azure CLI sign-in. You can also enter a resource ID manually. **Check access** runs a separate query against the target.
+
+- On Linux and macOS, use **Add log evidence** on a test run case to run KQL against a configured Azure Application Insights target with your Azure CLI sign-in. Captures stay local. Copy the query with its exact UTC bounds, copy the Azure portal link, or use **Copy report** to share the evidence reference.
+
 - Describe what happened in a test run and Ask AI can suggest Results and additions to Result notes for several cases. Review the suggestions, update cases individually or use Apply all, and undo each update while its case still matches.
 
 - The editor has headings 1 to 6, a numbered list button, strikethrough, inline code, plain code blocks, quotes, dividers and underline. They are kept when you save and reopen, apply an Ask AI suggestion, copy for Jira, and start a test run. A level-1 heading ends a test case and its group; headings 4 to 6 stay inside a test case.

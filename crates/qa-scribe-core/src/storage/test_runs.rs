@@ -50,6 +50,9 @@ pub(super) fn migrate(connection: &rusqlite::Connection, found: i32) -> rusqlite
     if found < 26 {
         connection.execute_batch(super::chat_test_run_suggestions::SCHEMA)?;
     }
+    if found < 27 {
+        connection.execute_batch(super::log_evidence::SCHEMA)?;
+    }
     Ok(())
 }
 

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-capture-application-logs"
+description = "Enables the capture_application_logs command without any pre-configured scope."
+commands.allow = ["capture_application_logs"]
+
+[[permission]]
+identifier = "deny-capture-application-logs"
+description = "Denies the capture_application_logs command without any pre-configured scope."
+commands.deny = ["capture_application_logs"]

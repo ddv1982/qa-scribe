@@ -27,6 +27,9 @@ pub struct AppSettings {
     /// no tools at all.
     #[serde(default)]
     pub generation_read_sources: Vec<GenerationReadSource>,
+    #[serde(default)]
+    #[specta(optional)]
+    pub application_log_sources: Vec<super::ApplicationLogSource>,
 }
 
 /// A read-only source that Generate may look up through the user's Claude Code
@@ -56,6 +59,7 @@ impl Default for AppSettings {
             finding_template: default_finding_template(),
             note_summary_template: default_note_summary_template(),
             generation_read_sources: Vec::new(),
+            application_log_sources: Vec::new(),
         }
     }
 }

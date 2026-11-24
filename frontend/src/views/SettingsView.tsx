@@ -15,6 +15,7 @@ import {
 import type { AiProvider, AppSettings, ProviderStatus } from '../tauri'
 import type { BusyAction, ProviderDiscoveryUiState, SettingsSaveState, ThemePreference } from '../ui/types'
 import { catalogSelectorEnabled } from '../settings/catalog'
+import { ApplicationLogsSettings } from './ApplicationLogsSettings'
 import { GenerationReadSourcesSetting } from './GenerationReadSourcesSetting'
 import { TemplatesView } from './TemplatesView'
 import {
@@ -366,6 +367,9 @@ export function SettingsView({
         ) : null}
 
         {settingsDraft ? <GenerationReadSourcesSetting settingsDraft={settingsDraft} updateSettingsDraft={updateSettingsDraft} codexAvailable={providerOptions.some((provider) => provider.id === 'codex_cli' && provider.available)} /> : null}
+
+        {settingsDraft ? <ApplicationLogsSettings sources={settingsDraft.applicationLogSources ?? []}
+          onChange={(applicationLogSources) => updateSettingsDraft({ applicationLogSources })} /> : null}
 
         <section className="wide-setting advanced-setting" id="template-settings">
           <details>

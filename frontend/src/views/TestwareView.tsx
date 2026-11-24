@@ -142,7 +142,7 @@ export function TestwareView({
         ? <StartTestRunButton draft={draft} starting={testRuns.starting} disabled={isBusy} onStart={(cases) => void testRuns.start(draft.id, cases)} />
         : null}
       renderDetail={(draft) => testRuns.open?.draftId === draft.id ? (
-        <TestRunView open={testRuns.open} draftRuns={runsOf(draft.id)} error={testRuns.error}
+        <TestRunView key={testRuns.open.runId} open={testRuns.open} draftRuns={runsOf(draft.id)} error={testRuns.error}
           onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding}
           onSelectRun={(runId) => void testRuns.openRun(runId, draft.id)} onBack={testRuns.close}
           onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase} onReadSavedRun={testRuns.readSavedRun}

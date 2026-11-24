@@ -56,6 +56,14 @@ export const commands = {
 	updateDraft: (id: string, patch: DraftPatch, guard: RecordWriteGuard) => __TAURI_INVOKE<RecordWriteOutcome<Draft>>("update_draft", { id, patch, guard }),
 	deleteDraft: (id: string) => __TAURI_INVOKE<null>("delete_draft", { id }),
 	deleteFinding: (id: string) => __TAURI_INVOKE<null>("delete_finding", { id }),
+	listAzureLogSubscriptions: (queryId: string) => __TAURI_INVOKE<AzureSubscription[]>("list_azure_log_subscriptions", { queryId }),
+	listApplicationInsightsComponents: (queryId: string, subscription: string) => __TAURI_INVOKE<ApplicationInsightsComponent[]>("list_application_insights_components", { queryId, subscription }),
+	checkApplicationLogAccess: (source: ApplicationLogSource) => __TAURI_INVOKE<ApplicationLogAccess>("check_application_log_access", { source }),
+	captureApplicationLogs: (caseId: string, queryId: string, query: ApplicationLogQuery) => __TAURI_INVOKE<LogEvidenceSummary>("capture_application_logs", { caseId, queryId, query }),
+	cancelApplicationLogQuery: (queryId: string) => __TAURI_INVOKE<null>("cancel_application_log_query", { queryId }),
+	getApplicationLogDetails: (caseId: string, id: string) => __TAURI_INVOKE<LogEvidenceDetails>("get_application_log_details", { caseId, id }),
+	detachApplicationLogs: (caseId: string, id: string) => __TAURI_INVOKE<null>("detach_application_logs", { caseId, id }),
+	recentApplicationLogQueries: (caseId: string, sourceId: string) => __TAURI_INVOKE<string[]>("recent_application_log_queries", { caseId, sourceId }),
 	startTestRun: (draftId: string, cases: TestRunCaseDraft[]) => __TAURI_INVOKE<TestRun>("start_test_run", { draftId, cases }),
 	getTestRun: (runId: string) => __TAURI_INVOKE<TestRun>("get_test_run", { runId }),
 	listTestRuns: (sessionId: string) => __TAURI_INVOKE<TestRunSummary[]>("list_test_runs", { sessionId }),
@@ -137,6 +145,27 @@ export type AppSettings = {
 	 *  no tools at all.
 	 */
 	generationReadSources?: GenerationReadSource[],
+	applicationLogSources?: ApplicationLogSource[],
+};
+
+export type ApplicationInsightsComponent = {
+	name: string,
+	resourceGroup: string,
+	resourceId: string,
+};
+
+export type ApplicationLogAccess = "ready" | "unsupported" | "cliMissing" | "extensionMissing" | "signedOut" | "accessDenied" | "failed" | "timedOut";
+
+export type ApplicationLogQuery = {
+	targetId: string,
+	kql: string,
+	start: string,
+	end: string,
+};
+
+export type ApplicationLogSource = {
+	label: string,
+	resourceId: string,
 };
 
 export type AppliedNoteRefinement = AppliedNoteRefinement_Serialize | AppliedNoteRefinement_Deserialize;
@@ -196,6 +225,11 @@ export type Attachment = {
 /**  Durable deletion has succeeded; `None` means cleanup status is unavailable. */
 export type AttachmentCleanupStatus = {
 	pendingFiles: number | null,
+};
+
+export type AzureSubscription = {
+	id: string,
+	name: string,
 };
 
 export type BeginRecordChatRequest = {
@@ -732,6 +766,23 @@ export type GenerationJobStatus_Serialize = {
  */
 export type GenerationReadSource = "jira" | "confluence" | "teamsChannels" | "teamsChats";
 
+export type LogEvidenceDetails = {
+	kql: string,
+	resultJson: string,
+};
+
+export type LogEvidenceSummary = {
+	id: string,
+	caseId: string,
+	sourceLabels: string[],
+	start: string,
+	end: string,
+	executedAt: string,
+	rowCount: number,
+	truncated: boolean,
+	portalUrl: string,
+};
+
 export type NoteSource = {
 	entry: Entry,
 	revision: number,
@@ -1167,6 +1218,7 @@ export type TestRun = {
 	updatedAt: string,
 	/**  Ordered by position. */
 	cases: TestRunCase[],
+	logEvidence?: LogEvidenceSummary[],
 };
 
 /**

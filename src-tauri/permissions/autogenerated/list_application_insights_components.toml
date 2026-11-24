@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-application-insights-components"
+description = "Enables the list_application_insights_components command without any pre-configured scope."
+commands.allow = ["list_application_insights_components"]
+
+[[permission]]
+identifier = "deny-list-application-insights-components"
+description = "Denies the list_application_insights_components command without any pre-configured scope."
+commands.deny = ["list_application_insights_components"]

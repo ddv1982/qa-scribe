@@ -225,3 +225,13 @@
 @container (max-width: 420px) {
   .test-run-case { grid-template-columns: minmax(0, 1fr); }
 }
+
+.test-run-log-evidence { flex-basis: 100%; min-width: 0; }
+.test-run-log-evidence summary { cursor: pointer; }
+.log-evidence-kql, .log-evidence-table { overflow: auto; max-height: 20rem; }
+.log-evidence-table table { border-collapse: collapse; }
+.log-evidence-table th, .log-evidence-table td {
+  padding: var(--space-1) var(--space-2);
+  text-align: start;
+  overflow-wrap: anywhere;
+}
