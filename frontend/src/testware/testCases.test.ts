@@ -317,6 +317,26 @@ describe('a table inside a case body', () => {
   })
 })
 
+describe('a panel inside a case body', () => {
+  const panel = '<aside data-panel="warning"><h2>Group in a panel</h2><h3>TC 9 Case in a panel</h3><ul><li><p>Item in a panel</p></li></ul></aside>'
+
+  it('never defines a case or a group', () => {
+    const result = split(`<h2>Checkout</h2><h3>Pay</h3><p>Data:</p>${panel}<h3>Refund</h3><p>b</p>`, 'qa_cases')
+    expect(result?.cases.map(({ group, title, content }) => [group, title, content.map((node) => node.type)])).toEqual([
+      ['Checkout', 'Pay', ['heading', 'paragraph', 'panel']],
+      ['Checkout', 'Refund', ['heading', 'paragraph']],
+    ])
+  })
+
+  it('stays out of a checklist split per item, and its list items are not items', () => {
+    const result = split(`<h2>Area</h2><ul><li><p>First check</p></li></ul>${panel}<ul><li><p>Second check</p></li></ul>`, 'checklist')
+    expect(result?.cases.map(({ group, title, lead }) => [group, title, lead.map((node) => node.type)])).toEqual([
+      ['Area', 'First check', []],
+      ['Area', 'Second check', ['panel']],
+    ])
+  })
+})
+
 describe('checklist item titles', () => {
   it('lose a leading label and keep words that only look like one', () => {
     const item = (text: string) => `<li data-type="taskItem" data-checked="false"><p>${text}</p></li>`

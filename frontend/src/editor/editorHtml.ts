@@ -1,5 +1,6 @@
 import DOMPurify, { type Config } from 'dompurify'
 import { EDITOR_HTML_TAGS, SELF_CLOSING_EDITOR_HTML_TAGS, getAttachmentPreviewDataUrl } from '../tauri'
+import { panelKind } from './editorPanels'
 import { escapeAttribute, escapeHtml, isSafeUrlWithProtocols, managedAttachmentIdFromImage, managedAttachmentProtocol } from './htmlUtils'
 
 export { managedAttachmentProtocol } from './htmlUtils'
@@ -239,7 +240,7 @@ function decodeHtmlEntities(value: string): string {
 // canonicalization, and task-list normalization.
 const editorPurifyConfig = {
   ALLOWED_TAGS: [...EDITOR_HTML_TAGS],
-  ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'start', 'data-attachment-id', 'type', 'checked', 'data-type', 'data-checked'],
+  ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'start', 'data-attachment-id', 'type', 'checked', 'data-type', 'data-checked', 'data-panel'],
   ALLOW_DATA_ATTR: false,
   ALLOW_ARIA_ATTR: false,
   // DOMPurify's default URI policy rejects the qa-scribe-attachment: scheme;
@@ -280,14 +281,20 @@ function applyEditorAttributePolicy(root: HTMLElement) {
       list.setAttribute('start', String(start))
     }
   })
+  // A panel keeps one known kind, as in Rust's sanitizer.
+  root.querySelectorAll('aside').forEach((panel) => {
+    const kind = panelKind(panel.getAttribute('data-panel'))
+    removeAllAttributes(panel)
+    panel.setAttribute('data-panel', kind)
+  })
   // Every other tag keeps no attributes, as in Rust's sanitizer (`generation/response.rs`).
-  root.querySelectorAll(':not(a, img, input, ul, ol, li)').forEach(removeAllAttributes)
+  root.querySelectorAll(':not(a, img, input, ul, ol, li, aside)').forEach(removeAllAttributes)
 }
 
 function isVisuallyEmptyEditorHtml(value: string): boolean {
   if (!value.trim()) return true
   const documentFragment = new DOMParser().parseFromString(value, 'text/html')
-  if (documentFragment.body.querySelector('hr, img, input, table')) return false
+  if (documentFragment.body.querySelector('hr, img, input, table, aside')) return false
   return !(documentFragment.body.textContent ?? '').replace(/\u00a0/g, ' ').trim()
 }
 

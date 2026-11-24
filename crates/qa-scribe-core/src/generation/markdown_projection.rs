@@ -115,7 +115,7 @@ fn close(stack: &mut Vec<(String, String, Vec<Node>)>) {
 fn is_block(node: &Node) -> bool {
     matches!(node, Node::Element { name, .. } if matches!(name.as_str(),
         "p" | "div" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "ul" | "ol" | "li" | "pre"
-            | "blockquote" | "hr" | "img" | "table" | "section" | "article"))
+            | "blockquote" | "aside" | "hr" | "img" | "table" | "section" | "article"))
 }
 
 /// Block-level Markdown, one entry per block. Loose inline content becomes a paragraph.
@@ -126,16 +126,22 @@ fn blocks(nodes: &[&Node]) -> Vec<String> {
         .collect()
 }
 
-/// Each block with whether it is a list that stays tight under a list item: CommonMark reads an
-/// ordered list starting past 1 right after a line as that line's text, and a bare marker (an
-/// item starting with a divider) turns that line into a heading.
-fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
+#[derive(PartialEq, Eq)]
+enum BlockKind {
+    Other,
+    InterruptingList,
+    NonInterruptingList,
+}
+
+/// CommonMark can read a list after a paragraph without a blank line, except an ordered list
+/// starting at a number other than 1 or a bare marker (as when an item starts with a divider).
+fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, BlockKind)> {
     let mut result = vec![];
     let mut inline_run: Vec<&Node> = vec![];
-    let flush = |run: &mut Vec<&Node>, result: &mut Vec<(String, bool)>| {
+    let flush = |run: &mut Vec<&Node>, result: &mut Vec<(String, BlockKind)>| {
         let text = paragraph(run.iter().copied());
         if !text.is_empty() {
-            result.push((text, false));
+            result.push((text, BlockKind::Other));
         }
         run.clear();
     };
@@ -157,6 +163,7 @@ fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
             "ul" | "ol" => list(name, tag, children),
             "pre" => code_block(children),
             "blockquote" => quote(children),
+            "aside" => panel(tag, children),
             "hr" => "---".into(),
             "table" => table(children),
             "img" => image(tag),
@@ -166,8 +173,13 @@ fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
         };
         if !block.is_empty() {
             let bare_marker = block.lines().next().is_some_and(|line| !line.contains(' '));
-            let tight = !bare_marker && (name == "ul" || (name == "ol" && list::start(tag) == 1));
-            result.push((block, tight));
+            let kind = match name.as_str() {
+                "ul" if !bare_marker => BlockKind::InterruptingList,
+                "ol" if !bare_marker && list::start(tag) == 1 => BlockKind::InterruptingList,
+                "ul" | "ol" => BlockKind::NonInterruptingList,
+                _ => BlockKind::Other,
+            };
+            result.push((block, kind));
         }
     }
     flush(&mut inline_run, &mut result);
@@ -418,10 +430,32 @@ fn raw_text(nodes: &[Node]) -> String {
         .collect()
 }
 
+/// A panel as the GitHub alert of its kind: the alert line, then its blocks quoted.
+fn panel(tag: &str, children: &[Node]) -> String {
+    let kind = attribute_value(tag, "data-panel").unwrap_or_default();
+    let alert = format!("> [!{}]", super::panel::alert(kind.trim()));
+    let blocks = kinded_blocks(&children.iter().collect::<Vec<_>>());
+    let Some((_, first_kind)) = blocks.first() else {
+        return alert;
+    };
+    let separator = if *first_kind == BlockKind::NonInterruptingList {
+        "\n>\n"
+    } else {
+        "\n"
+    };
+    let body = blocks
+        .into_iter()
+        .map(|(block, _)| block)
+        .collect::<Vec<_>>();
+    format!("{alert}{separator}{}", quote_lines(&body.join("\n\n")))
+}
+
 fn quote(children: &[Node]) -> String {
-    blocks(&children.iter().collect::<Vec<_>>())
-        .join("\n\n")
-        .split('\n')
+    quote_lines(&blocks(&children.iter().collect::<Vec<_>>()).join("\n\n"))
+}
+
+fn quote_lines(body: &str) -> String {
+    body.split('\n')
         .map(|line| {
             if line.is_empty() {
                 ">".to_string()

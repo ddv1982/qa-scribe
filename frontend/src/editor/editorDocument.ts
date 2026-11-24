@@ -1,6 +1,7 @@
 import { generateHTML, generateJSON, type JSONContent } from '@tiptap/core'
 import { richTextEditorExtensions } from './editorExtensions'
 import { emptyEditorHtml, isSafeEditorImageSource, isSafeEditorLinkUrl, managedAttachmentProtocol, normalizeEditorHtml, stripHtml } from './editorHtml'
+import { panelKind } from './editorPanels'
 import { normalizeTableJson } from './editorTables'
 import { keepInlineCodeSpaces } from './inlineCodeSpaces'
 import { escapeHtml, managedAttachmentIdFromSrc } from './htmlUtils'
@@ -133,6 +134,7 @@ function sanitizeJsonContent(node: JSONContent): JSONContent | null {
     sanitized.content = sanitized.content.map(sanitizeJsonContent).filter((child): child is JSONContent => child !== null)
   }
 
+  if (sanitized.type === 'panel') return { ...sanitized, attrs: { ...sanitized.attrs, kind: panelKind(sanitized.attrs?.kind) } }
   return sanitized.type === 'table' ? normalizeTableJson(sanitized) : sanitized
 }
 

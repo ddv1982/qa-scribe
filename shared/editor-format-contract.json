@@ -299,6 +299,45 @@
         ]
       },
       {
+        "type": "panel",
+        "attrs": {
+          "kind": "warning"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Card "
+              },
+              {
+                "type": "text",
+                "text": "4111",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " is declined."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Retry with 5500."
+              }
+            ]
+          }
+        ]
+      },
+      {
         "type": "table",
         "content": [
           {
@@ -536,9 +575,9 @@
       }
     ]
   },
-  "html": "<h1>Release 4.2</h1><p>Plain <strong>bold</strong> <em>italic</em> <s>struck</s> <code>inline()</code> <u>under</u> <a href=\"https://example.com/docs\" target=\"_blank\" rel=\"noreferrer\">docs</a><br>next line</p><h2>Checkout</h2><h3>TC01 Pay by card</h3><h4>Setup</h4><ul><li><p>Build 4.2.1</p></li></ul><h5>Steps</h5><ol><li><p>Open checkout</p></li><li><p>Pay</p></li></ol><h6>Notes</h6><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><input type=\"checkbox\" checked=\"\"><p>Logged in</p></li><li data-type=\"taskItem\" data-checked=\"false\"><input type=\"checkbox\"><p>Voucher</p></li></ul><pre><code>GET /pay\n&lt;b&gt;500&lt;/b&gt;</code></pre><blockquote><p>Payment returns a 500.</p></blockquote><table><tbody><tr><th><p>Field</p></th><th><p>Value</p></th></tr><tr><td><p><strong>Card</strong></p></td><td><p><code>4111 | 1111</code></p></td></tr><tr><td><p>Lines</p></td><td><p>one<br>two</p></td></tr><tr><td><p>Note</p></td><td><p></p></td></tr></tbody></table><hr><img data-attachment-id=\"att-1\" src=\"qa-scribe-attachment://att-1\" alt=\"screenshot.png\"><h1>Appendix</h1><h3>TC02 Refund</h3><p>Refund the order.</p>",
-  "dirtyHtml": "<h1 class=\"title\" type=\"x\">Release 4.2</h1><p start=\"3\">Plain <strong>bold</strong> <em>italic</em> <s style=\"color:red\">struck</s> <code class=\"x\">inline()</code> <u title=\"u\">under</u> <a href=\"https://example.com/docs\" target=\"_blank\" rel=\"noreferrer\">docs</a><br>next line</p><h2>Checkout</h2><h3>TC01 Pay by card</h3><h4 id=\"setup\" type=\"x\">Setup</h4><ul><li><p>Build 4.2.1</p></li></ul><h5 class=\"s\">Steps</h5><ol><li><p>Open checkout</p></li><li><p>Pay</p></li></ol><h6 data-x=\"1\">Notes</h6><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><input type=\"checkbox\" checked=\"\"><p>Logged in</p></li><li data-type=\"taskItem\" data-checked=\"false\"><input type=\"checkbox\"><p>Voucher</p></li></ul><pre class=\"language-http\" type=\"x\"><code class=\"language-http\">GET /pay\n&lt;b&gt;500&lt;/b&gt;</code></pre><blockquote cite=\"https://example.com\"><p>Payment returns a 500.</p></blockquote><table class=\"confluenceTable\" style=\"min-width: 50px\"><colgroup><col style=\"min-width: 25px\"><col></colgroup><tbody><tr data-row=\"1\"><th colspan=\"1\" rowspan=\"1\" style=\"text-align: left\"><p>Field</p></th><th class=\"h\"><p>Value</p></th></tr><tr><td colspan=\"2\" rowspan=\"3\"><p><strong>Card</strong></p></td><td align=\"right\"><p><code>4111 | 1111</code></p></td></tr><tr><td><p>Lines</p></td><td><p>one<br>two</p></td></tr><tr><td><p>Note</p></td><td><p></p></td></tr></tbody></table><hr class=\"divider\" /><img data-attachment-id=\"att-1\" src=\"qa-scribe-attachment://att-1\" alt=\"screenshot.png\"><h1>Appendix</h1><h3>TC02 Refund</h3><p>Refund the order.</p>",
-  "rustSanitizedHtml": "<h1>Release 4.2</h1><p>Plain <strong>bold</strong> <em>italic</em> <s>struck</s> <code>inline()</code> <u>under</u> <a href=\"https://example.com/docs\" target=\"_blank\" rel=\"noreferrer\">docs</a><br>next line</p><h2>Checkout</h2><h3>TC01 Pay by card</h3><h4>Setup</h4><ul><li><p>Build 4.2.1</p></li></ul><h5>Steps</h5><ol><li><p>Open checkout</p></li><li><p>Pay</p></li></ol><h6>Notes</h6><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><input type=\"checkbox\" checked /><p>Logged in</p></li><li data-type=\"taskItem\" data-checked=\"false\"><input type=\"checkbox\" /><p>Voucher</p></li></ul><pre><code>GET /pay\n&lt;b&gt;500&lt;/b&gt;</code></pre><blockquote><p>Payment returns a 500.</p></blockquote><table><tbody><tr><th><p>Field</p></th><th><p>Value</p></th></tr><tr><td><p><strong>Card</strong></p></td><td><p><code>4111 | 1111</code></p></td></tr><tr><td><p>Lines</p></td><td><p>one<br>two</p></td></tr><tr><td><p>Note</p></td><td><p></p></td></tr></tbody></table><hr><img src=\"qa-scribe-attachment://att-1\" data-attachment-id=\"att-1\" alt=\"screenshot.png\" /><h1>Appendix</h1><h3>TC02 Refund</h3><p>Refund the order.</p>",
+  "html": "<h1>Release 4.2</h1><p>Plain <strong>bold</strong> <em>italic</em> <s>struck</s> <code>inline()</code> <u>under</u> <a href=\"https://example.com/docs\" target=\"_blank\" rel=\"noreferrer\">docs</a><br>next line</p><h2>Checkout</h2><h3>TC01 Pay by card</h3><h4>Setup</h4><ul><li><p>Build 4.2.1</p></li></ul><h5>Steps</h5><ol><li><p>Open checkout</p></li><li><p>Pay</p></li></ol><h6>Notes</h6><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><input type=\"checkbox\" checked=\"\"><p>Logged in</p></li><li data-type=\"taskItem\" data-checked=\"false\"><input type=\"checkbox\"><p>Voucher</p></li></ul><pre><code>GET /pay\n&lt;b&gt;500&lt;/b&gt;</code></pre><blockquote><p>Payment returns a 500.</p></blockquote><aside data-panel=\"warning\"><p>Card <strong>4111</strong> is declined.</p><p>Retry with 5500.</p></aside><table><tbody><tr><th><p>Field</p></th><th><p>Value</p></th></tr><tr><td><p><strong>Card</strong></p></td><td><p><code>4111 | 1111</code></p></td></tr><tr><td><p>Lines</p></td><td><p>one<br>two</p></td></tr><tr><td><p>Note</p></td><td><p></p></td></tr></tbody></table><hr><img data-attachment-id=\"att-1\" src=\"qa-scribe-attachment://att-1\" alt=\"screenshot.png\"><h1>Appendix</h1><h3>TC02 Refund</h3><p>Refund the order.</p>",
+  "dirtyHtml": "<h1 class=\"title\" type=\"x\">Release 4.2</h1><p start=\"3\">Plain <strong>bold</strong> <em>italic</em> <s style=\"color:red\">struck</s> <code class=\"x\">inline()</code> <u title=\"u\">under</u> <a href=\"https://example.com/docs\" target=\"_blank\" rel=\"noreferrer\">docs</a><br>next line</p><h2>Checkout</h2><h3>TC01 Pay by card</h3><h4 id=\"setup\" type=\"x\">Setup</h4><ul><li><p>Build 4.2.1</p></li></ul><h5 class=\"s\">Steps</h5><ol><li><p>Open checkout</p></li><li><p>Pay</p></li></ol><h6 data-x=\"1\">Notes</h6><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><input type=\"checkbox\" checked=\"\"><p>Logged in</p></li><li data-type=\"taskItem\" data-checked=\"false\"><input type=\"checkbox\"><p>Voucher</p></li></ul><pre class=\"language-http\" type=\"x\"><code class=\"language-http\">GET /pay\n&lt;b&gt;500&lt;/b&gt;</code></pre><blockquote cite=\"https://example.com\"><p>Payment returns a 500.</p></blockquote><aside data-panel=\"warning\" class=\"confluence-information-macro\" style=\"color:red\" role=\"note\"><p>Card <strong>4111</strong> is declined.</p><p>Retry with 5500.</p></aside><table class=\"confluenceTable\" style=\"min-width: 50px\"><colgroup><col style=\"min-width: 25px\"><col></colgroup><tbody><tr data-row=\"1\"><th colspan=\"1\" rowspan=\"1\" style=\"text-align: left\"><p>Field</p></th><th class=\"h\"><p>Value</p></th></tr><tr><td colspan=\"2\" rowspan=\"3\"><p><strong>Card</strong></p></td><td align=\"right\"><p><code>4111 | 1111</code></p></td></tr><tr><td><p>Lines</p></td><td><p>one<br>two</p></td></tr><tr><td><p>Note</p></td><td><p></p></td></tr></tbody></table><hr class=\"divider\" /><img data-attachment-id=\"att-1\" src=\"qa-scribe-attachment://att-1\" alt=\"screenshot.png\"><h1>Appendix</h1><h3>TC02 Refund</h3><p>Refund the order.</p>",
+  "rustSanitizedHtml": "<h1>Release 4.2</h1><p>Plain <strong>bold</strong> <em>italic</em> <s>struck</s> <code>inline()</code> <u>under</u> <a href=\"https://example.com/docs\" target=\"_blank\" rel=\"noreferrer\">docs</a><br>next line</p><h2>Checkout</h2><h3>TC01 Pay by card</h3><h4>Setup</h4><ul><li><p>Build 4.2.1</p></li></ul><h5>Steps</h5><ol><li><p>Open checkout</p></li><li><p>Pay</p></li></ol><h6>Notes</h6><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><input type=\"checkbox\" checked /><p>Logged in</p></li><li data-type=\"taskItem\" data-checked=\"false\"><input type=\"checkbox\" /><p>Voucher</p></li></ul><pre><code>GET /pay\n&lt;b&gt;500&lt;/b&gt;</code></pre><blockquote><p>Payment returns a 500.</p></blockquote><aside data-panel=\"warning\"><p>Card <strong>4111</strong> is declined.</p><p>Retry with 5500.</p></aside><table><tbody><tr><th><p>Field</p></th><th><p>Value</p></th></tr><tr><td><p><strong>Card</strong></p></td><td><p><code>4111 | 1111</code></p></td></tr><tr><td><p>Lines</p></td><td><p>one<br>two</p></td></tr><tr><td><p>Note</p></td><td><p></p></td></tr></tbody></table><hr><img src=\"qa-scribe-attachment://att-1\" data-attachment-id=\"att-1\" alt=\"screenshot.png\" /><h1>Appendix</h1><h3>TC02 Refund</h3><p>Refund the order.</p>",
   "markdown": [
     "# Release 4.2",
     "",
@@ -569,6 +608,11 @@
     "```",
     "",
     "> Payment returns a 500.",
+    "",
+    "> [!WARNING]",
+    "> Card **4111** is declined.",
+    ">",
+    "> Retry with 5500.",
     "",
     "| Field | Value |",
     "| --- | --- |",
@@ -877,6 +921,45 @@
         ]
       },
       {
+        "type": "panel",
+        "attrs": {
+          "kind": "warning"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Card "
+              },
+              {
+                "type": "text",
+                "text": "4111",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " is declined."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Retry with 5500."
+              }
+            ]
+          }
+        ]
+      },
+      {
         "type": "table",
         "content": [
           {
@@ -1115,7 +1198,7 @@
       }
     ]
   },
-  "rustHtml": "<h1>Release 4.2</h1><p>Plain <strong>bold</strong> <em>italic</em> <s>struck</s> <code>inline()</code> <u>under</u> <a href=\"https://example.com/docs\" target=\"_blank\" rel=\"noopener noreferrer\">docs</a><br>next line</p><h2>Checkout</h2><h3>TC01 Pay by card</h3><h4>Setup</h4><ul><li><p>Build 4.2.1</p></li></ul><h5>Steps</h5><ol start=\"1\"><li><p>Open checkout</p></li><li><p>Pay</p></li></ol><h6>Notes</h6><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><label><input type=\"checkbox\" checked=\"checked\"><span></span></label><div><p>Logged in</p></div></li><li data-type=\"taskItem\" data-checked=\"false\"><label><input type=\"checkbox\"><span></span></label><div><p>Voucher</p></div></li></ul><pre><code>GET /pay\n&lt;b&gt;500&lt;/b&gt;</code></pre><blockquote><p>Payment returns a 500.</p></blockquote><table><tbody><tr><th><p>Field</p></th><th><p>Value</p></th></tr><tr><td><p><strong>Card</strong></p></td><td><p><code>4111 | 1111</code></p></td></tr><tr><td><p>Lines</p></td><td><p>one<br>two</p></td></tr><tr><td><p>Note</p></td><td><p></p></td></tr></tbody></table><hr><img src=\"qa-scribe-attachment://att-1\" data-attachment-id=\"att-1\" alt=\"screenshot.png\"><h1>Appendix</h1><h3>TC02 Refund</h3><p>Refund the order.</p>",
+  "rustHtml": "<h1>Release 4.2</h1><p>Plain <strong>bold</strong> <em>italic</em> <s>struck</s> <code>inline()</code> <u>under</u> <a href=\"https://example.com/docs\" target=\"_blank\" rel=\"noopener noreferrer\">docs</a><br>next line</p><h2>Checkout</h2><h3>TC01 Pay by card</h3><h4>Setup</h4><ul><li><p>Build 4.2.1</p></li></ul><h5>Steps</h5><ol start=\"1\"><li><p>Open checkout</p></li><li><p>Pay</p></li></ol><h6>Notes</h6><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><label><input type=\"checkbox\" checked=\"checked\"><span></span></label><div><p>Logged in</p></div></li><li data-type=\"taskItem\" data-checked=\"false\"><label><input type=\"checkbox\"><span></span></label><div><p>Voucher</p></div></li></ul><pre><code>GET /pay\n&lt;b&gt;500&lt;/b&gt;</code></pre><blockquote><p>Payment returns a 500.</p></blockquote><aside data-panel=\"warning\"><p>Card <strong>4111</strong> is declined.</p><p>Retry with 5500.</p></aside><table><tbody><tr><th><p>Field</p></th><th><p>Value</p></th></tr><tr><td><p><strong>Card</strong></p></td><td><p><code>4111 | 1111</code></p></td></tr><tr><td><p>Lines</p></td><td><p>one<br>two</p></td></tr><tr><td><p>Note</p></td><td><p></p></td></tr></tbody></table><hr><img src=\"qa-scribe-attachment://att-1\" data-attachment-id=\"att-1\" alt=\"screenshot.png\"><h1>Appendix</h1><h3>TC02 Refund</h3><p>Refund the order.</p>",
   "generatePromptText": [
     "Release 4.2",
     "Plain bold italic struck inline() under docs (https://example.com/docs)",
@@ -1132,6 +1215,9 @@
     "- [ ] Voucher",
     "GET /pay <b>500</b>",
     "Payment returns a 500.",
+    "Warning:",
+    "Card 4111 is declined.",
+    "Retry with 5500.",
     "| Field | Value |",
     "| --- | --- |",
     "| Card | 4111 \\| 1111 |",
@@ -1176,6 +1262,12 @@
     "",
     "> Payment returns a 500.",
     "",
+    "> **Warning**",
+    ">",
+    "> Card **4111** is declined.",
+    ">",
+    "> Retry with 5500.",
+    "",
     "| Field | Value |",
     "| --- | --- |",
     "| **Card** | `4111 \\| 1111` |",
@@ -1192,7 +1284,7 @@
     "",
     "Refund the order."
   ],
-  "clipboardHtml": "<h2>Contract</h2><h1>Release 4.2</h1><p>Plain <strong>bold</strong> <em>italic</em> <s>struck</s> <code>inline()</code> <u>under</u> <a href=\"https://example.com/docs\" target=\"_blank\" rel=\"noreferrer\">docs</a><br>next line</p><h2>Checkout</h2><h3>TC01 Pay by card</h3><h4>Setup</h4><ul><li><p>Build 4.2.1</p></li></ul><h5>Steps</h5><ol><li><p>Open checkout</p></li><li><p>Pay</p></li></ol><h6>Notes</h6><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><input type=\"checkbox\" checked=\"\"><p>Logged in</p></li><li data-type=\"taskItem\" data-checked=\"false\"><input type=\"checkbox\"><p>Voucher</p></li></ul><pre><code>GET /pay\n&lt;b&gt;500&lt;/b&gt;</code></pre><blockquote><p>Payment returns a 500.</p></blockquote><table><tbody><tr><th><p>Field</p></th><th><p>Value</p></th></tr><tr><td><p><strong>Card</strong></p></td><td><p><code>4111 | 1111</code></p></td></tr><tr><td><p>Lines</p></td><td><p>one<br>two</p></td></tr><tr><td><p>Note</p></td><td><p></p></td></tr></tbody></table><hr>Image: screenshot.png<h1>Appendix</h1><h3>TC02 Refund</h3><p>Refund the order.</p>",
+  "clipboardHtml": "<h2>Contract</h2><h1>Release 4.2</h1><p>Plain <strong>bold</strong> <em>italic</em> <s>struck</s> <code>inline()</code> <u>under</u> <a href=\"https://example.com/docs\" target=\"_blank\" rel=\"noreferrer\">docs</a><br>next line</p><h2>Checkout</h2><h3>TC01 Pay by card</h3><h4>Setup</h4><ul><li><p>Build 4.2.1</p></li></ul><h5>Steps</h5><ol><li><p>Open checkout</p></li><li><p>Pay</p></li></ol><h6>Notes</h6><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><input type=\"checkbox\" checked=\"\"><p>Logged in</p></li><li data-type=\"taskItem\" data-checked=\"false\"><input type=\"checkbox\"><p>Voucher</p></li></ul><pre><code>GET /pay\n&lt;b&gt;500&lt;/b&gt;</code></pre><blockquote><p>Payment returns a 500.</p></blockquote><blockquote><p><strong>Warning</strong></p><p>Card <strong>4111</strong> is declined.</p><p>Retry with 5500.</p></blockquote><table><tbody><tr><th><p>Field</p></th><th><p>Value</p></th></tr><tr><td><p><strong>Card</strong></p></td><td><p><code>4111 | 1111</code></p></td></tr><tr><td><p>Lines</p></td><td><p>one<br>two</p></td></tr><tr><td><p>Note</p></td><td><p></p></td></tr></tbody></table><hr>Image: screenshot.png<h1>Appendix</h1><h3>TC02 Refund</h3><p>Refund the order.</p>",
   "notesText": [
     "Release 4.2",
     "Plain bold italic struck inline() under docs",
@@ -1210,6 +1302,9 @@
     "GET /pay",
     "<b>500</b>",
     "Payment returns a 500.",
+    "Warning:",
+    "Card 4111 is declined.",
+    "Retry with 5500.",
     "Field | Value",
     "Card | 4111 | 1111",
     "Lines | one two",
@@ -1236,34 +1331,34 @@
         ],
         "content": [
           3,
-          15
+          16
         ]
       },
       {
         "group": null,
         "title": "TC02 Refund",
         "lead": [
-          15,
-          16
+          16,
+          17
         ],
         "content": [
-          16,
-          18
+          17,
+          19
         ]
       }
     ],
     "trailing": [
-      18,
-      18
+      19,
+      19
     ]
   },
   "findingStepsToReproduce": [
     4,
-    15
+    16
   ],
   "visualPlacement": {
     "target": [
-      14
+      15
     ],
     "label": "Notes · screenshot.png"
   }

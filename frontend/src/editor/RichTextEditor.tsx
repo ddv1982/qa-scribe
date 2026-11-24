@@ -12,6 +12,7 @@ import {
 import { richTextEditorExtensions } from './editorExtensions'
 import { normalizeRichEditorDocument, richEditorDocumentsEqual, type RichEditorDocument } from './editorDocument'
 import { positionAfterTable } from './editorTables'
+import { SlashMenu } from './slashMenu'
 import { notifyRichEditorRegistry, registerRichEditor, setActiveRichEditor, type RichEditorImageInserter } from './richEditorRegistry'
 
 export { FormatToolbar } from './FormatToolbar'
@@ -63,7 +64,7 @@ export function RichTextEditor({
 
   const editor = useEditor(
     {
-      extensions: richTextEditorExtensions(placeholder),
+      extensions: [...richTextEditorExtensions(placeholder), SlashMenu],
       content: normalizeRichEditorDocument(value).doc,
       editable: !readOnly,
       immediatelyRender: false,

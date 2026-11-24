@@ -101,6 +101,36 @@
   color: var(--text-secondary);
 }
 
+/* A panel: a tinted block with its kind's edge colour and its kind as a small label. */
+.rich-editor aside[data-panel] {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  background: var(--panel-surface);
+  border-left: 3px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+}
+
+/* The label is decoration: the editor names the panel through its accessible name. */
+.rich-editor aside[data-panel]::before {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--panel-label);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  content: var(--panel-name);
+  content: var(--panel-name) / "";
+}
+
+.rich-editor aside[data-panel] > :last-child {
+  margin-bottom: 0;
+}
+
+.rich-editor aside[data-panel="note"] { --panel-surface: var(--panel-note-surface); --panel-border: var(--panel-note-border); --panel-label: var(--panel-note-label); --panel-name: "Note"; }
+.rich-editor aside[data-panel="info"] { --panel-surface: var(--panel-info-surface); --panel-border: var(--panel-info-border); --panel-label: var(--panel-info-label); --panel-name: "Info"; }
+.rich-editor aside[data-panel="success"] { --panel-surface: var(--panel-success-surface); --panel-border: var(--panel-success-border); --panel-label: var(--panel-success-label); --panel-name: "Success"; }
+.rich-editor aside[data-panel="warning"] { --panel-surface: var(--panel-warning-surface); --panel-border: var(--panel-warning-border); --panel-label: var(--panel-warning-label); --panel-name: "Warning"; }
+.rich-editor aside[data-panel="error"] { --panel-surface: var(--panel-error-surface); --panel-border: var(--panel-error-border); --panel-label: var(--panel-error-label); --panel-name: "Error"; }
+
 .markdown-table-scroll {
   margin: 0 0 var(--space-3);
   max-width: 100%;

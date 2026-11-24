@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import TaskItem from '@tiptap/extension-task-item'
 import TaskList from '@tiptap/extension-task-list'
 import { managedAttachmentProtocol, isSafeEditorLinkUrl } from './editorHtml'
+import { Panel } from './editorPanels'
 import { editorTableExtensions } from './editorTables'
 import { managedAttachmentIdFromSrc } from './htmlUtils'
 
@@ -69,6 +70,7 @@ export function richTextEditorExtensions(placeholder?: string) {
       nested: false,
     }),
     ...editorTableExtensions,
+    Panel,
   ]
 
   if (placeholder !== undefined) {

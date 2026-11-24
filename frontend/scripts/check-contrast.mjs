@@ -96,6 +96,12 @@ const PAIRS = [
   ['action-primary-text', 'action-primary-hover', 4.5],
   ['on-accent', 'action-danger-hover', 4.5],
   ['danger', 'action-danger-tint', 4.5],
+  // Panel text, label and edge on each panel kind's surface.
+  ...['note', 'info', 'success', 'warning', 'error'].flatMap((kind) => [
+    ['text-primary', `panel-${kind}-surface`, 4.5],
+    [`panel-${kind}-label`, `panel-${kind}-surface`, 4.5],
+    [`panel-${kind}-border`, `panel-${kind}-surface`, 3],
+  ]),
   ...['surface-base', 'surface-panel', 'surface-raised', 'surface-sunken', 'surface-overlay'].flatMap((surface) => [
     ['accent', surface, 3],
     ['danger', surface, 4.5],

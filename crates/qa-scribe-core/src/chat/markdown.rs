@@ -7,6 +7,8 @@ use serde_json::{Value, json};
 mod html;
 pub(crate) use html::to_html;
 #[cfg(test)]
+mod panel_tests;
+#[cfg(test)]
 mod table_tests;
 #[cfg(test)]
 mod tests;
@@ -60,8 +62,11 @@ fn parse_inner(text: &str, images: Option<&[Value]>) -> Result<Vec<Value>> {
 
 /// The editor nodes, or `None` when elements nest deeper than `MAX_NESTING`.
 fn parse_events(text: &str, images: Option<&[Value]>) -> Result<Option<Vec<Value>>> {
-    let options =
-        Options::ENABLE_TABLES | Options::ENABLE_TASKLISTS | Options::ENABLE_STRIKETHROUGH;
+    // GFM adds only alerts (`> [!WARNING]`), read as panels.
+    let options = Options::ENABLE_TABLES
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_GFM;
     let mut stack = vec![Frame::new(None, false)];
     for event in Parser::new_ext(text, options) {
         match event {
@@ -220,12 +225,17 @@ fn finish(mut frame: Frame<'_>) -> Vec<Value> {
             };
             vec![json!({"type":"codeBlock", "attrs":{"language":null}, "content":content})]
         }
-        Tag::BlockQuote(_) => {
+        Tag::BlockQuote(alert) => {
             let mut children = blocks(frame.nodes);
             if children.is_empty() {
                 children.push(node("paragraph", vec![]));
             }
-            vec![node("blockquote", children)]
+            let Some(alert) = alert else {
+                return vec![node("blockquote", children)];
+            };
+            let mut panel = node("panel", children);
+            panel["attrs"] = json!({"kind":crate::generation::panel::from_alert(alert)});
+            vec![panel]
         }
         Tag::Heading { level, .. } => {
             without_inline_images("heading", Some(json!({"level":level as u8})), frame.nodes)

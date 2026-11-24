@@ -16,6 +16,7 @@ export type RichEditorController = {
 }
 
 const editorRegistry = new Map<string, RichEditorController>()
+const imageUploadRequests = new Map<string, () => void>()
 const registryListeners = new Set<() => void>()
 let activeRichEditorId: string | null = null
 
@@ -68,4 +69,19 @@ export function richEditorControllerForId(editorId: string): RichEditorControlle
 
 export function richEditorImageInserterForId(editorId: string): RichEditorImageInserter | null {
   return richEditorControllerForId(editorId)?.insertImage ?? null
+}
+
+/**
+ * The toolbar's upload flow for an editor, so the slash menu's Image opens the same file picker.
+ * Registered while the toolbar can upload into that editor.
+ */
+export function registerImageUploadRequest(editorId: string, request: () => void): () => void {
+  imageUploadRequests.set(editorId, request)
+  return () => {
+    if (imageUploadRequests.get(editorId) === request) imageUploadRequests.delete(editorId)
+  }
+}
+
+export function imageUploadRequestForId(editorId: string): (() => void) | null {
+  return imageUploadRequests.get(editorId) ?? null
 }

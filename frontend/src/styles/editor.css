@@ -417,3 +417,44 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* The slash menu: a list of blocks under the caret. Focus stays in the editor, so the highlighted
+   option carries the selection colour instead of a focus ring. */
+.slash-menu-popup {
+  z-index: 40;
+}
+
+.slash-menu {
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  max-height: 320px;
+  padding: var(--space-1);
+  overflow-y: auto;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.slash-menu-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-md);
+  padding: 0 var(--space-2);
+  color: var(--text-primary);
+  font-size: var(--font-size-md);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.slash-menu-option svg {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.slash-menu-option:hover,
+.slash-menu-option[aria-selected="true"] {
+  background: var(--surface-selected);
+}
