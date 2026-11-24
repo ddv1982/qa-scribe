@@ -1,5 +1,5 @@
 //! Lists in the Ask AI Notes projection: each item's blocks at its content column.
-use super::{Node, attribute_value, kinded_blocks};
+use super::{BlockKind, Node, attribute_value, kinded_blocks};
 
 pub(super) fn start(tag: &str) -> i64 {
     attribute_value(tag, "start")
@@ -31,13 +31,13 @@ pub(super) fn list(name: &str, tag: &str, children: &[Node]) -> String {
         };
         let indent = " ".repeat(if name == "ol" { marker.len() } else { 2 });
         let mut text = String::new();
-        for (index, (block, tight)) in kinded_blocks(&unwrap_item(item)).iter().enumerate() {
+        for (index, (block, kind)) in kinded_blocks(&unwrap_item(item)).iter().enumerate() {
             // A nested list stays tight under its item where it can; other blocks get a blank
             // line. A divider first goes on the line after the marker, as `- ---` is a divider.
-            let separator = match (index, tight) {
+            let separator = match (index, kind) {
                 (0, _) if block == "---" => "\n",
                 (0, _) => "",
-                (_, true) => "\n",
+                (_, BlockKind::InterruptingList) => "\n",
                 _ => "\n\n",
             };
             text.push_str(separator);

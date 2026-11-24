@@ -50,6 +50,28 @@ fn every_panel_kind_projects_as_its_alert_and_parses_back() {
     }
 }
 
+fn assert_panel_round_trip(body: &str, expected_body: &str) {
+    let html = format!(r#"<aside data-panel="warning">{body}</aside>"#);
+    let markdown = project_markdown(&html);
+    let nodes = crate::chat::markdown::parse_with_images(&markdown, &[]).unwrap();
+    assert_eq!(
+        crate::chat::markdown::to_html(&nodes),
+        format!(r#"<aside data-panel="warning">{expected_body}</aside>"#),
+        "{markdown}"
+    );
+}
+
+#[test]
+fn a_panel_preserves_a_numbered_list_starting_at_two() {
+    let list = r#"<ol start="2"><li><p>Second</p></li></ol>"#;
+    assert_panel_round_trip(list, list);
+}
+
+#[test]
+fn a_panel_preserves_a_list_item_starting_with_a_rule() {
+    assert_panel_round_trip("<ul><li><hr></li></ul>", "<ul><li><p></p><hr></li></ul>");
+}
+
 #[test]
 fn an_empty_panel_projects_as_its_alert_line_alone() {
     assert_eq!(

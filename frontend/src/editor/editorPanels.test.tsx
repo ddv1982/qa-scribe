@@ -58,4 +58,12 @@ describe('panels', () => {
       expect(notesText(panelDocument(kind))).toBe(`${label}:\nCheck it.`)
     }
   })
+
+  it.each([
+    ['a numbered list starting at two', '<ol start="2"><li><p>Second</p></li></ol>', '> 2. Second'],
+    ['a list item starting with a rule', '<ul><li><p></p><hr></li></ul>', '> -\n>   ---'],
+  ])('separates the clipboard label from %s', (_label, list, markdown) => {
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: `<aside data-panel="warning">${list}</aside>` })
+    expect(payload.plain).toBe(`> **Warning**\n>\n${markdown}`)
+  })
 })
