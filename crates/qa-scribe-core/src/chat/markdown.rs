@@ -28,6 +28,15 @@ impl<'a> Frame<'a> {
     }
 }
 
+/// Open Markdown elements the parser follows. Deeper input reads back as literal text, so the
+/// recursive renderers stay within the thread stack. The Ask AI Notes projection keeps to it.
+pub(crate) const MAX_NESTING: usize = 47;
+
+/// Whether the parser reads `text` as Markdown, not as literal text for nesting too deep.
+pub(crate) fn within_nesting(text: &str) -> bool {
+    matches!(parse_events(text, None), Ok(Some(_)))
+}
+
 pub(crate) fn literal(text: &str) -> Vec<Value> {
     vec![node("paragraph", text_nodes(text))]
 }
@@ -44,15 +53,20 @@ pub(crate) fn parse_with_images(text: &str, known: &[Value]) -> Result<Vec<Value
 }
 
 fn parse_inner(text: &str, images: Option<&[Value]>) -> Result<Vec<Value>> {
+    Ok(parse_events(text, images)?.unwrap_or_else(|| literal(text)))
+}
+
+/// The editor nodes, or `None` when elements nest deeper than `MAX_NESTING`.
+fn parse_events(text: &str, images: Option<&[Value]>) -> Result<Option<Vec<Value>>> {
     let options =
         Options::ENABLE_TABLES | Options::ENABLE_TASKLISTS | Options::ENABLE_STRIKETHROUGH;
     let mut stack = vec![Frame::new(None, false)];
     for event in Parser::new_ext(text, options) {
         match event {
             Event::Start(tag) => {
-                // Deep input remains readable rather than overflowing recursive renderers.
-                if stack.len() >= 48 {
-                    return Ok(literal(text));
+                // The root frame is not an element, so `stack.len()` counts this one too.
+                if stack.len() > MAX_NESTING {
+                    return Ok(None);
                 }
                 stack.push(Frame::new(Some(tag), false));
             }
@@ -91,8 +105,8 @@ fn parse_inner(text: &str, images: Option<&[Value]>) -> Result<Vec<Value>> {
                 .nodes
                 .push(json!({"type":"text", "text":value.as_ref(), "marks":[{"type":"code"}]})),
             Event::InlineHtml(value) if value.eq_ignore_ascii_case("<u>") => {
-                if stack.len() >= 48 {
-                    return Ok(literal(text));
+                if stack.len() > MAX_NESTING {
+                    return Ok(None);
                 }
                 stack.push(Frame::new(None, true));
             }
@@ -122,7 +136,7 @@ fn parse_inner(text: &str, images: Option<&[Value]>) -> Result<Vec<Value>> {
     close_underline(&mut stack);
     let mut nodes = blocks(stack.pop().unwrap().nodes);
     merge_text(&mut nodes);
-    Ok(nodes)
+    Ok(Some(nodes))
 }
 
 fn known_image(known: &[Value], source: &str) -> Result<Value> {

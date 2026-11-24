@@ -9,7 +9,9 @@ mod workflow;
 
 pub use html::managed_attachment_protocol;
 pub use html_projection::project_html_to_prompt_text;
-pub use markdown_projection::project_html_to_prompt_markdown;
+pub use markdown_projection::{
+    project_html_to_prompt_markdown, project_html_to_rewritable_markdown,
+};
 pub use preferences::{
     TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat, TestwareTechnique,
 };

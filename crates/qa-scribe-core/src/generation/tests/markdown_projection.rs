@@ -251,3 +251,44 @@ fn a_note_within_the_nesting_bound_keeps_its_markdown() {
         format!("{} Deep", "> ".repeat(20).trim_end())
     );
 }
+
+/// Every Note the projector writes as Markdown is one the parser reads back as Markdown, and a
+/// Note it cannot is not offered for a whole-note rewrite.
+#[test]
+fn the_projection_and_the_parser_share_one_nesting_bound() {
+    // Text right inside a quote has no `p`, but reads back inside a paragraph: one level deeper.
+    for (depth, inner) in
+        (30..60).flat_map(|depth| [(depth, "<p><s>word</s></p>"), (depth, "<s>word</s>")])
+    {
+        let html = format!(
+            "{}{inner}{}",
+            "<blockquote>".repeat(depth),
+            "</blockquote>".repeat(depth)
+        );
+        let markdown = project(&html);
+        let plain = crate::generation::project_html_to_prompt_text(&html);
+        if markdown == plain {
+            assert!(
+                !crate::chat::note_rewrite_fits("", &html),
+                "depth {depth} {inner}"
+            );
+        } else {
+            let nodes = round_trip(&html);
+            assert_ne!(
+                nodes,
+                crate::chat::markdown::literal(&markdown),
+                "depth {depth} {inner} projects as Markdown the parser reads as literal text"
+            );
+            assert!(
+                crate::chat::note_rewrite_fits("", &html),
+                "depth {depth} {inner}"
+            );
+        }
+    }
+    let html = format!(
+        "{}<p><s>word</s></p>{}",
+        "<blockquote>".repeat(46),
+        "</blockquote>".repeat(46)
+    );
+    assert!(!crate::chat::note_rewrite_fits("", &html));
+}

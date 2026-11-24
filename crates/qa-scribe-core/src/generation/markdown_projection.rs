@@ -8,10 +8,9 @@ use super::html::{
 use super::html_projection::{project_html_to_prompt_text, redact_data_urls};
 
 const VOID_TAGS: &[&str] = &["br", "hr", "img", "input"];
-/// Elements nested deeper than this make the Note fall back to the plain projection, so the
-/// recursive walk and drop of the tree stay within the thread stack. The Markdown parser keeps
-/// the same bound on a rewrite.
-const MAX_DEPTH: usize = 48;
+/// Elements nested deeper than the Markdown parser follows make the Note fall back to the plain
+/// projection, so the recursive walk and drop of the tree stay within the thread stack.
+const MAX_DEPTH: usize = crate::chat::markdown::MAX_NESTING;
 
 enum Node {
     Element {
@@ -23,10 +22,14 @@ enum Node {
 }
 
 pub fn project_html_to_prompt_markdown(value: &str) -> String {
-    match parse(value) {
-        Some(nodes) => blocks(&nodes.iter().collect::<Vec<_>>()).join("\n\n"),
-        None => project_html_to_prompt_text(value),
-    }
+    project_html_to_rewritable_markdown(value).unwrap_or_else(|| project_html_to_prompt_text(value))
+}
+
+/// The Markdown projection, or `None` when the Note nests deeper than the Markdown parser reads
+/// back: Ask AI then sees the plain projection and may not rewrite the whole Note from it.
+pub fn project_html_to_rewritable_markdown(value: &str) -> Option<String> {
+    let markdown = blocks(&parse(value)?.iter().collect::<Vec<_>>()).join("\n\n");
+    crate::chat::markdown::within_nesting(&markdown).then_some(markdown)
 }
 
 /// The element tree, or `None` when elements nest deeper than `MAX_DEPTH`.

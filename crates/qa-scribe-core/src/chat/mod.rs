@@ -97,10 +97,11 @@ pub fn notes_session_context_is_complete(session_context: &str, note_html: &str)
 /// and JSON escaping, so it is only offered for Notes up to this much prompt text.
 pub const MAX_NOTE_REWRITE_BYTES: usize = 12 * 1024;
 
-/// Whether the AI may rewrite the whole Note: it sees all of it, and the rewrite fits in a reply.
+/// Whether the AI may rewrite the whole Note: it sees all of it as Markdown the parser reads
+/// back, not the plain fallback that drops rich content, and the rewrite fits in a reply.
 pub fn note_rewrite_fits(session_context: &str, note_html: &str) -> bool {
-    let note = crate::generation::project_html_to_prompt_markdown(note_html);
-    note.trim().len() <= MAX_NOTE_REWRITE_BYTES
+    crate::generation::project_html_to_rewritable_markdown(note_html)
+        .is_some_and(|note| note.trim().len() <= MAX_NOTE_REWRITE_BYTES)
         && notes_session_context_is_complete(session_context, note_html)
 }
 
