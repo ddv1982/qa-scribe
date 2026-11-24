@@ -394,6 +394,31 @@ fn a_divider_first_in_a_list_item_stays_in_the_item() {
     }
 }
 
+/// A bare marker right after a line turns that line into a setext heading.
+#[test]
+fn a_nested_list_starting_with_a_divider_stays_nested() {
+    for (list, kind, attrs) in [
+        ("ol", "orderedList", Some(serde_json::json!({"start":1}))),
+        ("ul", "bulletList", None),
+    ] {
+        let html = format!("<ul><li><p>Parent</p><{list}><li><p></p><hr></li></{list}></li></ul>");
+        let mut nested = serde_json::json!({"type":kind,"content":[
+            {"type":"listItem","content":[{"type":"paragraph","content":[]}, {"type":"horizontalRule"}]},
+        ]});
+        if let Some(attrs) = attrs {
+            nested["attrs"] = attrs;
+        }
+        assert_eq!(
+            round_trip(&html),
+            vec![serde_json::json!({"type":"bulletList","content":[
+                {"type":"listItem","content":[text_line(&["Parent"]), nested]},
+            ]})],
+            "{html} -> {}",
+            project(&html)
+        );
+    }
+}
+
 #[test]
 fn an_underlined_mark_within_a_word_keeps_both_marks() {
     for (html, marks) in [

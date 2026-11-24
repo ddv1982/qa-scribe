@@ -145,9 +145,11 @@ function listItemMarkdown(node: ProseMirrorNode, children: string | string[] | u
     const part = rendered[index] ?? ''
     if (!firstBlock && part.trim()) firstBlock = child.type.name
     // A nested list follows the line before it directly, so the list stays tight, except an
-    // ordered list starting past 1, which CommonMark reads right after a line as its text.
+    // ordered list starting past 1, which CommonMark reads right after a line as its text, and a
+    // bare marker (an item starting with a divider), which turns that line into a heading.
     const isList = child.type.name === 'bulletList' || child.type.name === 'orderedList'
-    const separator = child.type.name === 'orderedList' && orderedListStart(child) !== 1 ? '\n\n' : '\n'
+    const bareMarker = !(part.trim().split('\n')[0] ?? '').includes(' ')
+    const separator = bareMarker || (child.type.name === 'orderedList' && orderedListStart(child) !== 1) ? '\n\n' : '\n'
     body = isList ? `${body.replace(/\n+$/, '')}${separator}${part.trim()}\n` : `${body}${part}`
   })
 
@@ -182,7 +184,7 @@ function codeFence(code: string): string {
 function codeSpan(code: string): string {
   const longest = Math.max(0, ...(code.match(/`+/g) ?? []).map((run) => run.length))
   const fence = '`'.repeat(longest + 1)
-  const spaced = code.startsWith(' ') && code.endsWith(' ') && code.trim() !== ''
+  const spaced = code.startsWith(' ') && code.endsWith(' ') && /[^ ]/.test(code)
   const pad = code.startsWith('`') || code.endsWith('`') || spaced ? ' ' : ''
   return `${fence}${pad}${code}${pad}${fence}`
 }

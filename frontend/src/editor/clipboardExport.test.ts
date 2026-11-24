@@ -68,6 +68,28 @@ describe('clipboardExport', () => {
     expect(payload.plain).toBe(['-', '  ---', '- Next', '', '4.', '   ---', '', '   x'].join('\n'))
   })
 
+  // A bare marker right after a line turns that line into a heading, so the nested list gets a blank line.
+  it('separates a nested list that starts with a bare marker from the paragraph before it', () => {
+    const payload = formatRecordForClipboard({
+      title: '',
+      bodyHtml: '<ul><li><p>Parent</p><ol><li><p></p><hr></li></ol></li></ul><ul><li><p>Other</p><ul><li><p></p><hr></li></ul></li></ul>',
+    })
+    expect(payload.plain).toBe(['- Parent', '', '  1.', '     ---', '', '- Other', '', '  -', '    ---'].join('\n'))
+  })
+
+  it('pads a code span holding a tab or nonbreaking space between edge spaces', () => {
+    for (const inner of ['\t', '\u00a0']) {
+      const payload = formatRecordForClipboard({ title: '', bodyHtml: `<p>Run<code> ${inner} </code>now</p>` })
+      expect(payload.plain).toBe(`Run\`  ${inner}  \`now`)
+    }
+  })
+
+  it('keeps the trailing spaces of inline code at the end of a paragraph', () => {
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: '<p>Run <code>echo  </code></p>' })
+    expect(payload.plain).toBe('Run `echo  `')
+    expect(payload.html).toBe('<p>Run <code>echo  </code></p>')
+  })
+
   it('keeps literal text that looks like a code block placeholder', () => {
     const literal = '\uE0000\uE001'
     const payload = formatRecordForClipboard({ title: '', bodyHtml: `<p>${literal}</p><pre><code>x</code></pre><p>a ${literal}</p>` })

@@ -125,7 +125,8 @@ fn blocks(nodes: &[&Node]) -> Vec<String> {
 }
 
 /// Each block with whether it is a list that stays tight under a list item: CommonMark reads an
-/// ordered list starting past 1 right after a line as that line's text.
+/// ordered list starting past 1 right after a line as that line's text, and a bare marker (an
+/// item starting with a divider) turns that line into a heading.
 fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
     let mut result = vec![];
     let mut inline_run: Vec<&Node> = vec![];
@@ -161,7 +162,8 @@ fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
             _ => blocks(&children.iter().collect::<Vec<_>>()).join("\n\n"),
         };
         if !block.is_empty() {
-            let tight = name == "ul" || (name == "ol" && list::start(tag) == 1);
+            let bare_marker = block.lines().next().is_some_and(|line| !line.contains(' '));
+            let tight = !bare_marker && (name == "ul" || (name == "ol" && list::start(tag) == 1));
             result.push((block, tight));
         }
     }

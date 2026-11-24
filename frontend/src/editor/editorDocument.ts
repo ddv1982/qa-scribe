@@ -35,10 +35,9 @@ export function richEditorDocumentFromHtml(html: string): RichEditorDocument {
   if (!normalizedHtml) return emptyRichEditorDocument
 
   try {
-    return normalizeRichEditorDocument({
-      schemaVersion: 1,
-      doc: generateJSON(withInlineCodeSpaces(normalizedHtml), richTextEditorExtensions()) as JSONContent,
-    })
+    const { html: codeHtml, guard } = withInlineCodeSpaces(normalizedHtml)
+    const doc = generateJSON(codeHtml, richTextEditorExtensions()) as JSONContent
+    return normalizeRichEditorDocument({ schemaVersion: 1, doc: guard ? withoutGuard(doc, guard) : doc })
   } catch {
     return richEditorDocumentFromPlainText(stripHtml(normalizedHtml))
   }
@@ -46,9 +45,14 @@ export function richEditorDocumentFromHtml(html: string): RichEditorDocument {
 
 // HTML parsing collapses each white space run, but inline code keeps its spaces, as the editor
 // wrote them: the parser keeps white space inside an element styled `white-space: pre`. A line
-// end in inline code reads as a space, as before, not as a hard break.
-function withInlineCodeSpaces(html: string): string {
-  if (!/<code[\s>]/i.test(html)) return html
+// end in inline code reads as a space, as before, not as a hard break. The parser still trims
+// the end of a paragraph, so code ending in a space gets a guard after it, removed once parsed;
+// the guard is a private-use run longer than any in the HTML, so literal text never matches it.
+function withInlineCodeSpaces(html: string): { html: string; guard?: string } {
+  if (!/<code[\s>]/i.test(html)) return { html }
+  let guard = '\uE002'
+  while (html.includes(guard)) guard += '\uE002'
+  let guarded = false
   const template = document.createElement('template')
   template.innerHTML = html
   template.content.querySelectorAll('code').forEach((code) => {
@@ -56,8 +60,20 @@ function withInlineCodeSpaces(html: string): string {
     code.style.whiteSpace = 'pre'
     const texts = document.createTreeWalker(code, NodeFilter.SHOW_TEXT)
     while (texts.nextNode()) texts.currentNode.nodeValue = (texts.currentNode.nodeValue ?? '').replace(/\r\n?|\n/g, ' ')
+    if (/\s$/.test(code.textContent ?? '')) {
+      code.after(guard)
+      guarded = true
+    }
   })
-  return template.innerHTML
+  return guarded ? { html: template.innerHTML, guard } : { html: template.innerHTML }
+}
+
+function withoutGuard(node: JSONContent, guard: string): JSONContent {
+  if (!node.content) return node
+  const content = node.content
+    .map((child) => (child.type === 'text' ? { ...child, text: (child.text ?? '').replaceAll(guard, '') } : withoutGuard(child, guard)))
+    .filter((child) => child.type !== 'text' || child.text)
+  return { ...node, content }
 }
 
 export function richEditorDocumentFromPlainText(value: string): RichEditorDocument {
