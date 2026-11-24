@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.21.0 - 2026-11-24
+
 - In a test run, opt in to **Allow Ask AI to request application logs** for Claude Code or Codex. Approve each Application Insights query after reviewing its KQL, UTC window and sharing scope, then apply the suggested capture to the test case.
 - In **Settings → Application logs**, use **Discover from Azure** to choose a subscription and Application Insights resource with your Azure CLI sign-in. You can also enter a resource ID manually. **Check access** runs a separate query against the target.
 
@@ -9,6 +11,8 @@
 
 - Describe what happened in a test run and Ask AI can suggest Results and additions to Result notes for several cases. Review the suggestions, update cases individually or use Apply all, and undo each update while its case still matches.
 
+- Reopen any previous test run from its Test cases draft without starting a new one. Use the run picker to switch between runs.
+- Add and edit tables in the rich-text editor. Tables survive paste, Ask AI updates, and copying to Jira.
 - The editor has headings 1 to 6, a numbered list button, strikethrough, inline code, plain code blocks, quotes, dividers and underline. They are kept when you save and reopen, apply an Ask AI suggestion, copy for Jira, and start a test run. A level-1 heading ends a test case and its group; headings 4 to 6 stay inside a test case.
 - Ask AI rewrites keep each image where the suggestion places it, and add only the images it left out at the end.
 - Type `/` in the editor to insert a heading, list, checklist, table, code block, quote, panel, divider or image. Type to filter, for example `/warn`, move with the arrow keys and press Enter. In a table cell the menu offers only an image.
