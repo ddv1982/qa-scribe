@@ -116,7 +116,13 @@ describe('Ask AI on a test run in the built native application', () => {
     await waitForStored((run) => run.cases[0].result === 'passed' && run.cases[1].result === 'not_run'
       && run.cases[1].notes?.text === remark && run.cases[1].notes.imageCount === 1, 'the result notes and screenshot were not saved')
 
-    // Ask AI sits before Copy report and opens the panel beside the run with the composer focused.
+    // Exercise the overlay layout used on narrow CI windows.
+    if (process.platform === 'linux') {
+      await browser.setWindowSize(1024, 760)
+      await browser.waitUntil(() => browser.execute(() => Math.abs(innerWidth - 1024) < 20))
+    }
+
+    // Ask AI sits before Copy report and opens with the composer focused.
     const actions = await browser.execute(() => Array.from(document.querySelectorAll('.test-run-actions > button'), (button) => button.getAttribute('aria-label') ?? button.textContent))
     assert.deepEqual(actions.slice(0, 2), ['Ask AI', 'Copy report'])
     assert.equal(await $(runAction('Ask AI')).getAttribute('aria-expanded'), 'false')
