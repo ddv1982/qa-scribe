@@ -8,7 +8,9 @@ use super::html::{
 use super::html_projection::{project_html_to_prompt_text, redact_data_urls};
 
 mod list;
+mod table;
 use list::list;
+use table::table;
 
 const VOID_TAGS: &[&str] = &["br", "hr", "img", "input"];
 /// Elements nested deeper than the Markdown parser follows make the Note fall back to the plain
@@ -113,7 +115,7 @@ fn close(stack: &mut Vec<(String, String, Vec<Node>)>) {
 fn is_block(node: &Node) -> bool {
     matches!(node, Node::Element { name, .. } if matches!(name.as_str(),
         "p" | "div" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "ul" | "ol" | "li" | "pre"
-            | "blockquote" | "hr" | "img" | "section" | "article"))
+            | "blockquote" | "hr" | "img" | "table" | "section" | "article"))
 }
 
 /// Block-level Markdown, one entry per block. Loose inline content becomes a paragraph.
@@ -156,6 +158,7 @@ fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
             "pre" => code_block(children),
             "blockquote" => quote(children),
             "hr" => "---".into(),
+            "table" => table(children),
             "img" => image(tag),
             heading if heading.starts_with('h') => heading_line(heading, children),
             "p" => paragraph(children.iter()),

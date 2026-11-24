@@ -266,6 +266,22 @@ pub(crate) fn summarize(body_json: String) -> TestCaseNotes {
 }
 
 fn project(node: &Value, text: &mut String, image_count: &mut usize) {
+    if node["type"] == "tableRow" {
+        // One line per row, its cells separated by ` | `, as in `testware/testRunNotes.ts`.
+        let cells: Vec<String> = node["content"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|cell| {
+                let mut cell_text = String::new();
+                project(cell, &mut cell_text, image_count);
+                cell_text.split_whitespace().collect::<Vec<_>>().join(" ")
+            })
+            .collect();
+        text.push_str(cells.join(" | ").trim_end());
+        text.push('\n');
+        return;
+    }
     match node["type"].as_str() {
         Some("image") => *image_count += 1,
         Some("text") => text.push_str(node["text"].as_str().unwrap_or_default()),

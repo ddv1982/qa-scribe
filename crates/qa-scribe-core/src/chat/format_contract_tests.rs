@@ -49,7 +49,7 @@ fn generation_sanitiser_keeps_every_node_and_strips_attributes() {
 }
 
 #[test]
-fn generate_prompt_projection_is_unchanged() {
+fn generate_prompt_projection_writes_plain_text_and_pipe_rows() {
     let fixture = fixture();
     assert_eq!(
         crate::generation::project_html_to_prompt_text(&text(&fixture["html"])),

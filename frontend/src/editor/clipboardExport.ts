@@ -93,7 +93,8 @@ export function managedAttachmentReferencesForClipboard(record: ClipboardRecord)
 // text, not markup), italic uses `*`, headings get a separating blank line,
 // task lists render checkbox markers, list item blocks stay in order at the item's
 // content column, code blocks have no language, inline code outgrows backticks inside
-// it, and label==href links stay bare.
+// it, label==href links stay bare, and table cells escape pipes and write line breaks
+// as <br>.
 // Each code block renders as a placeholder line, so the white space cleanup between blocks
 // leaves its code alone; `restoreCodeBlocks` puts the fenced code back.
 function renderMarkdownFromDocument(editorDocument: RichEditorDocument, codeBlocks: CodeBlocks): string {
@@ -121,6 +122,9 @@ function renderMarkdownFromDocument(editorDocument: RichEditorDocument, codeBloc
           codeBlocks.fenced.push(`${fence}\n${node.textContent}\n${fence}`)
           return `\n${codeBlocks.opener}${codeBlocks.fenced.length - 1}${placeholderCloser}\n`
         },
+        // A table cell is one line of a GFM pipe table, as Ask AI's projection writes it.
+        tableHeader: ({ children }: { children?: string | string[] }) => tableCellMarkdown(children),
+        tableCell: ({ children }: { children?: string | string[] }) => tableCellMarkdown(children),
       },
       markMapping: {
         italic: ({ children }: { children?: string | string[] }) => `*${joinChildren(children)}*`,
@@ -170,6 +174,10 @@ function orderedListPosition(node: ProseMirrorNode, parent: ProseMirrorNode): nu
     if (child === node) position = start + index
   })
   return position
+}
+
+function tableCellMarkdown(children: string | string[] | undefined): string {
+  return joinChildren(children).trim().replaceAll('|', '\\|').replaceAll('\n', '<br>')
 }
 
 function codeFence(code: string): string {
