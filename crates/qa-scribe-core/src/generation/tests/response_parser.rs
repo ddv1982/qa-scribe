@@ -393,3 +393,15 @@ SELECT 2;</code></pre><blockquote cite="https://example.test"><p>Quote</p></bloc
         "<h1>One</h1><h4>Four</h4><h5>Five</h5><h6>Six</h6><p><s>gone</s> <u>under</u> <code>x()</code></p><pre><code>SELECT 1;\nSELECT 2;</code></pre><blockquote><p>Quote</p></blockquote><hr><hr>"
     );
 }
+
+#[test]
+fn generated_rich_html_keeps_table_tags_and_strips_spans_and_styles() {
+    let sanitized = sanitize_generated_rich_html(
+        r#"<table class="confluenceTable" style="width:100%"><colgroup><col style="width:40px"></colgroup><thead><tr data-x="1"><th colspan="2" rowspan="1" style="text-align:left"><p>Field</p></th></tr></thead><tbody><tr><td rowspan="2" align="right"><p>Card</p></td><td>4111</td></tr></tbody></table>"#,
+    );
+
+    assert_eq!(
+        sanitized,
+        "<table><thead><tr><th><p>Field</p></th></tr></thead><tbody><tr><td><p>Card</p></td><td>4111</td></tr></tbody></table>"
+    );
+}

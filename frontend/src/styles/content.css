@@ -107,13 +107,17 @@
   overflow: auto;
 }
 
-.markdown-content table {
+:is(.rich-editor, .markdown-content) table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--font-size-md);
 }
 
-.markdown-content :is(th, td) {
+.rich-editor table {
+  margin: 0 0 var(--space-3);
+}
+
+:is(.rich-editor, .markdown-content) :is(th, td) {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-default);
   text-align: left;
@@ -121,8 +125,21 @@
   overflow-wrap: normal;
 }
 
-.markdown-content th {
+/* An editor table has no scroll region, so long cell text wraps inside the column. */
+.rich-editor :is(th, td) {
+  overflow-wrap: anywhere;
+}
+
+:is(.rich-editor, .markdown-content) :is(th, td) > p {
+  margin: 0;
+}
+
+:is(.rich-editor, .markdown-content) th {
   background: var(--surface-sunken);
+}
+
+.rich-editor .selectedCell {
+  background: var(--surface-selected);
 }
 
 :is(.rich-editor, .markdown-content) hr {

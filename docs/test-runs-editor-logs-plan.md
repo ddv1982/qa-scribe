@@ -71,7 +71,7 @@ Acceptance: the format contract test and the E2E pass.
 
 Goal: tables that survive every path. `@tiptap/extension-table` (TableKit), header row, add and remove row and column, delete table; cells hold paragraphs with inline marks only; no merged cells and no column resize, so every table is a GFM table.
 
-- [ ] TableKit with restricted cell content; `table thead tbody tr th td` added to `EDITOR_HTML_TAGS` (bindings regenerated) with `colspan` and `rowspan` stripped by both sanitisers; paste normalised to a rectangular table with one paragraph per cell. Tests, including reload from HTML only.
+- [x] TableKit with restricted cell content; `table thead tbody tr th td` added to `EDITOR_HTML_TAGS` (bindings regenerated) with `colspan` and `rowspan` stripped by both sanitisers; paste normalised to a rectangular table with one paragraph per cell. Tests, including reload from HTML only. (Notes: TableKit's four extensions are used directly in `editor/editorTables.ts`, since the kit cannot extend them. GFM needs a header row, so the first row is always the header row and every other row a body row, in the editor through a plugin and in JSON through `normalizeTableJson`. Spans always read as 1. A cell's blocks become lines of its one paragraph, and Enter in a cell inserts a line break. A table with only empty cells counts as content, like a divider.)
 - [ ] `chat/markdown.rs` tables to table nodes, replacing the flattening, plus a renderer. Rust tests: header row, empty cell, inline marks.
 - [ ] Prompt projection as pipe rows; clipboard HTML table and Markdown pipe table; notes text cells separated by ` | `. Golden document extended.
 - [ ] Toolbar "Insert table" and table controls when the cursor is in a table. Vitest; `bun run frontend:check` passes.

@@ -1,6 +1,7 @@
 import { generateHTML, generateJSON, type JSONContent } from '@tiptap/core'
 import { richTextEditorExtensions } from './editorExtensions'
 import { emptyEditorHtml, isSafeEditorImageSource, isSafeEditorLinkUrl, managedAttachmentProtocol, normalizeEditorHtml, stripHtml } from './editorHtml'
+import { normalizeTableJson } from './editorTables'
 import { escapeHtml, managedAttachmentIdFromSrc } from './htmlUtils'
 
 export type RichEditorDocument = {
@@ -165,7 +166,7 @@ function sanitizeJsonContent(node: JSONContent): JSONContent | null {
     sanitized.content = sanitized.content.map(sanitizeJsonContent).filter((child): child is JSONContent => child !== null)
   }
 
-  return sanitized
+  return sanitized.type === 'table' ? normalizeTableJson(sanitized) : sanitized
 }
 
 function sanitizeJsonMark(mark: NonNullable<JSONContent['marks']>[number]): NonNullable<JSONContent['marks']>[number] | null {
