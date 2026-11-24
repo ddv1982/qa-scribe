@@ -76,7 +76,7 @@ Goal: tables that survive every path. `@tiptap/extension-table` (TableKit), head
 - [x] Prompt projection as pipe rows; clipboard HTML table and Markdown pipe table; notes text cells separated by ` | `. Golden document extended. (Both projections: Generate's plain text gets pipe rows without marks, Ask AI's Notes Markdown gets the GFM table the parser reads back.)
 - [x] Toolbar "Insert table" and table controls when the cursor is in a table. Vitest; `bun run frontend:check` passes. (Insert table adds a 3 by 3 table with a header row and is disabled inside a table, since tables do not nest. The "Table" group: add row above or below, add column left or right, delete row, delete column, delete table.)
 - [x] Paste tests with Confluence-style and Excel-style HTML fixtures. (Fixtures in `editor/__fixtures__/pastedTables.ts`; each is pasted into an editor and read from HTML alone. They pass on top of the first item; with the cell flattening removed the Confluence fixture fails.)
-- [ ] A table inside a case body never defines a case or group. Splitter test.
+- [x] A table inside a case body never defines a case or group. Splitter test. (No splitter change was needed: it reads top-level nodes only, and cells hold one paragraph. The test guards that, so it could not be watched failing first.)
 - [ ] Extend `editor-rich-content.e2e.mjs`: paste a 3×4 table, save, restart, fake Ask AI "add a column", Update, copy; structure intact.
 - [ ] `vite build` size delta recorded in this file.
 
