@@ -1,13 +1,13 @@
 import '@testing-library/jest-dom/vitest'
-import { act, cleanup, render, screen, within } from '@testing-library/react'
+import { act, cleanup, render, screen, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../editor/RichTextEditor', () => ({
   FormatToolbar: () => null,
-  RichTextEditor: ({ ariaLabel, onChange, value }: { ariaLabel: string; onChange: (next: RichEditorDocument) => void; value: RichEditorDocument }) =>
-    <input aria-label={ariaLabel} value={value.doc.content?.[0]?.content?.[0]?.text ?? ''} onChange={(event) => onChange({
+  RichTextEditor: ({ ariaLabel, onChange, value, readOnly }: { ariaLabel: string; onChange: (next: RichEditorDocument) => void; value: RichEditorDocument; readOnly?: boolean }) =>
+    <textarea aria-label={ariaLabel} readOnly={readOnly} value={value.doc.content?.map(p => p.content?.map(node => node.text).join('')).join('\n') ?? ''} onChange={(event) => onChange({
       schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: event.target.value }] }] },
     })} />,
 }))
@@ -19,8 +19,9 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('../tauri', async (original) => ({ ...await original<typeof import('../tauri')>(), ...api }))
 
-import type { TestCaseResult, TestRun, TestRunCase } from '../tauri'
-import { flushPendingTestRunNotes, forgetDrainingTestRuns, hasPendingTestRunNotes, useTestRuns } from '../testware/useTestRuns'
+import type { TestCaseResult, TestRun, TestRunCase, TestRunSuggestionOutcome } from '../tauri'
+import * as testRunsApi from '../testware/useTestRuns'
+import { flushPendingTestRunNotes, forgetDrainingTestRuns, hasPendingTestRunNotes, trackNoteImageRead, useTestRuns } from '../testware/useTestRuns'
 import { TestRunView } from './TestRunView'
 import type { RichEditorDocument } from '../editor/editorDocument'
 
@@ -32,9 +33,11 @@ const run = (testCase: TestRunCase): TestRun => ({ id: 'run-1', sessionId: 'sess
 
 let saved: TestRunCase
 let saves: Array<() => void>
+const writeSuggestion = vi.fn<() => Promise<TestRunSuggestionOutcome[]>>()
 
 beforeEach(() => {
   saves = []
+  writeSuggestion.mockReset()
   forgetDrainingTestRuns()
   for (const command of Object.values(api)) command.mockReset()
   api.listTestRuns.mockResolvedValue([])
@@ -48,14 +51,17 @@ beforeEach(() => {
 afterEach(cleanup)
 
 function Harness() {
+  const [actionError, setActionError] = useState('')
   const runs = useTestRuns('session-1')
   const { openRun } = runs
   useEffect(() => { void openRun('run-1', 'draft-1') }, [openRun])
   return <>
+    <button onClick={() => void Promise.resolve().then(() => testRunsApi.runTestRunSuggestionAction('run-1', writeSuggestion)).catch((cause: unknown) => setActionError(String(cause)))}>Apply fixture suggestion</button>
+    <p role="status">{actionError}</p>
     <button onClick={runs.close}>Leave test run</button>
     <button onClick={() => void openRun('run-1', 'draft-1')}>Reopen test run</button>
     {runs.open ? <TestRunView open={runs.open} draftRuns={[]} error={runs.error} onSelectRun={vi.fn()} onBack={vi.fn()}
-    onDelete={async () => true} onChangeCase={runs.changeCase} /> : null}
+    onDelete={async () => true} onChangeCase={runs.changeCase} editsBlocked={runs.editsBlocked} /> : null}
   </>
 }
 
@@ -122,5 +128,59 @@ describe('Saving test result notes', () => {
     await user.click(within(row).getByRole('button', { name: 'Result notes for Pay by card' }))
     expect(within(row).getByRole('textbox', { name: 'Result notes for Pay by card' })).toHaveValue('No test card')
     expect(api.saveTestCaseNotes).not.toHaveBeenCalled()
+  })
+})
+
+describe('Applying a suggested result', () => {
+  it('drains a pending case save and an image read before calling the command', async () => {
+    const user = userEvent.setup()
+    const row = await renderOpen(stored())
+    const passed = within(row).getByRole('button', { name: 'Passed' })
+    await user.click(passed)
+    let finishRead!: () => void
+    const read = trackNoteImageRead('run-1', new Promise<void>(resolve => { finishRead = resolve }))
+    writeSuggestion.mockResolvedValue([])
+    await user.click(screen.getByRole('button', { name: 'Apply fixture suggestion' }))
+    try {
+      expect(passed).toBeDisabled()
+      await settleAll()
+      expect(writeSuggestion).not.toHaveBeenCalled()
+    } finally {
+      await act(async () => { finishRead(); await read })
+    }
+    expect(writeSuggestion).toHaveBeenCalledOnce()
+    expect(passed).toBeEnabled()
+  })
+
+  it('refuses to apply while a Result notes save is failed', async () => {
+    const user = userEvent.setup()
+    api.saveTestCaseNotes.mockRejectedValueOnce(new Error('Disk full'))
+    const row = await renderOpen(stored())
+    await user.click(within(row).getByRole('button', { name: 'Add result notes for Pay by card' }))
+    await user.type(within(row).getByRole('textbox', { name: 'Result notes for Pay by card' }), 'A')
+    await user.click(screen.getByRole('button', { name: 'Apply fixture suggestion' }))
+    expect(await screen.findByText(/Retry the failed test case save before continuing/)).toBeVisible()
+    expect(writeSuggestion).not.toHaveBeenCalled()
+  })
+
+  it('installs the appended notes in the open editor so typing preserves both texts', async () => {
+    const user = userEvent.setup()
+    const row = await renderOpen(stored({ remark: 'Existing observation' }))
+    await user.click(within(row).getByRole('button', { name: 'Result notes for Pay by card' }))
+    const editor = within(row).getByRole('textbox', { name: 'Result notes for Pay by card' })
+    const blocks = ['Existing observation', 'HTTP 500'].map(text => ({ type: 'paragraph', content: [{ type: 'text', text }] }))
+    const notes = { bodyJson: JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: blocks } }), text: 'Existing observation\nHTTP 500', imageCount: 0 }
+    let finish!: (outcomes: TestRunSuggestionOutcome[]) => void
+    writeSuggestion.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    await user.click(screen.getByRole('button', { name: 'Apply fixture suggestion' }))
+    expect(editor).toHaveAttribute('readonly')
+    await act(async () => { finish([{ kind: 'saved', testCase: stored({ result: 'failed', notes }),
+      suggestion: { id: 'suggestion', assistantMessageId: 'assistant', caseId: 'a', result: 'failed', notesJson: notes.bodyJson,
+        rationale: 'The request failed.', baseFingerprint: 'base', appliedFingerprint: 'applied' } }]) })
+    expect(editor).toHaveValue('Existing observation\nHTTP 500')
+    fireEvent.change(editor, { target: { value: 'Existing observation\nHTTP 500 reproduced' } })
+    await settleAll()
+    const lastSave = api.saveTestCaseNotes.mock.lastCall?.[1] as string
+    expect(lastSave).toContain('Existing observation\\nHTTP 500 reproduced')
   })
 })

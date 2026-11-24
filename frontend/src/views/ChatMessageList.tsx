@@ -7,9 +7,13 @@ import { MarkdownContent } from '../content/MarkdownContent'
 import { RunModelEvidence } from '../components/RunModelEvidence'
 import { ActionButton } from '../components/ActionButton'
 import { ChatImages } from './ChatImages'
+import { TestRunSuggestions } from './TestRunSuggestions'
+import type { ShownTestRun } from '../app/conversationPresentation'
 
-export function ChatMessageList({ messages, aiRuns, proposals = [], proposalControls, questionControls, onSuggestEdit, reference, presentation = 'notes', userContextLabel }: {
+export function ChatMessageList({ messages, aiRuns, proposals = [], proposalControls, questionControls, onSuggestEdit, reference, testRunSuggestions, shownTestRun, presentation = 'notes', userContextLabel }: {
   reference?: ChatRef
+  testRunSuggestions?: ChatState['testRunSuggestions']
+  shownTestRun?: ShownTestRun | null
   presentation?: 'notes' | 'record'
   /** Names what every message of the tester was sent with, when the conversation has one fixed source. */
   userContextLabel?: string
@@ -40,6 +44,10 @@ export function ChatMessageList({ messages, aiRuns, proposals = [], proposalCont
           {proposals.filter(proposal => proposal.assistantMessageId === message.id).map(proposal => <ChatProposalReview key={proposal.id} proposal={proposal} reference={reference} controls={proposalControls} presentation={presentation}
             noteSourceNeedsRefresh={message.response?.noteSourceNeedsRefresh}
             onRegenerate={onSuggestEdit && message.response?.noteSourceNeedsRefresh ? () => onSuggestEdit(message.id) : undefined} />)}
+          {reference && shownTestRun?.cases && testRunSuggestions && message.role === 'assistant' ?
+            <TestRunSuggestions reference={reference} assistantMessageId={message.id} runId={shownTestRun.runId}
+              cases={shownTestRun.cases} editsBlocked={shownTestRun.editsBlocked}
+              rows={testRunSuggestions.filter(row => row.assistantMessageId === message.id)} /> : null}
           {presentation === 'notes' || message.response?.localEdit ? <ChatQuestion message={message} messages={messages} controls={questionControls} /> : message.response?.question && !message.response.warning ? <div className="chat-follow-up">
             <p className="chat-message-text">{message.response.question.prompt}</p>
             <p className="chat-message-text">{message.response.question.choices.join(' · ')}</p>

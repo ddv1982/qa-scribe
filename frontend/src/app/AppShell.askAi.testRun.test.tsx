@@ -3,12 +3,12 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 // The harness mocks the Tauri bridge, so it loads before the views that read test runs through it.
 import { cleanupControllerTest, getTauriMock, renderWithControllerStartup, setupControllerTest, useAppController } from './useAppController.testHarness'
-import type { BeginTestRunChatRequest, ChatRef, ChatState, RefinementProposal, TestRun, TestRunSummary } from '../bindings'
+import type { BeginTestRunChatRequest, ChatRef, ChatState, RefinementProposal, TestRunSuggestion, TestRun, TestRunSummary } from '../bindings'
 import { draftFixture } from '../test/fixtures'
 import { formatDateTime } from '../ui/format'
 import { AppShell } from './AppShell'
 import { presentRun, type ShownTestRun } from './conversationPresentation'
-import { trackNoteImageRead } from '../testware/useTestRuns'
+import { forgetDrainingTestRuns, trackNoteImageRead } from '../testware/useTestRuns'
 import { chatFixture, chatJobFixture } from './useSessionChat.testSupport'
 
 const api = getTauriMock()
@@ -33,6 +33,7 @@ const older = run('run-1')
 
 beforeEach(() => {
   setupControllerTest()
+  forgetDrainingTestRuns()
   api.listDrafts.mockResolvedValue(drafts)
   api.listTestRuns.mockResolvedValue([summary(newer), summary(older)])
   api.getTestRun.mockImplementation(async (runId: string) => runId === newer.id ? newer : older)
@@ -58,7 +59,7 @@ async function askAi() {
 }
 
 describe('Ask AI on a test run', () => {
-  it('opens a read-only conversation about the run beside it and focuses the composer again on a second click', async () => {
+  it('opens a conversation about the run beside it and focuses the composer again on a second click', async () => {
     await openRun()
     const actions = [...screen.getByRole('article').querySelectorAll('.test-run-actions > button')].map(button => button.getAttribute('aria-label') ?? button.textContent)
     expect(actions.slice(0, 2)).toEqual(['Ask AI', 'Copy report'])
@@ -72,7 +73,7 @@ describe('Ask AI on a test run', () => {
     expect(source).toHaveTextContent('Test run')
     expect(source).toHaveTextContent(`Checkout test cases, ${formatDateTime(newer.createdAt)}`)
     const panel = screen.getByRole('complementary', { name: 'Ask AI' })
-    expect(within(panel).getByText('Ask about this test run, or ask to post its results somewhere. Results cannot be changed from here.')).toBeInTheDocument()
+    expect(within(panel).getByText('Describe what happened to get suggested results, or ask about this test run.')).toBeInTheDocument()
     expect(within(panel).queryByRole('heading', { name: /Improve this/ })).not.toBeInTheDocument()
     expect(within(panel).queryByText('You can also ask to add it to Jira.')).not.toBeInTheDocument()
 
@@ -131,6 +132,64 @@ describe('Ask AI on a test run', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     await within(screen.getByRole('complementary', { name: 'Ask AI' })).findByText(/Retry the failed test case save before continuing/)
     expect(api.startChatJob).not.toHaveBeenCalled()
+  })
+
+  it('names each suggestion action, reports an applied row, and keeps Undo after closing the panel', async () => {
+    const testCase = { ...newer.cases[0], suggestionFingerprint: 'base' }
+    api.getTestRun.mockImplementation(async id => id === newer.id ? { ...newer, cases: [testCase] } : older)
+    const initial: TestRunSuggestion = {
+      id: 'suggestion-1', assistantMessageId: 'assistant-1', caseId: testCase.id, result: 'blocked',
+      notesJson: '{"schemaVersion":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Environment unavailable"}]}]}}',
+      rationale: 'The gateway could not be reached.', baseFingerprint: 'base', appliedFingerprint: null,
+    }
+    let chat: ChatState | null = null
+    const fallback = api.getConversation.getMockImplementation()!
+    api.getConversation.mockImplementation(async ref => chat?.draftId === ref.draftId ? chat : fallback(ref))
+    api.beginTestRunChat.mockImplementation(async (request: BeginTestRunChatRequest) => {
+      chat = chatFixture({ ...request, mode: 'chat', owner: { kind: 'test_run', sessionId: request.sessionId, runId: request.runId },
+        testRunSuggestions: [initial], messages: [
+          { id: 'assistant-1', turnId: 'turn-1', role: 'assistant', text: 'Review the suggested result.', images: [], status: 'completed', errorMessage: null, aiRunId: null, createdAt: at },
+        ] })
+      return chat
+    })
+    api.listChatHistory.mockImplementation(async () => chat ? [{
+      reference: { sessionId: chat.sessionId, draftId: chat.draftId }, owner: chat.owner, createdAt: at,
+      lastActiveAt: at, lastActiveOrder: 1, preview: '', archived: false, submission: null,
+      hasContent: true, hasTestRunSuggestions: true, lastTurnStatus: 'completed', unresolvedStages: [],
+    }] : [])
+    const applied = { ...initial, appliedFingerprint: 'applied' }
+    api.applyAllTestRunSuggestions.mockImplementationOnce(async () => {
+      chat = { ...chat!, testRunSuggestions: [applied] }
+      return [{ kind: 'saved', testCase: { ...testCase, result: 'blocked', suggestionFingerprint: 'applied' }, suggestion: applied }]
+    })
+    api.undoTestRunSuggestion.mockImplementationOnce(async () => {
+      chat = { ...chat!, testRunSuggestions: [initial] }
+      return { kind: 'saved', testCase, suggestion: initial }
+    })
+    await openRun()
+    await askAi()
+    const card = await screen.findByRole('region', { name: 'Suggested results' })
+    const row = within(card).getByRole('group', { name: testCase.title })
+    expect(within(row).getByText('Current Result').nextElementSibling).toHaveTextContent('Failed')
+    expect(within(row).getByText('Proposed Result').nextElementSibling).toHaveTextContent('Blocked')
+    expect(row).toHaveTextContent('The gateway could not be reached.')
+    expect(row).toHaveTextContent('Environment unavailable')
+    expect(within(row).getByRole('button', { name: 'Update result for Pay by card' })).toBeEnabled()
+    fireEvent.click(within(card).getByRole('button', { name: 'Apply all' }))
+    await within(row).findByRole('button', { name: 'Undo update for Pay by card' })
+    expect(row).toHaveTextContent('Applied')
+    fireEvent.click(screen.getByRole('button', { name: 'Close Ask AI' }))
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Suggested results' })).not.toBeInTheDocument())
+    await askAi()
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo update for Pay by card' }))
+    await screen.findByRole('button', { name: 'Update result for Pay by card' })
+    expect(api.undoTestRunSuggestion).toHaveBeenCalledWith(expect.objectContaining({ suggestionId: initial.id }))
+
+    api.setTestCaseResult.mockResolvedValueOnce({ ...testCase, result: 'passed', suggestionFingerprint: 'edited' })
+    fireEvent.click(screen.getByRole('button', { name: 'Passed' }))
+    const reopenedRow = screen.getByRole('group', { name: testCase.title })
+    await within(reopenedRow).findByText('Out of date')
+    expect(within(reopenedRow).getByRole('button', { name: 'Update result for Pay by card' })).toBeDisabled()
   })
 
   it('shows no proposal for the run and labels each message with the test run', async () => {

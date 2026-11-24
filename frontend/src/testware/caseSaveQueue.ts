@@ -94,6 +94,18 @@ export class CaseSaveQueue {
     })
   }
 
+  install(cases: TestRunCase[]) {
+    let changed: string | undefined
+    for (const testCase of cases) {
+      const entry = this.entries.get(testCase.id)
+      if (!entry) continue
+      entry.confirmed = testCase
+      this.show(entry)
+      changed = testCase.id
+    }
+    if (changed) this.listener.onSaved(changed)
+  }
+
   get hasFailedSave(): boolean {
     return [...this.entries.values()].some(entry => entry.resultError || entry.notesError)
   }

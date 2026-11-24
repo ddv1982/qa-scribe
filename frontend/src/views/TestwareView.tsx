@@ -173,15 +173,16 @@ export function TestwareView({
 function useShownTestRun(recordChat: RecordChatActions | undefined, sessionId: string | null, testRuns: ReturnType<typeof useTestRuns>) {
   const show = useRef(recordChat?.onShowRun)
   useEffect(() => { show.current = recordChat?.onShowRun })
-  const { open, openRun } = testRuns
+  const { open, openRun, editsBlocked } = testRuns
   const runId = open?.runId ?? null
   const draftId = open?.draftId ?? null
   const draftTitle = open?.run?.draftTitle ?? null
   const createdAt = open?.run?.createdAt ?? null
   const error = open?.error ?? null
+  const cases = open?.run?.cases
   useEffect(() => {
-    show.current?.(sessionId && runId && draftId ? { sessionId, runId, draftTitle, createdAt, error, retry: () => void openRun(runId, draftId) } : null)
-  }, [sessionId, runId, draftId, draftTitle, createdAt, error, openRun])
+    show.current?.(sessionId && runId && draftId ? { sessionId, runId, draftTitle, createdAt, error, cases, editsBlocked, retry: () => void openRun(runId, draftId) } : null)
+  }, [sessionId, runId, draftId, draftTitle, createdAt, error, cases, editsBlocked, openRun])
   useEffect(() => () => show.current?.(null), [])
 }
 

@@ -261,10 +261,16 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     if (!sessionId) return Promise.resolve()
     return launchOwner({ kind: 'test_run', sessionId, runId })
   }
-  function launchOwner(owner: AskAiOwner) {
+  async function newTestRunConversation() {
+    const owner = panelRef.current?.owner
+    if (owner?.kind !== 'test_run') return
+    runFocus.current = null
+    await launchOwner(owner, true)
+  }
+  function launchOwner(owner: AskAiOwner, forceNew = false) {
     const previous = panelRef.current
     const handle = previous?.reference ? ctx.conversations.bind(previous.reference) : null
-    if (previous?.open && previous.phase === 'ready' && sameOwner(previous.owner, owner) && handle) {
+    if (!forceNew && previous?.open && previous.phase === 'ready' && sameOwner(previous.owner, owner) && handle) {
       setPanel({ ...previous, focusRequest: previous.focusRequest + 1 }); return Promise.resolve()
     }
     const key = JSON.stringify(owner)
@@ -288,7 +294,13 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
         if (!current()) return
         setRecoveryRows(rows.filter(row => row.unresolvedStages.length || ['running', 'failed', 'interrupted', 'cancelled'].includes(row.lastTurnStatus ?? '')))
         const unfinished = unfinishedConversations(rows, ctx.conversations.attention(owner.sessionId)).find(item => sameOwner(item.owner, owner))
-        if (unfinished) { attempts.current.delete(key); await openConversation(unfinished.reference, unfinished.origin, unfinished.reason, preparing); return }
+        if (unfinished && !forceNew) { attempts.current.delete(key); await openConversation(unfinished.reference, unfinished.origin, unfinished.reason, preparing); return }
+        const latest = rows.find(row => !row.archived && sameOwner(row.owner, owner))
+        if (owner.kind === 'test_run' && !forceNew && latest?.hasTestRunSuggestions) {
+          attempts.current.delete(key)
+          await openConversation(latest.reference, undefined, '', preparing)
+          return
+        }
         const bound = ctx.conversations.bind(captured.reference)
         const chat = bound.snapshot().chat ?? await (owner.kind === 'record'
           ? beginRecordChat({ ...captured.reference, record: owner.record }) : beginTestRunChat({ ...captured.reference, runId: owner.runId }))
@@ -318,7 +330,8 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     : owner ? { kind: 'session' } : selection && recordView ? selection : { kind: 'session' }
   const attention = sessionId ? ctx.conversations.attention(sessionId) : []
   return {
-    invalidateNavigation,
+    invalidateNavigation, newTestRunConversation,
+    shownTestRun: owner?.kind === 'test_run' && shownRun?.runId === owner.runId && shownRun.sessionId === owner.sessionId ? shownRun : null,
     selectionEpoch, visible,
     openRecordId: visible && owner?.kind === 'record' ? owner.record.recordId : null,
     openRunId: visible && owner?.kind === 'test_run' ? owner.runId : null,

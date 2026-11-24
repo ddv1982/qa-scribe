@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from 'react'
-import { deleteTestRun, getTestRun, listTestRuns, saveTestCaseNotes, setTestCaseResult, startTestRun, type TestRun, type TestRunCaseDraft, type TestRunSummary } from '../tauri'
+import { deleteTestRun, getTestRun, listTestRuns, saveTestCaseNotes, setTestCaseResult, startTestRun, type TestRun, type TestRunCaseDraft, type TestRunSummary, type TestRunSuggestionOutcome } from '../tauri'
 import { CaseSaveQueue, type CasePatch, type CaseSaveListener } from './caseSaveQueue'
 import { latestTestRunIds } from './testRuns'
 import { formatError } from '../ui/format'
@@ -95,10 +95,10 @@ type ScreenQueue = { runId: string; sessionId: string; queue: CaseSaveQueue; bac
 function drain(left: ScreenQueue) {
   const reads = readsForRun(left.runId)
   if (draining.get(left.runId) === left.queue) return
-  if (!reads.length && left.queue.idle && !left.queue.hasPendingNotes) return
+  if (!reads.length && left.queue.idle && !left.queue.hasPendingNotes && !left.queue.hasFailedSave) return
   draining.set(left.runId, left.queue)
   void Promise.allSettled(reads).then(() => left.queue.whenIdle()).then(() => {
-    if (draining.get(left.runId) === left.queue && !left.queue.hasPendingNotes) draining.delete(left.runId)
+    if (draining.get(left.runId) === left.queue && !left.queue.hasPendingNotes && !left.queue.hasFailedSave) draining.delete(left.runId)
     for (const listener of drainedListeners) listener({ sessionId: left.sessionId, failed: left.background.failed })
   })
 }
@@ -331,3 +331,19 @@ function caseListener(runId: string, setOpen: Dispatch<SetStateAction<OpenTestRu
 }
 
 export type TestRuns = ReturnType<typeof useTestRuns>
+
+export async function runTestRunSuggestionAction(
+  runId: string,
+  write: () => Promise<TestRunSuggestionOutcome[]>,
+): Promise<TestRunSuggestionOutcome[]> {
+  const release = await acquireTestRunEditBarrier(runId)
+  try {
+    const queue = onScreen.get(runId)
+    if (!queue) throw new Error('Open this test run to update its results.')
+    const outcomes = await write()
+    queue.install(outcomes.flatMap(outcome => outcome.kind === 'failed' ? [] : [outcome.testCase]))
+    return outcomes
+  } finally {
+    release()
+  }
+}

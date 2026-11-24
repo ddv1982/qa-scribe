@@ -3,14 +3,14 @@ import { formatDateTime } from '../ui/format'
 import type { RecordWorkspace } from './types'
 import type { ConversationAttention } from './sessionChat.workspaces'
 import type { RecordLoadState } from './useRecordHydration'
-import type { ChatHistoryEntry, ChatRef, ConversationOwner, ConversationRecord } from '../bindings'
+import type { ChatHistoryEntry, ChatRef, ConversationOwner, ConversationRecord, TestRunCase } from '../bindings'
 import type { ChatSnapshot } from './sessionChat.types'
 
-/** What an Ask AI panel works on: a record, or a test run it only reads. */
+/** What an Ask AI panel works on: a record, or a test run. */
 export type AskAiOwner = Exclude<ConversationOwner, { kind: 'notes' }>
 export type TestRunOwner = Extract<ConversationOwner, { kind: 'test_run' }>
 /** The test run on the run screen, as the Ask AI panel names it. */
-export type ShownTestRun = { sessionId: string; runId: string; draftTitle: string | null; createdAt: string | null; error: string | null; retry: () => void }
+export type ShownTestRun = { sessionId: string; runId: string; draftTitle: string | null; createdAt: string | null; error: string | null; retry: () => void; cases?: TestRunCase[]; editsBlocked?: boolean }
 export type RecordRevealRequest = { requestId: string; sessionId: string; record: ConversationRecord }
 export type SourcePresentation =
   | { kind: 'loading' }
