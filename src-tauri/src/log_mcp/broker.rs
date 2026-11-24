@@ -132,8 +132,7 @@ impl ChatLogScope {
     }
 
     fn handle(&self, mut stream: UnixStream, token: &str, stop: &AtomicBool) -> io::Result<()> {
-        stream.set_read_timeout(Some(Duration::from_secs(2)))?;
-        stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+        configure_stream(&stream)?;
         let Some(call) = authorized_call(&mut BufReader::new(&stream), token)? else {
             return Ok(());
         };
@@ -252,6 +251,13 @@ impl ChatLogScope {
     }
 }
 
+fn configure_stream(stream: &UnixStream) -> io::Result<()> {
+    // BSD systems can inherit nonblocking mode from the listener.
+    stream.set_nonblocking(false)?;
+    stream.set_read_timeout(Some(Duration::from_secs(2)))?;
+    stream.set_write_timeout(Some(Duration::from_secs(2)))
+}
+
 fn authorized_call(input: &mut impl BufRead, token: &str) -> io::Result<Option<Call>> {
     let call = read_frame::<Call>(input)?;
     if call.as_ref().is_some_and(|call| call.token != token) {
@@ -332,6 +338,40 @@ fn peer_waiting(stream: &UnixStream) -> bool {
 mod tests {
     use super::*;
     use std::cell::Cell;
+
+    #[test]
+    fn inherited_nonblocking_mode_does_not_truncate_a_log_response() {
+        let (mut socket, peer) = UnixStream::pair().unwrap();
+        socket.set_nonblocking(true).unwrap();
+        let size: libc::c_int = 4096;
+        assert_eq!(
+            unsafe {
+                libc::setsockopt(
+                    socket.as_raw_fd(),
+                    libc::SOL_SOCKET,
+                    libc::SO_SNDBUF,
+                    (&size as *const libc::c_int).cast(),
+                    size_of_val(&size) as libc::socklen_t,
+                )
+            },
+            0
+        );
+        configure_stream(&socket).unwrap();
+        peer.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        let payload = json!({"result": "x".repeat(72 * 1024)});
+        thread::scope(|scope| {
+            let reader = scope.spawn(move || {
+                thread::sleep(Duration::from_millis(25));
+                read_frame::<Value>(&mut BufReader::new(peer))
+                    .unwrap()
+                    .unwrap()
+            });
+            let written = write_frame(&mut socket, &payload);
+            drop(socket);
+            written.unwrap();
+            assert_eq!(reader.join().unwrap(), payload);
+        });
+    }
 
     #[test]
     fn rejects_a_call_without_the_expected_token() {
