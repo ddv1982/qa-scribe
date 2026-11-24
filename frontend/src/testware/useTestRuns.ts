@@ -50,7 +50,7 @@ export async function acquireTestRunEditBarrier(runId: string): Promise<() => vo
     const queue = onScreen.get(runId) ?? draining.get(runId)
     await queue?.whenIdle()
     if (queue?.hasFailedSave || queue?.hasPendingNotes) {
-      throw new Error('Retry the failed test case save before continuing.')
+      throw new Error('Resolve the failed test case save before continuing.')
     }
     return release
   } catch (cause) {

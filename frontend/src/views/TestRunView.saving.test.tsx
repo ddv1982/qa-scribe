@@ -172,7 +172,7 @@ describe('Applying a suggested result', () => {
     await user.click(within(row).getByRole('button', { name: 'Add result notes for Pay by card' }))
     await user.type(within(row).getByRole('textbox', { name: 'Result notes for Pay by card' }), 'A')
     await user.click(screen.getByRole('button', { name: 'Apply fixture suggestion' }))
-    expect(await screen.findByText(/Retry the failed test case save before continuing/)).toBeVisible()
+    expect(await screen.findByText(/Resolve the failed test case save before continuing/)).toBeVisible()
     expect(writeSuggestion).not.toHaveBeenCalled()
   })
 

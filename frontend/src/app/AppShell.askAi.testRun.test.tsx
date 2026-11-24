@@ -122,7 +122,7 @@ describe('Ask AI on a test run', () => {
     expect(api.startChatJob).toHaveBeenCalledWith(expect.objectContaining({ intent: { kind: action === 'Send' ? 'composer' : 'retry' } }), expect.any(Function))
   })
 
-  it('refuses Send after a case save fails and recovers on reopening the run', async () => {
+  it.each(['keep the saved Result', 'reopen the run'])('refuses Send after a case save fails until the tester can %s', async recovery => {
     await openRun()
     const input = await askAi()
     api.setTestCaseResult.mockRejectedValueOnce(new Error('Disk full'))
@@ -130,15 +130,24 @@ describe('Ask AI on a test run', () => {
     await screen.findByText(/Disk full/)
     fireEvent.change(input, { target: { value: 'Record the result' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-    await within(screen.getByRole('complementary', { name: 'Ask AI' })).findByText(/Retry the failed test case save before continuing/)
+    await within(screen.getByRole('complementary', { name: 'Ask AI' })).findByText(/Resolve the failed test case save before continuing/)
     expect(api.startChatJob).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close Ask AI' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Back to test cases' }))
-    fireEvent.click(within(await screen.findByRole('region', { name: 'Test runs' })).getAllByRole('button')[0])
-    await screen.findByRole('button', { name: 'Copy report' })
-    const reopened = await askAi()
-    fireEvent.change(reopened, { target: { value: 'Record the saved result' } })
+    let composer = input
+    if (recovery === 'keep the saved Result') {
+      const button = screen.getByRole('button', { name: 'Keep saved result for Pay by card' })
+      expect(within(screen.getByRole('region', { name: 'Pay by card' })).getByText('Could not save the Result for Pay by card.')).toBeVisible()
+      fireEvent.click(button)
+      expect(button).not.toBeInTheDocument()
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: 'Close Ask AI' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Back to test cases' }))
+      fireEvent.click(within(await screen.findByRole('region', { name: 'Test runs' })).getAllByRole('button')[0])
+      await screen.findByRole('button', { name: 'Copy report' })
+      composer = await askAi()
+    }
+    expect(api.setTestCaseResult).toHaveBeenCalledTimes(1)
+    fireEvent.change(composer, { target: { value: 'Record the saved result' } })
     api.startChatJob.mockRejectedValueOnce({ kind: 'validation', message: 'Test request stopped' })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     await waitFor(() => expect(api.startChatJob).toHaveBeenCalledTimes(1))

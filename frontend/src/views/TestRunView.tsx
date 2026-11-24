@@ -202,6 +202,11 @@ function TestRunCaseRow({ onAskAi, editsBlocked, testCase, group, finding, toggl
         value={result === 'not_run' ? null : result}
         onChange={(next) => onChangeCase(id, { result: next ?? 'not_run' })} />
       <div className="test-run-outcome">
+        {testCase.resultSaveFailed ? <>
+          <p className="field-error" role="alert">Could not save the Result for {title}.</p>
+          <ActionButton variant="quiet" disabled={editsBlocked} aria-label={`Keep saved result for ${title}`}
+            onClick={() => onChangeCase(id, { result })}>Keep saved result</ActionButton>
+        </> : null}
         <TestRunNotes testCase={testCase} readOnly={editsBlocked} onChange={(patch, imageRead) => onChangeCase(id, patch, imageRead)} />
         {finding}
         {onAskAi ? <ActionButton variant="quiet" icon={Sparkles} aria-label={`Ask AI about this case: ${title}`} onClick={onAskAi}>Ask AI about this case</ActionButton> : null}
