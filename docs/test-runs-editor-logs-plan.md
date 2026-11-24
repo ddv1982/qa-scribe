@@ -77,8 +77,8 @@ Goal: tables that survive every path. `@tiptap/extension-table` (TableKit), head
 - [x] Toolbar "Insert table" and table controls when the cursor is in a table. Vitest; `bun run frontend:check` passes. (Insert table adds a 3 by 3 table with a header row and is disabled inside a table, since tables do not nest. The "Table" group: add row above or below, add column left or right, delete row, delete column, delete table.)
 - [x] Paste tests with Confluence-style and Excel-style HTML fixtures. (Fixtures in `editor/__fixtures__/pastedTables.ts`; each is pasted into an editor and read from HTML alone. They pass on top of the first item; with the cell flattening removed the Confluence fixture fails.)
 - [x] A table inside a case body never defines a case or group. Splitter test. (No splitter change was needed: it reads top-level nodes only, and cells hold one paragraph. The test guards that, so it could not be watched failing first.)
-- [ ] Extend `editor-rich-content.e2e.mjs`: paste a 3×4 table, save, restart, fake Ask AI "add a column", Update, copy; structure intact.
-- [ ] `vite build` size delta recorded in this file.
+- [x] Extend `editor-rich-content.e2e.mjs`: paste a 3×4 table, save, restart, fake Ask AI "add a column", Update, copy; structure intact. (3×4 read as 3 rows of 4 columns, the first row the header. The author phase pastes Excel-style HTML (no `th`, no paragraphs, `b` and `i`) and checks the saved header row and marks; the restart phase checks the rendered table, the fake reply adds a `Note` column, and the copy holds both the pipe table and the HTML table. Both phases and `test-runs.e2e.mjs` pass on Linux.)
+- [x] `vite build` size delta recorded in this file. (main `eb095cb` against this branch, bytes, gzip -9 in brackets: `editor` chunk 403,386 to 438,623, +35,237 (+10,671); `index` 466,296 to 469,769, +3,473 (+1,208); `icons` 17,937 to 19,993, +2,056 (+437); `vendor` unchanged at 819,902; CSS 95,506 to 95,842, +336 (+43). All JS and CSS together: 1,803,027 to 1,844,129, +41,102 (+12,359). The Tiptap table extensions land in the `editor` chunk, which `index.html` preloads at startup.)
 
 Acceptance: the E2E passes.
 
