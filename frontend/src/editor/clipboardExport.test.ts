@@ -33,6 +33,23 @@ describe('clipboardExport', () => {
     )
   })
 
+  // The schema starts every list item with a paragraph, so an item with only a code block has an empty one first.
+  it('writes the list marker once for a list item that holds only a code block', () => {
+    const payload = formatRecordForClipboard({
+      title: '',
+      bodyHtml: '<ul><li><p></p><pre><code>a\n\nb</code></pre></li></ul><ol start="10"><li><p></p><pre><code>c</code></pre></li></ol>',
+    })
+    expect(payload.plain).toBe(['- ```', '  a', '', '  b', '  ```', '', '10. ```', '    c', '    ```'].join('\n'))
+  })
+
+  it('keeps nested lists in document order at the parent content column', () => {
+    const payload = formatRecordForClipboard({
+      title: '',
+      bodyHtml: '<ol start="10"><li><p>Outer</p><ul><li><p>inner</p><pre><code>x</code></pre></li></ul><p>after</p></li></ol>',
+    })
+    expect(payload.plain).toBe(['10. Outer', '    - inner', '', '      ```', '      x', '      ```', '', '    after'].join('\n'))
+  })
+
   it('keeps a code block inside a quote exactly', () => {
     const payload = formatRecordForClipboard({ title: '', bodyHtml: '<blockquote><pre><code>a  \n\n\n b</code></pre></blockquote>' })
     expect(payload.plain).toBe(['> ```', '> a  ', '>', '>', '>  b', '> ```'].join('\n'))
