@@ -239,10 +239,14 @@ fn collapse_whitespace(text: &str) -> String {
 }
 
 /// Joins inline Markdown with one space where two pieces meet at spaces. A code span starts and
-/// ends with a backtick, so its spaces are never touched.
+/// ends with a backtick, so its spaces are never touched. Text escapes its own `[`, so a piece
+/// starting with one opens a link, and a literal `!` before it would make that an image.
 fn join_inline(pieces: impl Iterator<Item = String>) -> String {
     let mut joined = String::new();
     for piece in pieces {
+        if piece.starts_with('[') && joined.ends_with('!') {
+            joined.insert(joined.len() - 1, '\\');
+        }
         let piece = if joined.ends_with(' ') {
             piece.trim_start_matches(' ')
         } else {

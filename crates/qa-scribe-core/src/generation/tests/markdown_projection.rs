@@ -299,6 +299,23 @@ fn a_heading_with_a_hard_break_stays_one_heading() {
     );
 }
 
+#[test]
+fn an_exclamation_mark_before_a_link_stays_text() {
+    let html = "<p>Wow!<a href=\"https://e.com\">link</a> and <strong>bold!</strong><a href=\"https://e.com\">two</a></p>";
+    let nodes = round_trip(html);
+    let content = &nodes[0]["content"];
+    assert_eq!(
+        content[0],
+        serde_json::json!({"type":"text","text":"Wow!"}),
+        "{}",
+        project(html)
+    );
+    assert_eq!(content[1]["text"], "link", "{}", project(html));
+    assert_eq!(content[1]["marks"][0]["type"], "link", "{}", project(html));
+    assert_eq!(content[3]["text"], "bold!", "{}", project(html));
+    assert_eq!(content[4]["marks"][0]["type"], "link", "{}", project(html));
+}
+
 /// Every Note the projector writes as Markdown is one the parser reads back as Markdown, and a
 /// Note it cannot is not offered for a whole-note rewrite.
 #[test]
