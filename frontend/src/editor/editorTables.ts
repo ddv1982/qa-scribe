@@ -66,15 +66,20 @@ function cellContent(element: Node, schema: Schema, preserveWhitespace?: ParseOp
  * followed by its images for `insertInCell` to put after the table. Parsed as blocks, ProseMirror
  * would wrap each block in a cell of its own to fit the row, and the table paste would then write
  * them over the cells from the caret on. Content with a table still fills cells, and so do blocks
- * pasted over selected cells, one block per cell, as prosemirror-tables pastes them.
+ * pasted over selected cells, one block per cell, as prosemirror-tables pastes them. A drop lands
+ * at its own position whatever the selection, so it never fills selected cells.
  */
 class TableClipboardParser extends ProseMirrorDOMParser {
+  /** Set by the drop event, which ProseMirror reads synchronously, until the next microtask. */
+  dropping = false
+
   constructor(schema: Schema, private readonly selection: () => Selection) {
     super(schema, ProseMirrorDOMParser.fromSchema(schema).rules)
   }
 
   override parseSlice(dom: Node, options: ParseOptions = {}): Slice {
-    if (!options.context || !inTableCell(options.context) || holdsTable(dom) || this.selection() instanceof CellSelection) return super.parseSlice(dom, options)
+    const fillsSelectedCells = !this.dropping && this.selection() instanceof CellSelection
+    if (!options.context || !inTableCell(options.context) || holdsTable(dom) || fillsSelectedCells) return super.parseSlice(dom, options)
     const { line, images } = cellContent(dom, this.schema, options.preserveWhitespace)
     return images.length === 0 ? new Slice(Fragment.from(line), 1, 1) : new Slice(Fragment.from([line, ...images]), 1, 0)
   }
@@ -166,7 +171,13 @@ export const editorTableExtensions = [
     addProseMirrorPlugins() {
       const { editor } = this
       const clipboardParser = new TableClipboardParser(editor.schema, () => editor.state.selection)
-      return [...(this.parent?.() ?? []), headerRowPlugin(), new Plugin({ props: { clipboardParser, handlePaste: pasteInCell, handleDrop: dropInCell } })]
+      const markDrop = () => {
+        clipboardParser.dropping = true
+        queueMicrotask(() => void (clipboardParser.dropping = false))
+        return false
+      }
+      const props = { clipboardParser, handlePaste: pasteInCell, handleDrop: dropInCell, handleDOMEvents: { drop: markDrop } }
+      return [...(this.parent?.() ?? []), headerRowPlugin(), new Plugin({ props })]
     },
   }),
   TableRow,

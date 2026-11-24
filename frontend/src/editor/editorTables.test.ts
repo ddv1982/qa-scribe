@@ -144,17 +144,45 @@ describe('pasting at a caret inside a cell', () => {
     ])
   })
 
-  it('puts an image dropped from outside the editor after the table', () => {
-    editorAtAbc(0)
-    // jsdom has no layout, so the drop lands where posAtCoords says: between "a" and "bc".
+  // jsdom has no layout, so the drop lands where posAtCoords says: between "a" and "bc".
+  function dropHtml(html: string): void {
     editor!.view.posAtCoords = () => ({ pos: 5, inside: -1 })
     const drop = Object.assign(new Event('drop', { bubbles: true, cancelable: true }), {
       clientX: 0,
       clientY: 0,
-      dataTransfer: { getData: (type: string) => (type === 'text/html' ? shotHtml : ''), types: ['text/html'] },
+      dataTransfer: { getData: (type: string) => (type === 'text/html' ? html : ''), types: ['text/html'] },
     })
     editor!.view.dom.dispatchEvent(drop)
+  }
+
+  function selectBodyCells(): void {
+    const cells: number[] = []
+    editor!.state.doc.descendants((node, position) => void (node.type.name === 'tableCell' && cells.push(position)))
+    editor!.view.dispatch(editor!.state.tr.setSelection(CellSelection.create(editor!.state.doc, cells[0], cells[1])))
+  }
+
+  it('puts an image dropped from outside the editor after the table', () => {
+    editorAtAbc(0)
+    dropHtml(shotHtml)
     expect(editor!.getJSON().content?.slice(0, 2)).toEqual([untouched, image])
+  })
+
+  // The drop lands at its own position, so selected cells elsewhere do not change how it is read.
+  it('drops lines into the target cell while other cells are selected', () => {
+    editorAtAbc(0)
+    selectBodyCells()
+    dropHtml('<p>X</p><p>Y</p>')
+    expect(editor!.getJSON().content?.[0]).toEqual(table(row(header(text('aX'), hardBreak, text('Ybc')), header(text('xyz'))), row(cell(text('1')), cell(text('2')))))
+  })
+
+  it('drops mixed text and images into the target cell and after the table while other cells are selected', () => {
+    editorAtAbc(0)
+    selectBodyCells()
+    dropHtml(`<p>X</p>${shotHtml}<p>Y</p>`)
+    expect(editor!.getJSON().content?.slice(0, 2)).toEqual([
+      table(row(header(text('aX'), hardBreak, text('Ybc')), header(text('xyz'))), row(cell(text('1')), cell(text('2')))),
+      image,
+    ])
   })
 
   it('still pastes a table over the cells from the caret on', () => {
