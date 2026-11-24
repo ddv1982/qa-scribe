@@ -120,7 +120,7 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
   if (!requestedSpec && !requestedScenario) {
     // session-lifecycle already executes the complete Chat-to-Note workflow.
     // Keep its standalone spec selectable without replaying it in every gate.
-    for (const id of ['chat-images', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'editor-rich-content'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
+    for (const id of ['chat-images', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'ask-ai-test-run', 'editor-rich-content'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
       if (id === 'editor-rich-content') {
         plan.push(...editorRichContentInvocations(join(temporaryRoot, id), join(artifacts, id)))
         continue

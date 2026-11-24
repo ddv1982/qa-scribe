@@ -2,6 +2,7 @@ import { startChatJob, type ChatRef, type ChatSendIntent, type ChatState, type G
 import { statusOwns } from './sessionChat.workspaces'
 import { chatIsWorking, chatScope, unresolvedChatReason, type ChatWorkspace, type SessionChatContext } from './sessionChat.types'
 import { actionRequestText, occupiedChoiceReason, questionReason, sameChatTarget } from './sessionChat.questions'
+import { acquireTestRunEditBarrier } from '../testware/useTestRuns'
 import { isCommandError } from '../ui/format'
 
 type Dependencies = {
@@ -29,6 +30,7 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
     if (entry.retired) return
     if (!entry.chat) throw new Error('Chat could not be loaded. Reopen the Session to try again.')
     const context = retry ? undefined : ctx.captureContext?.(entry.sessionId, entry.owner) ?? { kind: 'session' as const }
+    const focusedCaseId = entry.owner?.kind === 'test_run' ? ctx.focusedRunCase?.(entry.owner.runId) : undefined
     const selection = { ...ctx.selection }
     if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
     if ((entry.owner?.kind === 'notes' && ctx.noteRecovery.has(entry.sessionId))) throw new Error('Recover the canonical Note before continuing Chat.')
@@ -59,9 +61,11 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
       if (entry.inputVersion !== startVersion || entry.composer !== '' || entry.composerImages.length || entry.imageFailures.length) throw new Error(occupiedChoiceReason)
     }
     if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
-    const chat = entry.chat
     const inputVersion = entry.inputVersion
     const modeVersion = entry.modeVersion
+    const release = entry.owner?.kind === 'test_run' ? await acquireTestRunEditBarrier(entry.owner.runId) : undefined
+    if (entry.retired) { release?.(); return }
+    const chat = entry.chat
     let result: StartChatJobResult
     const previousUser = chat.messages.filter(message => message.role === 'user').at(-1)
     const pendingStart = { state: 'starting' as const, intent, previousJobId: entry.job?.jobId ?? null,
@@ -69,7 +73,7 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
     entry.pendingStart = pendingStart; publish(entry)
     ++entry.refreshEpoch
     try {
-      result = await startChatJob({ scope: chatScope(chat), intent, context,
+      result = await startChatJob({ scope: chatScope(chat), intent, context, focusedCaseId,
         provider: selection.selectedProvider, model: selection.selectedModel,
         reasoningEffort: selection.selectedReasoningEffort }, (status) => receiveStatus(entry, status))
       if (result.chat.sessionId !== entry.sessionId || result.chat.draftId !== chat.draftId
@@ -82,6 +86,8 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
       entry.pendingStart = { ...pendingStart, state: 'uncertain', outcome: rejected ? 'rejected' : 'unknown' }
       await refresh(entry.reference).catch(() => undefined)
       throw cause
+    } finally {
+      release?.()
     }
     if (entry.retired) return
     ++entry.refreshEpoch

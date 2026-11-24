@@ -21,6 +21,7 @@ export type SharedChatViewProps = {
   onSuggestEdit?: (assistantMessageId: string | null) => Promise<void>
   onAnswerQuestion?: (assistantMessageId: string, text: string) => Promise<void>
   onPrepareAction?: (assistantMessageId: string) => Promise<void>
+  shownTestRun?: import('../app/conversationPresentation').ShownTestRun | null
   proposalControls?: import('../app/sessionChat.proposals').ProposalControls
   hidden?: boolean
   chat: ChatState | null
@@ -298,7 +299,7 @@ export function SessionChatView(props: SessionChatViewProps) {
         <section ref={transcriptRef} className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
           {messages.length === 0 ? <div className="chat-empty-state">
             {loading ? <p className="chat-help">Loading saved messages…</p> : record?.owner.kind === 'test_run' ? (
-              <p className="chat-help">Ask about this test run, or ask to post its results somewhere. Results cannot be changed from here.</p>
+              <p className="chat-help">Describe what happened to get suggested results, or ask about this test run.</p>
             ) : record?.owner.kind === 'record' ? <>
               <h3>Improve this {record.owner.record.kind === 'finding' ? 'finding' : 'test case'}</h3>
               <p className="chat-help">{record.owner.record.kind === 'finding' ? 'Ask for clearer wording, better steps, or missing details.' : 'Ask for clearer steps, better coverage, or expected results.'}</p>
@@ -312,6 +313,7 @@ export function SessionChatView(props: SessionChatViewProps) {
               onSuggestEdit={!testRun && !submitted && !locked && !sourceReason && providerAvailable && !inputRecoveryPending && !modelSelectionPending && !atLimit
                 && !composer && !composerImages.length && !imageFailures.length ? props.onSuggestEdit : undefined}
               userContextLabel={testRun ? 'Test run' : undefined}
+              testRunSuggestions={testRun ? chat?.testRunSuggestions : undefined} shownTestRun={props.shownTestRun}
               questionControls={submitted || testRun ? undefined : { target: props.activeTarget ?? { kind: 'session' },
                 blockedReason: sourceReason || (composer !== '' || composerImages.length || imageFailures.length ? occupiedChoiceReason
                   : busy || inputRecoveryPending || recovering || permissionRecoveryPending || modelSelectionPending || hydrationPending ? 'Wait until the conversation and images are ready. Your input is retained.'

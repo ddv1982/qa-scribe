@@ -42,7 +42,7 @@ impl SessionService {
         })
     }
 
-    /// Begins the read-only conversation about one test run of the Session.
+    /// Begins a conversation about one test run of the Session.
     pub fn begin_test_run_chat(&self, request: BeginTestRunChatRequest) -> Result<ChatState> {
         self.database.with_immediate_tx(|tx| {
             let owner = ConversationOwner::TestRun {
@@ -102,7 +102,8 @@ impl SessionService {
         let sql = format!("SELECT id,owner_kind,owner_record_id,created_at,last_active_at,last_active_order,archived,submitted_note_id,submitted_at,
             substr(CASE WHEN length(trim(composer))>0 THEN composer ELSE COALESCE((SELECT text FROM chat_messages WHERE draft_id=d.id ORDER BY sequence LIMIT 1),'') END,1,160),
             length(composer)>0 OR composer_intent!='message' OR EXISTS(SELECT 1 FROM chat_messages WHERE draft_id=d.id) OR EXISTS(SELECT 1 FROM chat_composer_images WHERE draft_id=d.id),
-            (SELECT status FROM chat_messages WHERE draft_id=d.id AND role='user' ORDER BY sequence DESC LIMIT 1)
+            (SELECT status FROM chat_messages WHERE draft_id=d.id AND role='user' ORDER BY sequence DESC LIMIT 1),
+            EXISTS(SELECT 1 FROM chat_messages a JOIN chat_test_run_suggestions s ON s.assistant_message_id=a.id WHERE a.draft_id=d.id)
             FROM chat_drafts d WHERE session_id=?1 {predicate} ORDER BY last_active_order DESC,id");
         let mut statement = connection.prepare(&sql)?;
         let mut query = if let Some((kind, record_id)) = owner_filter {
@@ -144,6 +145,7 @@ impl SessionService {
                     .map(ChatTurnStatus::from_stored)
                     .transpose()?,
                 unresolved_stages: stages.remove(&draft_id).unwrap_or_default(),
+                has_test_run_suggestions: row.get(12)?,
             });
         }
         Ok(history)

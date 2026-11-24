@@ -21,6 +21,7 @@ const tauriMock = vi.hoisted(() => ({
   applyRefinement: vi.fn<(request: ApplyRefinementRequest) => Promise<AppliedRefinement>>(), resolveRefinement: vi.fn(), getChat: vi.fn<(sessionId: string) => Promise<ChatState>>(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
   importChatImage: vi.fn(), readChatClipboardImageDataUrl: vi.fn(),
   listTestRuns: vi.fn(), getTestRun: vi.fn(), startTestRun: vi.fn(), setTestCaseResult: vi.fn(), deleteTestRun: vi.fn(),
+  applyTestRunSuggestion: vi.fn(), applyAllTestRunSuggestions: vi.fn(), undoTestRunSuggestion: vi.fn(),
   EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
   SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'img', 'input'],
   MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',

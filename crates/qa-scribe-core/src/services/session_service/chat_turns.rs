@@ -22,6 +22,7 @@ impl SessionService {
             tx.execute("UPDATE chat_messages SET turn_id = ?1, status = 'running', error_message = NULL, ai_run_id = NULL WHERE id = ?2",
                 params![turn_id, message.id])?;
             super::chat_responses::capture_note_retry(tx, &chat.session_id, &message.id, &turn_id)?;
+            super::test_run_suggestions::capture_sources(tx, &chat.owner, &message.id, &turn_id)?;
             rows::bump(tx, &chat.draft_id)?;
             rows::touch_activity(tx, &chat.draft_id)?;
             Ok(ChatTurnStarted { chat: rows::read(tx, &chat.draft_id)?, turn_id })
@@ -165,6 +166,12 @@ pub(super) fn finish(
     if let Some(proposal) = completion.proposal {
         super::chat_refinements::insert(connection, &chat.draft_id, &request.turn_id, proposal)?;
     }
+    super::test_run_suggestions::insert(
+        connection,
+        &chat.draft_id,
+        user,
+        completion.test_run_suggestions,
+    )?;
     rows::bump(connection, &chat.draft_id)?;
     rows::read(connection, &chat.draft_id)
 }

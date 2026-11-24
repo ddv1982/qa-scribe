@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-undo-test-run-suggestion"
+description = "Enables the undo_test_run_suggestion command without any pre-configured scope."
+commands.allow = ["undo_test_run_suggestion"]
+
+[[permission]]
+identifier = "deny-undo-test-run-suggestion"
+description = "Denies the undo_test_run_suggestion command without any pre-configured scope."
+commands.deny = ["undo_test_run_suggestion"]

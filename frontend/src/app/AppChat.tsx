@@ -55,11 +55,12 @@ export function AppChat({ c, recordVisible = c.askAi.visible, modelSelectionCont
       <SessionChatView {...c.sessionChat} {...common} kind="notes" hidden={!notesVisible} proposalControls={noteControls}
         onOpenNote={() => { restoreNotesFocus.current = true; c.setSessionMode('write_note'); c.setActiveView('sessions') }} />
     </AskAiPanel>
-    {c.askAi.panel ? <RecordConversation key={c.activeSession?.id} c={c} visible={recordVisible} common={common} /> : null}
+    {c.askAi.panel ? <RecordConversation key={c.activeSession?.id} c={c} visible={recordVisible} common={common} modelSelectionControl={modelSelectionControl} /> : null}
   </>
 }
 
-function RecordConversation({ c, visible, common }: {
+function RecordConversation({ c, visible, common, modelSelectionControl }: {
+  modelSelectionControl: SessionChatViewProps['modelSelectionControl']
   c: AppController; visible: boolean; common: Pick<SessionChatViewProps, 'providerLabel' | 'modelLabel' | 'modelSelectionPending' | 'providerAvailable' | 'providerReason' | 'onConfigureAi'>
 }) {
   const ref = useRef<HTMLElement>(null)
@@ -74,13 +75,19 @@ function RecordConversation({ c, visible, common }: {
   }, [visible, c.askAi.focusRequest, state.chat?.draftId, reference])
   const source = c.askAi.source!
   const owner = panel.owner
-  // A test run is only read: its conversation offers no change to apply.
   const controls = handle && owner.kind === 'record' ? { ...c.proposalControls, applyUnavailable: source.kind === 'available' ? undefined : 'The original source must be available before Update.',
     onUpdate: (id: string, _reference?: import('../bindings').ChatRef, visual?: import('./sessionChat.proposals').VisualUpdate) => c.proposalControls.onUpdate?.(id, reference!, visual) ?? Promise.resolve(),
     onAction: (id: string, action: import('../bindings').RefinementAction) => c.proposalControls.onAction(id, action, reference!) } : undefined
   const noun = owner.kind === 'test_run' ? { eyebrow: 'Test run', missing: 'test run is' }
     : owner.record.kind === 'finding' ? { eyebrow: 'Finding', missing: 'finding is' } : { eyebrow: 'Test cases draft', missing: 'Test cases draft is' }
   return <AskAiPanel panelRef={ref} kind="record" visible={visible} label="Ask AI" eyebrow={noun.eyebrow}
+    actions={owner.kind === 'test_run' && visible ? <ConversationOptions>
+      {modelSelectionControl}
+      <div className="chat-buttons">
+        <ActionButton variant="secondary" onClick={common.onConfigureAi}>Configure AI</ActionButton>
+        <StartNewConversation state={{ ...state, onRestart: c.askAi.newTestRunConversation }} retainHistory />
+      </div>
+    </ConversationOptions> : null}
     onClose={() => void c.askAi.close()} source={<>
       {source.kind === 'available' ? <strong title={source.title}>{source.title}</strong>
         : <p role={source.kind === 'error' ? 'alert' : 'status'}>{source.kind === 'loading' ? 'Loading source…' : source.kind === 'error' ? source.message : `This ${noun.missing} no longer available.`}</p>}
@@ -92,7 +99,7 @@ function RecordConversation({ c, visible, common }: {
     {panel.recoveryReason && c.askAi.recovery.some(item => item.reference.draftId === reference?.draftId) ? <p className="chat-recovery-reason" role="status">{panel.recoveryReason}</p> : null}
     {handle && reference ? <div className="conversation-presentation" key={reference.draftId}>
       {panel.legacyOrigin ? <BoundNotes c={c} common={common} hidden={!visible} modelSelectionControl={null} /> : <SessionChatView {...state} {...common} kind="record" owner={owner} source={source} hidden={!visible}
-        modelSelectionControl={null} proposalControls={controls} activeTarget={c.askAi.context}
+        modelSelectionControl={null} proposalControls={controls} shownTestRun={c.askAi.shownTestRun} activeTarget={c.askAi.context}
         onSetComposer={handle.setComposer} onSend={handle.send} onSuggestEdit={handle.suggestEdit} onAnswerQuestion={handle.answer} onRetry={handle.retry} onCancel={handle.cancel}
         onAttachImages={handle.attachImages} onPasteNativeImage={handle.pasteImage} onRemoveImage={handle.removeImage} onRetryImage={handle.retryImage} onDismissImageFailure={handle.dismissImage}
         onDecidePermission={handle.decidePermission} onRecheck={handle.recheck} />}

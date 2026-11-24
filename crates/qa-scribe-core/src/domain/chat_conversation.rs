@@ -43,7 +43,7 @@ pub enum ConversationOwner {
         session_id: String,
         record: ConversationRecord,
     },
-    /// A read-only conversation about one test run: it never proposes a change.
+    /// A conversation about one test run that can suggest Results and Result notes.
     TestRun {
         session_id: String,
         run_id: String,
@@ -163,4 +163,7 @@ pub struct ChatHistoryEntry {
     pub has_content: bool,
     pub last_turn_status: Option<super::ChatTurnStatus>,
     pub unresolved_stages: Vec<StageOrigin>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[specta(optional)]
+    pub has_test_run_suggestions: bool,
 }

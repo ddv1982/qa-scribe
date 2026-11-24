@@ -11,6 +11,7 @@ use support::*;
 
 fn request(chat: &ChatState) -> StartChatJobRequest {
     StartChatJobRequest {
+        focused_case_id: None,
         scope: scope(chat),
         intent: crate::commands::chat::ChatSendIntent::Retry,
         context: ChatTarget::Session,
@@ -66,6 +67,7 @@ fn deleted_retry(kind: Kind, terminal: Terminal) {
     }, &prepared.ai_run.id).unwrap();
     let composed = compose(&f.service, &completed, "Next Session question");
     let next = StartChatJobRequest {
+        focused_case_id: None,
         intent: crate::commands::chat::ChatSendIntent::Composer,
         ..request(&composed)
     };

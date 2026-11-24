@@ -1,5 +1,4 @@
-//! A test run owns a read-only conversation: it reads the run's current report
-//! and never proposes or accepts a change.
+//! A test run conversation reads the saved report and can suggest Results and Result notes.
 
 use qa_scribe_core::{
     QaScribeError,
@@ -31,7 +30,10 @@ fn case(group: Option<&str>, title: &str) -> TestRunCaseDraft {
 
 /// A run of four cases: one without a group, then two groups.
 fn fixture() -> Fixture {
-    let service = SessionService::in_memory().unwrap();
+    fixture_with(SessionService::in_memory().unwrap())
+}
+
+fn fixture_with(service: SessionService) -> Fixture {
     let session_id = service
         .create_session(SessionDraft {
             title: "Checkout".into(),
@@ -240,10 +242,13 @@ fn the_report_lists_totals_and_every_case_with_its_current_result() {
     );
     assert_eq!(
         rest,
-        "2 passed, 1 failed, 0 blocked, 1 not run\n\n\
-         - Passed: Open the shop\n\n\
-         ### Cards\n- Passed: Pay by card\n- Not run: Pay by saved card\n\n\
-         ### Gift cards\n- Failed: Pay with a gift card\n  Remark: The gift card was refused.\n  Finding: Gift card refused"
+        format!(
+            "2 passed, 1 failed, 0 blocked, 1 not run\n\n\
+         - Passed: Open the shop (TC 1 [{}])\n\n\
+         ### Cards\n- Passed: Pay by card (TC 2 [{}])\n- Not run: Pay by saved card (TC 4 [{}])\n\n\
+         ### Gift cards\n- Failed: Pay with a gift card (TC 3 [{}])\n  Remark: The gift card was refused.\n  Finding: Gift card refused",
+            cases[0].id, cases[1].id, cases[3].id, cases[2].id
+        )
     );
     f.service
         .set_test_case_result(&cases[2].id, TestCaseResult::Blocked, None)
@@ -253,7 +258,10 @@ fn the_report_lists_totals_and_every_case_with_its_current_result() {
         changed.contains("2 passed, 0 failed, 1 blocked, 1 not run"),
         "the report reads stored results"
     );
-    assert!(changed.contains("- Blocked: Pay with a gift card\n  Finding: Gift card refused"));
+    assert!(changed.contains(&format!(
+        "- Blocked: Pay with a gift card (TC 3 [{}])\n  Finding: Gift card refused",
+        cases[2].id
+    )));
 }
 
 #[test]
@@ -281,7 +289,7 @@ fn a_long_report_is_cut_after_a_whole_line_and_marked() {
 }
 
 #[test]
-fn a_test_run_conversation_never_offers_or_accepts_a_change() {
+fn a_test_run_conversation_rejects_record_refinements() {
     let f = fixture();
     let chat = write(&f, &begin(&f), "Post the results to PAY-12");
     for intent in [
@@ -319,7 +327,7 @@ fn a_test_run_conversation_never_offers_or_accepts_a_change() {
     let started = start(&f, &chat, ChatRequestIntent::Message).unwrap();
     let user = started.chat.messages.last().unwrap().clone();
     let contract = f.service.response_contract(&user.id).unwrap().unwrap();
-    assert_eq!(contract.purpose(), ChatResponsePurpose::Conversation);
+    assert_eq!(contract.purpose(), ChatResponsePurpose::TestRunRecording);
     assert_eq!(contract.version(), 2);
     let reply = json!({"version":2,"requestId":user.id,"markdown":"Marked every case as passed.",
         "refinement":{"kind":"test_cases_draft","title":"Rewritten","bodyMarkdown":"- Passed: everything"}});
@@ -344,7 +352,7 @@ fn a_test_run_conversation_never_offers_or_accepts_a_change() {
     let response = finished.messages.last().unwrap().response.clone().unwrap();
     assert_eq!(
         response.warning.as_deref(),
-        Some("This response is retained as text without interactive choices.")
+        Some("No results were suggested. The reply did not contain a usable suggestion.")
     );
     let run = f.service.get_test_run(&f.run.id).unwrap();
     assert!(
@@ -406,3 +414,51 @@ fn a_deleted_run_fails_a_new_turn_and_a_retry_cleanly() {
         1
     );
 }
+
+#[test]
+fn the_focused_last_case_keeps_its_steps_when_the_rest_is_cut() {
+    let f = fixture();
+    let mut cases: Vec<_> = (1..=500)
+        .map(|position| case(None, &format!("Case {position}: {}", "t".repeat(120))))
+        .collect();
+    cases.last_mut().unwrap().body_json = json!({"type":"doc","content":[
+        {"type":"paragraph","content":[{"type":"text","text":"Step: Click Pay."}]},
+        {"type":"paragraph","content":[{"type":"text","text":"Expected result: Order is placed."}]}
+    ]})
+    .to_string();
+    let run = f.service.start_test_run(&f.draft_id, cases).unwrap();
+    let last = run.cases.last().unwrap();
+    let report = f
+        .service
+        .test_run_report_for_case(&f.session_id, &run.id, Some(&last.id))
+        .unwrap();
+    let focused = report.split("\n\n").next().unwrap();
+    assert!(
+        focused.contains(&format!("TC 500 [{}]", last.id)),
+        "{focused}"
+    );
+    assert!(focused.contains("Step: Click Pay."), "{focused}");
+    assert!(
+        focused.contains("Expected result: Order is placed."),
+        "{focused}"
+    );
+    assert!(report.ends_with(TEST_RUN_REPORT_TRUNCATED_MARKER));
+    assert!(report.len() <= MAX_CHAT_TEST_RUN_REPORT_BYTES);
+}
+
+#[test]
+fn an_oversized_focused_case_refuses_the_report() {
+    let f = fixture();
+    let mut huge = case(None, "Large case");
+    huge.body_json = json!({"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"x".repeat(MAX_CHAT_TEST_RUN_REPORT_BYTES + 1)}]}]}).to_string();
+    let run = f.service.start_test_run(&f.draft_id, vec![huge]).unwrap();
+    let error = validation_message(f.service.test_run_report_for_case(
+        &f.session_id,
+        &run.id,
+        Some(&run.cases[0].id),
+    ));
+    assert!(error.contains("focused test case is too long"), "{error}");
+}
+
+#[path = "test_run_conversation/suggestions.rs"]
+mod suggestions;

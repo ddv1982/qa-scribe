@@ -210,7 +210,11 @@ pub(super) fn update_case_on(
         "UPDATE test_runs SET updated_at = ?1 WHERE id = ?2",
         params![now, run_id],
     )?;
-    Ok(tx.query_row(
+    test_run_case(tx, case_id)
+}
+
+pub(super) fn test_run_case(connection: &Connection, case_id: &str) -> Result<TestRunCase> {
+    Ok(connection.query_row(
         &format!("{CASE_SELECT} WHERE c.id = ?1"),
         [case_id],
         map_case,
@@ -294,6 +298,10 @@ pub(super) fn test_run(connection: &Connection, run_id: &str) -> Result<TestRun>
 
 fn map_case(row: &Row<'_>) -> rusqlite::Result<TestRunCase> {
     let result: String = row.get(6)?;
+    let remark: Option<String> = row.get(7)?;
+    let notes_json: Option<String> = row.get(11)?;
+    let suggestion_fingerprint =
+        super::test_run_suggestions::fingerprint(&result, notes_json.as_deref(), remark.as_deref());
     Ok(TestRunCase {
         id: row.get(0)?,
         run_id: row.get(1)?,
@@ -302,10 +310,9 @@ fn map_case(row: &Row<'_>) -> rusqlite::Result<TestRunCase> {
         title: row.get(4)?,
         body_json: row.get(5)?,
         result: TestCaseResult::from_stored(&result).map_err(to_sql_error)?,
-        remark: row.get(7)?,
-        notes: row
-            .get::<_, Option<String>>(11)?
-            .map(super::test_run_notes::summarize),
+        remark,
+        notes: notes_json.map(super::test_run_notes::summarize),
+        suggestion_fingerprint,
         finding_id: row.get(8)?,
         finding_title: row.get(9)?,
         updated_at: row.get(10)?,

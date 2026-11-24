@@ -101,11 +101,11 @@ One case in a Test cases draft, and the unit a Test run copies. How a draft spli
 _Avoid_: Test, Check, Step
 
 **Test run**:
-A frozen copy of a saved Test cases draft's test cases, made when the tester chooses Start test run, with a Result and optional Result notes per test case. The copied instructions are fixed. Ask AI reads the saved test run, and deleting the draft deletes its test runs. The UI always says "test run", never "run" alone, because an AI Run is something else.
+A frozen copy of a saved Test cases draft's test cases, made when the tester chooses Start test run, with a Result and optional Result notes per test case. The copied instructions are fixed. Ask AI reads the saved test run and can suggest changes to Results and additions to Result notes for its cases. Deleting the draft deletes its test runs. The UI always says "test run", never "run" alone, because an AI Run is something else.
 _Avoid_: Run, Execution, Test cycle
 
 **Result**:
-The outcome a tester records for one test case in a Test run: passed, failed, blocked or not run. Only the tester sets it; AI never does.
+Passed, failed, blocked or not run for one test case in a test run. Ask AI can suggest a Result with a rationale. Only the tester records it, either directly or by applying the suggestion.
 _Avoid_: Status, Verdict, Outcome
 
 **Result notes**:
@@ -121,7 +121,7 @@ A copy-ready bug report Draft shaped for manual creation of a Jira issue.
 _Avoid_: Jira ticket, Jira issue
 
 **Ask AI**:
-The action that opens a fresh conversation beside a saved Finding, a Test cases draft, or a test run. The conversation belongs to that record or test run; for a test run it is read-only: it gets the test run report and never changes a result. Reclicking an open panel focuses its current input. A settled close and reopen starts fresh. Exact unfinished turns and prepared edits remain recoverable through their original references. Sending includes that record's current content without saving its edits.
+The action that opens a fresh conversation beside a saved Finding, a Test cases draft, or a test run. The conversation belongs to that record or test run. For a test run, Ask AI gets the saved report and can suggest Results and Result notes additions for one or more cases in a reply. The tester can choose "Update" on a row or "Apply all" to apply eligible rows. Only applying a row writes its changes, and it appends the proposed notes. Reclicking an open panel focuses its current input. A settled close and reopen starts fresh. Exact unfinished turns and prepared edits remain recoverable through their original references. Sending on a Finding or Test cases draft includes the record's current content without saving its edits.
 
 **AI chat**:
 Notes chat and record Ask AI use separate conversations, input, images, and tool decisions. Close persists input before hiding, and keeps the panel visible if persistence fails. The provider and model preference applies globally to the next invocation through Notes and Settings. Only Notes chat can be added to the Session Note.

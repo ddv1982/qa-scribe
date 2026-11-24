@@ -252,14 +252,25 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     if (!sessionId) return Promise.resolve()
     return launchOwner({ kind: 'record', sessionId, record: { kind: target.kind, recordId: target.recordId } })
   }
-  function onAskAiRun(runId: string) {
+  const runFocus = useRef<{ runId: string; caseId: string } | null>(null)
+  function focusedRunCase(runId: string) {
+    return runFocus.current?.runId === runId ? runFocus.current.caseId : undefined
+  }
+  function onAskAiRun(runId: string, caseId?: string) {
+    runFocus.current = caseId ? { runId, caseId } : null
     if (!sessionId) return Promise.resolve()
     return launchOwner({ kind: 'test_run', sessionId, runId })
   }
-  function launchOwner(owner: AskAiOwner) {
+  async function newTestRunConversation() {
+    const owner = panelRef.current?.owner
+    if (owner?.kind !== 'test_run') return
+    runFocus.current = null
+    await launchOwner(owner, true)
+  }
+  function launchOwner(owner: AskAiOwner, forceNew = false) {
     const previous = panelRef.current
     const handle = previous?.reference ? ctx.conversations.bind(previous.reference) : null
-    if (previous?.open && previous.phase === 'ready' && sameOwner(previous.owner, owner) && handle) {
+    if (!forceNew && previous?.open && previous.phase === 'ready' && sameOwner(previous.owner, owner) && handle) {
       setPanel({ ...previous, focusRequest: previous.focusRequest + 1 }); return Promise.resolve()
     }
     const key = JSON.stringify(owner)
@@ -282,8 +293,16 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
         const rows = await listChatHistory({ kind: 'session', sessionId: owner.sessionId })
         if (!current()) return
         setRecoveryRows(rows.filter(row => row.unresolvedStages.length || ['running', 'failed', 'interrupted', 'cancelled'].includes(row.lastTurnStatus ?? '')))
-        const unfinished = unfinishedConversations(rows, ctx.conversations.attention(owner.sessionId)).find(item => sameOwner(item.owner, owner))
-        if (unfinished) { attempts.current.delete(key); await openConversation(unfinished.reference, unfinished.origin, unfinished.reason, preparing); return }
+        const latest = rows.find(row => !row.archived && sameOwner(row.owner, owner))
+        const latestWithSuggestions = owner.kind === 'test_run' && latest?.hasTestRunSuggestions ? latest : undefined
+        const unfinished = unfinishedConversations(rows, ctx.conversations.attention(owner.sessionId)).find(item =>
+          sameOwner(item.owner, owner) && (!latestWithSuggestions || item.reference.draftId === latestWithSuggestions.reference.draftId))
+        if (unfinished && !forceNew) { attempts.current.delete(key); await openConversation(unfinished.reference, unfinished.origin, unfinished.reason, preparing); return }
+        if (!forceNew && latestWithSuggestions) {
+          attempts.current.delete(key)
+          await openConversation(latestWithSuggestions.reference, undefined, '', preparing)
+          return
+        }
         const bound = ctx.conversations.bind(captured.reference)
         const chat = bound.snapshot().chat ?? await (owner.kind === 'record'
           ? beginRecordChat({ ...captured.reference, record: owner.record }) : beginTestRunChat({ ...captured.reference, runId: owner.runId }))
@@ -313,13 +332,14 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     : owner ? { kind: 'session' } : selection && recordView ? selection : { kind: 'session' }
   const attention = sessionId ? ctx.conversations.attention(sessionId) : []
   return {
-    invalidateNavigation,
+    invalidateNavigation, newTestRunConversation,
+    shownTestRun: owner?.kind === 'test_run' && shownRun?.runId === owner.runId && shownRun.sessionId === owner.sessionId ? shownRun : null,
     selectionEpoch, visible,
     openRecordId: visible && owner?.kind === 'record' ? owner.record.recordId : null,
     openRunId: visible && owner?.kind === 'test_run' ? owner.runId : null,
     focusRequest: current?.focusRequest ?? 0, panel: current, reference: current?.reference ?? null, source,
     context, contextError: source?.kind === 'unavailable' ? 'This record is no longer available in this Session.' : source?.kind === 'error' ? source.message : null,
-    capture, captureNotesContext, onAskAi, onAskAiRun, onShowRun, onSelectRecord, close, openConversation, openStage: (origin: StageOrigin) => openConversation(origin.reference, origin), revealRequest, acknowledgeReveal,
+    capture, captureNotesContext, onAskAi, onAskAiRun, focusedRunCase, onShowRun, onSelectRecord, close, openConversation, openStage: (origin: StageOrigin) => openConversation(origin.reference, origin), revealRequest, acknowledgeReveal,
     retrySource: () => { if (owner?.kind === 'record') ctx.retrySource(owner.record); else shownRun?.retry() },
     // An existing run's conversation is recovered through Ask AI on its run; a deleted run's from here.
     recovery: unfinishedConversations(recoveryRows.filter(row => row.reference.sessionId === sessionId), attention).filter(item => item.owner.kind === 'record' || runGone(item.owner, runIds)), recoveryError,

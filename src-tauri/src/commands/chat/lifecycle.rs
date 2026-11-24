@@ -59,13 +59,9 @@ pub(super) fn commit(
     };
     let mut created_run: Option<AiRun> = None;
     let preparation: Result<PreparedChat> = (|| {
-        let user_id = started
-            .chat
-            .messages
-            .last()
-            .expect("started user message")
-            .id
-            .clone();
+        let user = started.chat.messages.last().expect("started user message");
+        verified.bind_test_run_snapshot(service, user)?;
+        let user_id = user.id.clone();
         let mut input = verified.input(user_id.clone())?;
         if let Some(contract) = service.response_contract(&user_id)? {
             input = input.with_response_contract(&contract);

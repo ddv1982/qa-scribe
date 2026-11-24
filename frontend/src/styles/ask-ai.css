@@ -209,3 +209,32 @@
 .chat-visual-preview figcaption { margin-bottom: var(--space-1); font-size: var(--font-size-sm); }
 .chat-visual-preview button { display: grid; width: 100%; place-items: center; border: 0; padding: 0; background: transparent; cursor: zoom-in; }
 .chat-visual-preview img { display: block; width: auto; max-width: 100%; height: auto; max-height: min(12rem, 40vh); object-fit: contain; border-radius: 6px; }
+
+.test-run-suggestions,
+.test-run-suggestion-row {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.test-run-suggestion-row {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: var(--space-2);
+  overflow-wrap: anywhere;
+}
+
+.test-run-suggestion-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.test-run-suggestion-row dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+}
+
+.test-run-suggestion-row :is(h4, dl, dd, p) { margin: 0; }
+.test-run-suggestion-row dt { color: var(--text-secondary); }
+.test-run-suggestions > [role="status"]:empty { position: absolute; }

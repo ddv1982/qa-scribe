@@ -1,6 +1,6 @@
 import { Channel } from '@tauri-apps/api/core'
 import { RecordWriteConflict } from './app/recordWriteGuards'
-import type { RecordWriteGuard, RefinementRequest, ApplyRefinementRequest, AppliedRefinement } from './bindings'
+import type { TestRunSuggestionRequest, TestRunSuggestionsRequest, RecordWriteGuard, RefinementRequest, ApplyRefinementRequest, AppliedRefinement } from './bindings'
 
 import {
   commands,
@@ -264,6 +264,18 @@ export function setTestCaseResult(caseId: string, result: TestCaseResult, remark
 
 export function saveTestCaseNotes(caseId: string, bodyJson: string, images: TestCaseNoteImage[]): Promise<TestRunCase> {
   return commands.saveTestCaseNotes(caseId, bodyJson, images)
+}
+
+export function applyTestRunSuggestion(request: TestRunSuggestionRequest) {
+  return commands.applyTestRunSuggestion(request)
+}
+
+export function applyAllTestRunSuggestions(request: TestRunSuggestionsRequest) {
+  return commands.applyAllTestRunSuggestions(request)
+}
+
+export function undoTestRunSuggestion(request: TestRunSuggestionRequest) {
+  return commands.undoTestRunSuggestion(request)
 }
 
 export function linkTestCaseFinding(caseId: string, findingId: string | null): Promise<TestRunCase> {

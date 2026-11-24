@@ -15,6 +15,7 @@ fn note() -> crate::domain::Entry {
 
 fn case(title: &str, result: TestCaseResult, remark: Option<&str>) -> TestRunCase {
     TestRunCase {
+        suggestion_fingerprint: String::new(),
         id: format!("case-{title}"),
         run_id: "run-1".into(),
         position: 0,

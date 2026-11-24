@@ -83,6 +83,9 @@ pub struct ChatState {
     #[serde(default)]
     #[specta(optional)]
     pub proposals: Vec<super::RefinementProposal>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[specta(optional)]
+    pub test_run_suggestions: Vec<super::TestRunSuggestion>,
     pub session_id: String,
     pub draft_id: String,
     pub revision: i32,

@@ -12,7 +12,7 @@ use qa_scribe_core::{
         MAX_CHAT_TRANSCRIPT_BYTES, build_chat_input, build_chat_prompt, notes_session_context,
     },
     domain::*,
-    services::SessionService,
+    services::{SessionService, TestRunChatSnapshot},
 };
 
 use super::{StartChatJobRequest, lifecycle::scope};
@@ -24,7 +24,7 @@ pub(super) struct ChatPreparationSnapshot {
     context: String,
     note: Option<Entry>,
     /// The current report of the test run that owns the conversation.
-    test_run_report: Option<String>,
+    test_run: Option<TestRunChatSnapshot>,
     messages: Vec<ChatInputMessage>,
     sources: Vec<Vec<ChatImageSource>>,
 }
@@ -73,9 +73,14 @@ impl ChatPreparationSnapshot {
             session_context
         };
         // A test run conversation reads the run's current results on every turn, Retry included.
-        let test_run_report = match &chat.owner {
+        let test_run = match &chat.owner {
             ConversationOwner::TestRun { session_id, run_id } => {
-                Some(service.test_run_report(session_id, run_id)?)
+                let focus = if matches!(intent, ChatRequestIntent::Retry) {
+                    service.focused_test_run_case(chat.messages.last().ok_or_else(changed)?)?
+                } else {
+                    request.focused_case_id.clone()
+                };
+                Some(service.test_run_chat_snapshot(session_id, run_id, focus.as_deref())?)
             }
             _ => None,
         };
@@ -204,7 +209,7 @@ impl ChatPreparationSnapshot {
             composer_intent,
             context,
             note,
-            test_run_report,
+            test_run,
             messages,
             sources,
         })
@@ -212,8 +217,8 @@ impl ChatPreparationSnapshot {
 
     fn chat_input(&self, messages: Vec<ChatInputMessage>) -> Result<ChatInput> {
         let input = build_chat_input(&self.context, messages).map_err(QaScribeError::Validation)?;
-        Ok(match &self.test_run_report {
-            Some(report) => input.with_test_run_report(report),
+        Ok(match &self.test_run {
+            Some(snapshot) => input.with_test_run_report(&snapshot.report),
             None => input,
         })
     }
@@ -270,7 +275,7 @@ impl VerifiedChatPreparation {
             || current.revision != self.snapshot.revision
             || current.context != self.snapshot.context
             || current.note != self.snapshot.note
-            || current.test_run_report != self.snapshot.test_run_report
+            || current.test_run != self.snapshot.test_run
             || current.sources != self.snapshot.sources
             || current
                 .messages
@@ -283,6 +288,17 @@ impl VerifiedChatPreparation {
                     .map(|m| (&m.id, &m.text, &m.context)))
         {
             return Err(changed());
+        }
+        Ok(())
+    }
+
+    pub fn bind_test_run_snapshot(
+        &self,
+        service: &SessionService,
+        user: &ChatMessage,
+    ) -> Result<()> {
+        if let Some(snapshot) = &self.snapshot.test_run {
+            service.bind_test_run_turn_snapshot(user, snapshot)?;
         }
         Ok(())
     }

@@ -54,6 +54,8 @@ models do not always follow the format they were asked for.
    on a test run. Testers want to hand the results on, to a Jira issue or a
    Confluence page, and the AI CLI already has the tools and permissions for
    that, so Ask AI is now offered on a test run, read-only.
+
+   _Superseded by [ADR 0013](0013-ask-ai-suggests-test-run-results.md)._
 5. **Runs belong to their draft.** Deleting a Test cases draft deletes its test
    runs, and the delete confirmation says so.
 6. **One name.** The UI always says "test run", never "run", because AI Run

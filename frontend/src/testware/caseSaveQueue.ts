@@ -5,7 +5,7 @@ import { formatError, toCommandError } from '../ui/format'
 export type CaseValue = { result: TestCaseResult; remark: string | null }
 type NotesDraft = { notes: TestCaseNotes; images: TestCaseNoteImage[] }
 export type CasePatch = Partial<CaseValue> & { notesDraft?: NotesDraft }
-export type EditableTestCase = TestRunCase & { notesSave?: 'saving' | 'failed'; notesError?: string; pendingNoteImages?: readonly TestCaseNoteImage[] }
+export type EditableTestCase = TestRunCase & { resultSaveFailed?: boolean; notesSave?: 'saving' | 'failed'; notesError?: string; pendingNoteImages?: readonly TestCaseNoteImage[] }
 
 type Entry = {
   /** What the store returned last. A failed save shows this again. */
@@ -16,6 +16,7 @@ type Entry = {
   savedImages: Set<string>
   notesDraft?: NotesDraft
   notesError?: string
+  resultError?: boolean
 }
 
 export type CaseSaveListener = {
@@ -63,6 +64,7 @@ export class CaseSaveQueue {
     const entry = this.entries.get(caseId)
     if (!entry) return
     const { notesDraft, ...result } = patch
+    if (result.result !== undefined) entry.resultError = undefined
     entry.changes = { ...entry.changes, ...result }
     if (notesDraft) {
       const images = new Map(entry.notesDraft?.images.map(image => [image.id, image]))
@@ -89,8 +91,25 @@ export class CaseSaveQueue {
       const entry = this.entries.get(testCase.id)
       if (!entry) return testCase
       entry.confirmed = testCase
+      entry.resultError = undefined
       return this.display(entry)
     })
+  }
+
+  install(cases: TestRunCase[]) {
+    let changed: string | undefined
+    for (const testCase of cases) {
+      const entry = this.entries.get(testCase.id)
+      if (!entry) continue
+      entry.confirmed = testCase
+      this.show(entry)
+      changed = testCase.id
+    }
+    if (changed) this.listener.onSaved(changed)
+  }
+
+  get hasFailedSave(): boolean {
+    return [...this.entries.values()].some(entry => entry.resultError || entry.notesError)
   }
 
   get hasPendingNotes(): boolean {
@@ -120,6 +139,7 @@ export class CaseSaveQueue {
       ...entry.confirmed,
       ...entry.savingResult,
       ...entry.changes,
+      resultSaveFailed: entry.resultError,
       ...entry.notesDraft && {
         notes: entry.notesDraft.notes,
         notesSave: entry.notesError ? 'failed' : 'saving',
@@ -148,6 +168,7 @@ export class CaseSaveQueue {
     this.inFlight += 1
     void save.then((saved) => {
       entry.confirmed = saved
+      if (writeResult) entry.resultError = undefined
       for (const image of images ?? []) entry.savedImages.add(image.id)
       if (draft && entry.notesDraft === draft) entry.notesDraft = undefined
       const resultSettled = writeResult && sameValue({ ...valueOf(saved), ...entry.changes }, valueOf(saved))
@@ -160,7 +181,10 @@ export class CaseSaveQueue {
     }, (cause: unknown) => {
       entry.sending = false
       entry.savingResult = undefined
-      if (writeResult) entry.changes = {}
+      if (writeResult) {
+        entry.changes = {}
+        entry.resultError = true
+      }
       if (toCommandError(cause).kind === 'notFound') entry.notesDraft = undefined
       else if (draft && entry.notesDraft === draft) entry.notesError = formatError(cause)
       this.show(entry)

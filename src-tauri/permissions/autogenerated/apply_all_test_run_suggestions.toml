@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-apply-all-test-run-suggestions"
+description = "Enables the apply_all_test_run_suggestions command without any pre-configured scope."
+commands.allow = ["apply_all_test_run_suggestions"]
+
+[[permission]]
+identifier = "deny-apply-all-test-run-suggestions"
+description = "Denies the apply_all_test_run_suggestions command without any pre-configured scope."
+commands.deny = ["apply_all_test_run_suggestions"]

@@ -78,6 +78,9 @@ pub(super) fn resolve(
         (ConversationOwner::Notes { .. }, ChatTarget::Session) => ChatResponsePurpose::Refinement {
             record_kind: RefinementRecordKind::Note,
         },
+        (ConversationOwner::TestRun { .. }, ChatTarget::Session) => {
+            ChatResponsePurpose::TestRunRecording
+        }
         _ => ChatResponsePurpose::Conversation,
     };
     let mut pinned = None;

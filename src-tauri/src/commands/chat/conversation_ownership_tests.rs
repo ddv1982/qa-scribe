@@ -49,6 +49,7 @@ pub(super) fn fixture() -> (SessionService, ChatState, ChatState, StartChatJobRe
         })
         .unwrap();
     let request = StartChatJobRequest {
+        focused_case_id: None,
         intent: crate::commands::chat::ChatSendIntent::Composer,
         scope: lifecycle::scope(&record),
         context: ChatTarget::Finding {

@@ -13,7 +13,7 @@ function restartDisabled(state: ChatRestartState) {
     || state.permissionWorking || state.permissionRecoveryPending || state.inputRecoveryPending)
 }
 
-export function StartNewConversation({ state }: { state: ChatRestartState }) {
+export function StartNewConversation({ state, retainHistory }: { state: ChatRestartState; retainHistory?: boolean }) {
   const [confirmation, setConfirmation] = useState<null | { submitted: boolean; confirm: () => Promise<void> }>(null)
   const latest = useRef(state)
   useLayoutEffect(() => { latest.current = state })
@@ -37,7 +37,7 @@ export function StartNewConversation({ state }: { state: ChatRestartState }) {
     <ActionButton variant="secondary" disabled={restartDisabled(state)} onClick={restart}>
       Start new conversation
     </ActionButton>
-    {confirmation ? <RestartDialog submitted={confirmation.submitted}
+    {confirmation ? <RestartDialog submitted={confirmation.submitted} retainHistory={retainHistory}
       onCancel={() => setConfirmation(null)} onConfirm={() => {
         setConfirmation(null)
         void confirmation.confirm()
@@ -45,11 +45,11 @@ export function StartNewConversation({ state }: { state: ChatRestartState }) {
   </>
 }
 
-function RestartDialog({ submitted, onCancel, onConfirm }: {
-  submitted: boolean; onCancel: () => void; onConfirm: () => void
+function RestartDialog({ submitted, retainHistory, onCancel, onConfirm }: {
+  submitted: boolean; retainHistory?: boolean; onCancel: () => void; onConfirm: () => void
 }) {
   return <Dialog title="Start a new conversation?" onCancel={onCancel}
-    description={<p>{submitted
+    description={<p>{retainHistory ? 'This starts a fresh conversation and keeps the saved test run.' : submitted
       ? 'Submitted history remains saved. Any unsent message will be discarded.'
       : 'This replaces the current conversation and discards any unsent message. Submit completed messages to the Session Note first if you want to keep them.'}</p>}
     actions={<>

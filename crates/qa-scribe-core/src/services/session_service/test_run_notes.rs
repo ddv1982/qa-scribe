@@ -1,7 +1,7 @@
 use std::{collections::BTreeSet, fs::File, path::Path};
 
 use rusqlite::{OptionalExtension, params};
-use serde_json::Value;
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::{SessionService, attachments, now, test_runs::update_case_on};
@@ -12,11 +12,12 @@ use crate::{
         chat::{MAX_CHAT_IMAGE_BYTES, validate_chat_image},
         managed_import::PreparedManagedAttachment,
     },
-    domain::{AttachmentDraft, TestCaseNoteImage, TestCaseNotes, TestRunCase},
+    domain::{
+        AttachmentDraft, TEST_CASE_NOTES_MAX_BYTES, TestCaseNoteImage, TestCaseNotes, TestRunCase,
+    },
     error::validation,
 };
 
-const MAX_DOCUMENT_BYTES: usize = 64 * 1024;
 const MAX_IMAGES: usize = 8;
 
 pub struct PreparedTestCaseNotes {
@@ -217,7 +218,7 @@ fn prepare_image(session: &str, image: &TestCaseNoteImage) -> Result<PreparedMan
 }
 
 fn parse(body: &str) -> Result<Value> {
-    if body.len() > MAX_DOCUMENT_BYTES {
+    if body.len() > TEST_CASE_NOTES_MAX_BYTES {
         return Err(validation("Result notes are too long"));
     }
     let document: Value =
@@ -228,6 +229,42 @@ fn parse(body: &str) -> Result<Value> {
         return Err(validation("Result notes require an editor document"));
     }
     Ok(document)
+}
+
+pub(super) fn append_suggested_notes(case: &TestRunCase, addition: &str) -> Result<String> {
+    let mut document = match &case.notes {
+        Some(notes) => parse(&notes.body_json)?,
+        None => {
+            let content = case
+                .remark
+                .as_deref()
+                .map(str::trim)
+                .filter(|text| !text.is_empty())
+                .map(crate::chat::markdown::literal)
+                .unwrap_or_default();
+            json!({"schemaVersion": 1, "doc": {"type": "doc", "content": content}})
+        }
+    };
+    let doc = document["doc"]
+        .as_object_mut()
+        .expect("decoded editor document");
+    let content = doc
+        .entry("content")
+        .or_insert_with(|| json!([]))
+        .as_array_mut()
+        .ok_or_else(|| validation("Result notes contain invalid content"))?;
+    let mut addition = parse(addition)?;
+    let blocks = addition["doc"]["content"]
+        .as_array_mut()
+        .expect("validated suggestion blocks");
+    content.append(blocks);
+    let body_json = document.to_string();
+    if body_json.len() > TEST_CASE_NOTES_MAX_BYTES {
+        return Err(validation(
+            "Result notes are too long to append this suggestion",
+        ));
+    }
+    Ok(body_json)
 }
 
 fn collect_images<'a>(node: &'a Value, ids: &mut BTreeSet<&'a str>) -> Result<()> {
@@ -263,6 +300,15 @@ pub(crate) fn summarize(body_json: String) -> TestCaseNotes {
         text: text.trim().into(),
         image_count,
     }
+}
+
+pub(super) fn project_body(body: &str) -> Result<String> {
+    let value: Value =
+        serde_json::from_str(body).map_err(|_| validation("Invalid test case document"))?;
+    let mut text = String::new();
+    let mut images = 0;
+    project(value.get("doc").unwrap_or(&value), &mut text, &mut images);
+    Ok(text.trim().into())
 }
 
 fn project(node: &Value, text: &mut String, image_count: &mut usize) {

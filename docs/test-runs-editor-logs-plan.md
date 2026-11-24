@@ -98,15 +98,71 @@ Acceptance: the E2E passes and the format contract test stays green.
 
 Goal: the tester says what happened; Ask AI drafts Results and notes additions for one or more cases; the tester applies each row or all of them. Works without Azure.
 
-- [ ] ADR 0013 written (D4); ADR 0012 decision 4 marked superseded; CONTEXT.md "Result", "Test run" and "Ask AI" updated; `docs/ask-ai-spec.md` test run paragraph replaced by a "Suggested results" card with a row per case, "Update" per row and "Apply all". Reviewed by the user before any code.
-- [ ] Only the Rust AI report (`test_run_report.rs`) gains case positions and ids. A case the tester focused with "Ask AI about this case" goes first with its steps and expected results, in a section with its own byte budget; `bounded_test_run_report` (`chat/test_run.rs:14-24`) truncates only the rest. If the focused case alone exceeds its budget (notes can reach 64 KiB), the turn is refused with a clear message. Copy report stays free of internal ids. Rust tests: a focused last case of a large test run, an oversized single case.
-- [ ] Send and Retry (`app/sessionChat.send.ts:98`) pass one test-run edit barrier: block new edits, drain tracked image reads (`useTestRuns.ts:19`) and pending saves of every case, refuse while a save has failed, and hold until the snapshot is captured. Preparation stores a base fingerprint (result, `notes_json`, legacy remark) per case before the model runs. Retry refreshes the fingerprints through a retry-source row like `chat_note_retry_sources`, since stored contracts are immutable (`storage/chat_refinements.rs:38-39`). Rust and Vitest tests including Retry, a failed save and an image read at the barrier.
-- [ ] New response purpose for test run recording: a list of `{caseId, result?, notesMarkdown?, rationale}`. Each row is rejected unless its case belongs to this test run, it is non-empty, a Result has a rationale, and no case appears twice. `notesMarkdown` goes through `markdown::parse`. Instructions in `chat/test_run.rs` rewritten: suggest, never claim to have recorded. Rust tests including a case of another test run and a duplicate case.
-- [ ] Spike: reuse `chat_refinements` Offered/Applied/Undo per row or add an additive table. Decision and reason recorded here before coding.
-- [ ] `apply_test_run_suggestion(row)` and "Apply all": each row in its own transaction checks its base fingerprint, seeds notes from a legacy remark, appends notes within the 64 KiB cap (`test_run_notes.rs:19`), sets the Result and marks the row Applied; a retry writes once. "Apply all" applies the rows that are not out of date and reports the others. Undo per row restores the exact previous Result, notes and remark only if the case still matches the applied fingerprint. Rust tests: stale row, retry, remark, cap, Apply all with one stale row, undo after a later edit.
-- [ ] Apply and Undo run through the case's save queue: drain pending writes and image imports, refuse while a save has failed, suspend case edits until the command settles, then install the returned case in `CaseSaveQueue` and the open notes editor. Vitest: pending save, failed save, an image read at the flush boundary, typing after Apply keeps both texts.
-- [ ] Card UI: a row per case with current and proposed Result, rationale and notes; states Suggested, Applied with Undo, Out of date; "Apply all". Vitest.
-- [ ] Rewrite `e2e/specs/ask-ai-test-run.e2e.mjs`, replacing its "no proposal" assertion deliberately: "TC 2 failed with a 500, TC 3 passed" gives two rows; Apply all shows both Results and notes, earlier notes kept; Undo on TC 3 restores it; a manual edit makes a row out of date. Spec id added to the gate list at `scripts/run-e2e.mjs:101` (it is not there today).
+- [x] ADR 0013 written (D4); ADR 0012 decision 4 marked superseded; CONTEXT.md "Result", "Test run" and "Ask AI" updated; `docs/ask-ai-spec.md` test run paragraph replaced by a "Suggested results" card with a row per case, "Update" per row and "Apply all". Reviewed and approved by the user on 2026-11-24.
+- [x] Only the Rust AI report (`test_run_report.rs`) gains case positions and ids. A case the tester focused with "Ask AI about this case" goes first with its steps and expected results, in a section with its own byte budget; `bounded_test_run_report` (`chat/test_run.rs:14-24`) truncates only the rest. If the focused case alone exceeds its budget (notes can reach 64 KiB), the turn is refused with a clear message. Copy report stays free of internal ids. Rust tests: a focused last case of a large test run, an oversized single case.
+- [x] Send and Retry (`app/sessionChat.send.ts:98`) pass one test-run edit barrier: block new edits, drain tracked image reads (`useTestRuns.ts:19`) and pending saves of every case, refuse while a save has failed, and hold until the snapshot is captured. Preparation stores a base fingerprint (result, `notes_json`, legacy remark) per case before the model runs. Retry takes fresh fingerprints in the per-attempt source table described in the spike below. Rust and Vitest tests including Retry, a failed save and an image read at the barrier.
+- [x] New response purpose for test run recording: a list of `{caseId, result?, notesMarkdown?, rationale}`. Each row is rejected unless its case belongs to this test run, it is non-empty, a Result has a rationale, and no case appears twice. `notesMarkdown` goes through `markdown::parse`. Instructions in `chat/test_run.rs` rewritten: suggest, never claim to have recorded. Rust tests including a case of another test run and a duplicate case.
+- [x] Spike: decide how to store Offered, Applied and Undo per row.
+  - The migration lands with Send and Retry because both commands need the attempt-source table before they can capture a base. The response validator and storage checks run together against that schema.
+  - **Use an additive `chat_test_run_suggestions` table.** Store one row per assistant
+    message and test case, with its validated suggestion, base fingerprint and
+    independent apply state. Link rows to the message and `test_run_cases` with
+    cascading deletes, and check that the case belongs to the conversation's test run.
+    `chat_refinements` has unique user and assistant message ids, and its JSON describes
+    one target, patch, pair of editor values and state. Putting several cases in that
+    JSON would require a new row lifecycle inside the existing proposal, and inserting
+    one refinement per case would require changing the message constraints.
+    [storage/chat_refinements.rs:6–12](../crates/qa-scribe-core/src/storage/chat_refinements.rs#L6-L12),
+    [domain/chat_response.rs:93–103](../crates/qa-scribe-core/src/domain/chat_response.rs#L93-L103),
+    [storage/test_runs.rs:19–31](../crates/qa-scribe-core/src/storage/test_runs.rs#L19-L31).
+  - **Use the existing transaction pattern.** Completion currently inserts an Offered
+    proposal with the assistant reply. Draft text updates write the record and mark the
+    single proposal Applied in one transaction. Note and visual draft updates each save
+    the previous record fields under the proposal id and guard Undo against the applied
+    revision. For test runs, persist Offered rows with the reply. Each row transaction
+    verifies its base and saves the case, Applied state, exact previous Result, nullable
+    notes JSON and legacy remark, and applied fingerprint together. Undo checks the
+    applied fingerprint and restores those values in the same transaction that returns
+    the row to Offered. The Note and draft undo records describe different stored
+    fields.
+    [chat_responses.rs:200–211](../crates/qa-scribe-core/src/services/session_service/chat_responses.rs#L200-L211),
+    [chat_turns.rs:150–169](../crates/qa-scribe-core/src/services/session_service/chat_turns.rs#L150-L169),
+    [chat_updates.rs:6–8](../crates/qa-scribe-core/src/services/session_service/chat_updates.rs#L6-L8),
+    [chat_updates.rs:25–49](../crates/qa-scribe-core/src/services/session_service/chat_updates.rs#L25-L49),
+    [chat_note_updates.rs:23–74](../crates/qa-scribe-core/src/services/session_service/chat_note_updates.rs#L23-L74),
+    [chat_visuals.rs:188–236](../crates/qa-scribe-core/src/services/session_service/chat_visuals.rs#L188-L236).
+  - **Keep the response contract immutable and store the attempt's sources separately.**
+    Use the existing contract mechanism with the new test run response purpose.
+    Contracts are keyed by user message, capped at 1 KiB and protected by an update
+    trigger. Retry reuses the user message with a new turn id, and the Note retry table
+    stores a single fingerprint looked up by the matching assistant turn. Add
+    `chat_test_run_sources` keyed by user message, turn and case for both Send and
+    Retry. Store the fingerprints from the same saved snapshot used to build the AI
+    report after the edit barrier. Completion copies the base for each valid case from
+    its own attempt into the Offered row. This covers edits made while the model is
+    running and lets Retry use the latest saved values while preserving the original
+    contract. Existing turns stored with the Conversation purpose keep that purpose on
+    Retry.
+    [storage/chat_refinements.rs:2–17](../crates/qa-scribe-core/src/storage/chat_refinements.rs#L2-L17),
+    [storage/chat_refinements.rs:38–39](../crates/qa-scribe-core/src/storage/chat_refinements.rs#L38-L39),
+    [chat_turns.rs:15–27](../crates/qa-scribe-core/src/services/session_service/chat_turns.rs#L15-L27),
+    [chat_responses.rs:30–75](../crates/qa-scribe-core/src/services/session_service/chat_responses.rs#L30-L75),
+    [chat_questions.rs:67–82](../crates/qa-scribe-core/src/services/session_service/chat_questions.rs#L67-L82),
+    [preparation.rs:75–81](../src-tauri/src/commands/chat/preparation.rs#L75-L81).
+  - **Migration impact.** Add both tables in the next schema version inside the existing
+    initialization transaction, after test run storage is installed. They start empty on
+    upgrade. Existing contracts, proposals, Note and draft undo records, and test run
+    cases need no rewrite or backfill. Verify a fresh database and an upgrade with
+    existing conversations and test runs, including foreign key cleanup on deletion. The
+    initializer checks foreign keys before advancing `user_version`.
+    [storage/mod.rs:116–155](../crates/qa-scribe-core/src/storage/mod.rs#L116-L155).
+- [x] Install the two additive tables in schema 26. Verified fresh storage, preservation on upgrade from schema 25, case ownership, and cascading cleanup.
+- [x] `apply_test_run_suggestion(row)` and "Apply all": each row in its own transaction checks its base fingerprint, seeds notes from a legacy remark, appends notes within the 64 KiB cap (`test_run_notes.rs:19`), sets the Result and marks the row Applied; a retry writes once. "Apply all" applies the rows that are not out of date and reports the others. Undo per row restores the exact previous Result, notes and remark only if the case still matches the applied fingerprint. Rust tests: stale row, retry, remark, cap, Apply all with one stale row, undo after a later edit.
+- [x] Apply and Undo run through the case's save queue: drain pending writes and image imports, refuse while a save has failed, suspend case edits until the command settles, then install the returned case in `CaseSaveQueue` and the open notes editor. Vitest: pending save, failed save, an image read at the flush boundary, typing after Apply keeps both texts.
+- [x] Card UI: a row per case with current and proposed Result, rationale and notes; states Suggested, Applied with Undo, Out of date; "Apply all". Vitest.
+  - On narrow windows, closing Ask AI is necessary to reach the run. Reopening the latest conversation with suggestions keeps Update and Undo available. The test run options let the tester start a new conversation. This adds one optional history field and reuses the existing confirmation dialog.
+- [x] Rewrite `e2e/specs/ask-ai-test-run.e2e.mjs`, replacing its "no proposal" assertion deliberately: "TC 2 failed with a 500, TC 3 passed" gives two rows; Apply all shows both Results and notes, earlier notes kept; Undo on TC 3 restores it; a manual edit makes a row out of date. Spec id added to the gate list at `scripts/run-e2e.mjs:101` (it is not there today).
+- [x] Describe suggested Results, appended Result notes, Apply all and Undo in the Unreleased changelog and Getting started.
 
 Acceptance: the E2E passes, and a Rust test rejects a row for a case of another test run.
 
@@ -148,4 +204,4 @@ Library switch; paid Tiptap template or UI components; image width and alignment
 
 ## Open questions for the user
 
-1. Is "flexible" right as read in D4: one reply may suggest Results, notes and evidence for several test cases, each applied per row or with "Apply all"? Needed before Phase 5.
+1. **Answered: flexible, as D4.** One reply may suggest Results, Result notes additions and, in a later phase, log evidence for one or more test cases. The tester can apply them per row or with "Apply all".

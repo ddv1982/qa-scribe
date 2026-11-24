@@ -144,7 +144,7 @@ export function useAppController() {
       // A test run conversation sends the run's report from storage, never a record snapshot.
       if (owner?.kind === 'test_run') return { kind: 'session' }
       return owner?.kind === 'record' ? captureAvailableRecordContext(sessionId, owner.record, recordWorkspace, owner.record.kind === 'finding' ? { state: findingLoadState, ids: findingSourceIds } : { state: draftLoadState, ids: draftSourceIds }) : activeView === 'sessions' ? { kind: 'session' } : askAi.captureNotesContext(sessionId)
-    }, recordWritesPending: recordPersistence.coordination.hasPendingRecordCompensations,
+    }, focusedRunCase: runId => askAi.focusedRunCase(runId), recordWritesPending: recordPersistence.coordination.hasPendingRecordCompensations,
   })
   const { setEditedSessionTitle, setEditedNoteBody, adoptRefinedNote } = createNoteEditors({
     session: sessionWorkspace, sessionActions, latestNoteGenerationUndoRef, setLatestNoteGenerationUndo,

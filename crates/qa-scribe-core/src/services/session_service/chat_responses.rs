@@ -82,7 +82,7 @@ pub(super) fn start(
     purpose: ChatResponsePurpose,
     record_owned: bool,
     local_edit: bool,
-) -> Result<()> {
+) -> Result<String> {
     let id: String = connection.query_row(
         "SELECT id FROM chat_messages WHERE draft_id=?1 AND turn_id=?2 AND role='user'",
         params![draft, turn],
@@ -119,11 +119,12 @@ pub(super) fn start(
             serde_json::to_string(&contract).map_err(|e| validation(e.to_string()))?
         ],
     )?;
-    Ok(())
+    Ok(id)
 }
 pub(super) struct Completion {
     pub markdown: String,
     pub proposal: Option<RefinementProposal>,
+    pub test_run_suggestions: Vec<crate::chat::test_run::SuggestionDraft>,
     pub response: Option<ChatResponseInfo>,
 }
 pub(super) fn completed(
@@ -135,6 +136,7 @@ pub(super) fn completed(
     let mut result = Completion {
         markdown: raw.into(),
         proposal: None,
+        test_run_suggestions: vec![],
         response: None,
     };
     let Some(contract) = contract(connection, &user.id)? else {
@@ -157,7 +159,15 @@ pub(super) fn completed(
         &user.context,
         user.images.len(),
         &note_images,
-    ) {
+    )
+    .and_then(|response| {
+        super::test_run_suggestions::validate_cases(
+            connection,
+            user,
+            &response.test_run_suggestions,
+        )?;
+        Ok(response)
+    }) {
         Ok(response) => response,
         Err(_) => {
             result.markdown = serde_json::from_str::<serde_json::Value>(raw)
@@ -170,7 +180,9 @@ pub(super) fn completed(
                         .map(str::to_owned)
                 })
                 .unwrap_or_else(|| raw.to_owned());
-            let warning = if contract.version() == 3 {
+            let warning = if purpose == ChatResponsePurpose::TestRunRecording {
+                "No results were suggested. The reply did not contain a usable suggestion."
+            } else if contract.version() == 3 {
                 "No edit was created. The reply did not contain a usable suggestion."
             } else if matches!(purpose, ChatResponsePurpose::Refinement { .. }) {
                 "No editable proposal was created. The response is retained as text without interactive controls."
@@ -189,6 +201,7 @@ pub(super) fn completed(
         }
     };
     result.markdown = parsed.markdown;
+    result.test_run_suggestions = parsed.test_run_suggestions;
     result.response = Some(ChatResponseInfo {
         source_user_message_id: user.id.clone(),
         purpose,

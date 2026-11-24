@@ -23,6 +23,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
     (
         service,
         StartChatJobRequest {
+            focused_case_id: None,
             intent: crate::commands::chat::ChatSendIntent::Composer,
             context: ChatTarget::Session,
             scope: scope(&chat),
@@ -64,6 +65,7 @@ fn preparation_persists_user_and_durable_attribution_before_execution() {
         prepare(
             &service,
             &StartChatJobRequest {
+                focused_case_id: None,
                 intent: crate::commands::chat::ChatSendIntent::Composer,
                 context: ChatTarget::Session,
                 scope: scope(&chat),
@@ -168,6 +170,7 @@ fn oversized_send_preserves_composer_without_persisting_user() {
         prepare(
             &service,
             &StartChatJobRequest {
+                focused_case_id: None,
                 intent: crate::commands::chat::ChatSendIntent::Composer,
                 context: ChatTarget::Session,
                 scope: scope(&chat),

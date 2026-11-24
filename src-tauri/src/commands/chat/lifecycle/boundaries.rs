@@ -16,6 +16,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
     (
         service,
         StartChatJobRequest {
+            focused_case_id: None,
             intent: crate::commands::chat::ChatSendIntent::Composer,
             context: ChatTarget::Session,
             scope: scope(&chat),

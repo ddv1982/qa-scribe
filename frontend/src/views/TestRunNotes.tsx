@@ -12,12 +12,12 @@ import { richEditorControllerForId, richEditorImageInserterForId, type RichEdito
 import { readClipboardImageDataUrl, type TestCaseNoteImage } from '../tauri'
 import type { CasePatch, EditableTestCase } from '../testware/caseSaveQueue'
 import { notesText } from '../testware/testRunNotes'
-import { trackNoteImageRead } from '../testware/useTestRuns'
+import { isTestRunEditBlocked, trackNoteImageRead } from '../testware/useTestRuns'
 import { formatError } from '../ui/format'
 
 const maxImageBytes = 10 * 1024 * 1024
 
-export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCase; onChange: (patch: CasePatch) => void }) {
+export function TestRunNotes({ testCase, onChange, readOnly = false }: { testCase: EditableTestCase; onChange: (patch: CasePatch, completingImageRead?: boolean) => void; readOnly?: boolean }) {
   const [editing, setEditing] = useState(false)
   const [reading, setReading] = useState(false)
   const [imageError, setImageError] = useState<string | null>(null)
@@ -25,6 +25,7 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
   const editorId = `${id}-editor`
   const pending = useRef(new Map<string, TestCaseNoteImage>())
   const readingRef = useRef(false)
+  const insertingImage = useRef(false)
   const { notes, remark, title, notesSave, notesError } = testCase
   const document = useMemo(() => parseRichEditorDocument(notes?.bodyJson) ?? richEditorDocumentFromPlainText(remark ?? ''), [notes?.bodyJson, remark])
   const latestDocument = useRef(document)
@@ -41,16 +42,18 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
   }, [notesSave, references])
 
   function save(next: RichEditorDocument) {
+    if (!insertingImage.current && isTestRunEditBlocked(testCase.runId)) return
     latestDocument.current = next
     const imageRefs = managedAttachmentImagesInDocument(next)
     const bodyJson = serializeRichEditorDocument(next)
     onChange({ notesDraft: {
       notes: { bodyJson, text: notesText(next), imageCount: imageRefs.length },
       images: imageRefs.flatMap(({ attachmentId }) => pending.current.get(attachmentId) ?? []),
-    } })
+    } }, insertingImage.current)
   }
 
   function addImage(insert: RichEditorImageInserter, filename: string, read: () => Promise<string | null>) {
+    if (isTestRunEditBlocked(testCase.runId)) return Promise.resolve()
     return trackNoteImageRead(testCase.runId, readAndInsertImage(insert, filename, read))
   }
 
@@ -66,6 +69,7 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
       if (dataUrl.length > Math.ceil(maxImageBytes / 3) * 4 + 64) throw new Error('Images must be at most 10 MiB each.')
       const image = { id: crypto.randomUUID(), filename, dataUrl }
       pending.current.set(image.id, image)
+      insertingImage.current = true
       if (richEditorImageInserterForId(editorId) !== insert) {
         const latest = latestDocument.current
         save({ ...latest, doc: { ...latest.doc, content: [
@@ -79,6 +83,7 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
     } catch (cause) {
       if (richEditorImageInserterForId(editorId) === insert) setImageError(formatError(cause))
     } finally {
+      insertingImage.current = false
       readingRef.current = false
       setReading(false)
     }
@@ -92,6 +97,7 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
   }
 
   function paste(event: ClipboardEvent<HTMLElement>) {
+    if (isTestRunEditBlocked(testCase.runId)) return
     const controller = richEditorControllerForId(editorId)
     if (!controller || !(event.target instanceof Element) || !event.target.closest('[contenteditable="true"]')) return
     const { editor, insertImage } = controller
@@ -127,7 +133,7 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
     <div id={id} hidden={!editing} onPasteCapture={paste}>
       {editing ? <div className="test-run-notes-editor">
         <FormatToolbar editorId={editorId} onUploadImage={chooseImage} />
-        <RichTextEditor editorId={editorId} value={document} onChange={save}
+        <RichTextEditor editorId={editorId} value={document} onChange={save} readOnly={readOnly}
           ariaLabel={`Result notes for ${title}`} placeholder="Write what happened or paste a screenshot…"
           transformPastedHTML={withoutPastedImages} pendingImagePreviews={testCase.pendingNoteImages} />
       </div> : null}
@@ -137,7 +143,7 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
     </div>
     {notesSave === 'failed' ? <div className="test-run-notes-error">
       <span role="alert">{notesError ? `Result notes could not be saved. ${notesError}` : 'Result notes could not be saved.'}</span>
-      <ActionButton variant="quiet" onClick={() => save(document)}>Retry</ActionButton>
+      <ActionButton variant="quiet" disabled={readOnly} onClick={() => save(document)}>Retry</ActionButton>
     </div> : null}
     {imageError ? <p role="alert" className="field-error">{imageError}</p> : null}
   </div>

@@ -40,7 +40,20 @@ BEFORE UPDATE OF run_id, position, group_title, title, body_json ON test_run_cas
 BEGIN SELECT RAISE(ABORT, 'Test run case text is immutable'); END;
 ";
 
-pub(super) fn migrate_result_notes(connection: &rusqlite::Connection) -> rusqlite::Result<()> {
+pub(super) fn migrate(connection: &rusqlite::Connection, found: i32) -> rusqlite::Result<()> {
+    if found < 22 {
+        connection.execute_batch(SCHEMA)?;
+    }
+    if found < 25 {
+        migrate_result_notes(connection)?;
+    }
+    if found < 26 {
+        connection.execute_batch(super::chat_test_run_suggestions::SCHEMA)?;
+    }
+    Ok(())
+}
+
+fn migrate_result_notes(connection: &rusqlite::Connection) -> rusqlite::Result<()> {
     let notes_exist: bool = connection.query_row(
         "SELECT EXISTS(SELECT 1 FROM pragma_table_info('test_run_cases') WHERE name = 'notes_json')",
         [],

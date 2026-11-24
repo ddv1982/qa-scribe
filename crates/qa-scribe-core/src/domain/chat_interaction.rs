@@ -22,6 +22,7 @@ pub enum ChatRequestIntent {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ChatResponsePurpose {
     Conversation,
+    TestRunRecording,
     Refinement {
         #[serde(rename = "recordKind")]
         record_kind: super::RefinementRecordKind,
