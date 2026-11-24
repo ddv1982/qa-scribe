@@ -77,3 +77,47 @@ describe('editor tables', () => {
     ))
   })
 })
+
+describe('pasting at a caret inside a cell', () => {
+  const abcXyz = '<table><tbody><tr><th><p>abc</p></th><th><p>xyz</p></th></tr><tr><td><p>1</p></td><td><p>2</p></td></tr></tbody></table>'
+  const hardBreak = { type: 'hardBreak' }
+
+  function editorAtAbc(offset: number): Editor {
+    editor = new Editor({ extensions: richTextEditorExtensions(), content: abcXyz })
+    // Position 4 is the start of "abc": table, row, header cell and paragraph each open one level.
+    editor.commands.setTextSelection(4 + offset)
+    return editor
+  }
+
+  it('inserts lines of plain text as lines of that cell', () => {
+    editorAtAbc(1).view.pasteText('X\nY', new Event('paste') as ClipboardEvent)
+    expect(editor!.getJSON().content?.[0]).toEqual(table(
+      row(header(text('aX'), hardBreak, text('Ybc')), header(text('xyz'))),
+      row(cell(text('1')), cell(text('2'))),
+    ))
+  })
+
+  it('inserts HTML paragraphs as lines of that cell', () => {
+    editorAtAbc(1).view.pasteHTML('<p>X</p><p><strong>Y</strong></p>', new Event('paste') as ClipboardEvent)
+    expect(editor!.getJSON().content?.[0]).toEqual(table(
+      row(header(text('aX'), hardBreak, text('Y', 'bold'), text('bc')), header(text('xyz'))),
+      row(cell(text('1')), cell(text('2'))),
+    ))
+  })
+
+  // Whole paragraphs copied from an editor carry closed ends, which would split the table.
+  it('inserts whole paragraphs copied from an editor as lines of that cell', () => {
+    editorAtAbc(1).view.pasteHTML('<p data-pm-slice="0 0 []">X</p><p>Y</p>', new Event('paste') as ClipboardEvent)
+    expect(editor!.getJSON().content?.filter((node) => node.type === 'table')).toEqual([
+      table(row(header(text('aX'), hardBreak, text('Ybc')), header(text('xyz'))), row(cell(text('1')), cell(text('2')))),
+    ])
+  })
+
+  it('still pastes a table over the cells from the caret on', () => {
+    editorAtAbc(1).view.pasteHTML('<table><tr><td>X</td><td>Y</td></tr></table>', new Event('paste') as ClipboardEvent)
+    expect(editor!.getJSON().content?.[0]).toEqual(table(
+      row(header(text('X')), header(text('Y'))),
+      row(cell(text('1')), cell(text('2'))),
+    ))
+  })
+})

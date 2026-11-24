@@ -6,8 +6,9 @@
  */
 import { Extension, type JSONContent } from '@tiptap/core'
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table'
-import { DOMParser as ProseMirrorDOMParser, Fragment, type Node as ProseMirrorNode, type Schema } from '@tiptap/pm/model'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { DOMParser as ProseMirrorDOMParser, Fragment, Slice, type Node as ProseMirrorNode, type ParseOptions, type ResolvedPos, type Schema } from '@tiptap/pm/model'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import type { EditorView } from '@tiptap/pm/view'
 
 // Spans are kept as attributes because the table commands read them, but they are always 1.
 const cellAttributes = () => ({
@@ -24,8 +25,8 @@ const singleParagraphCell = (tag: 'td' | 'th') => ({
 })
 
 /** Every block a pasted cell holds becomes one line of its single paragraph. */
-function cellParagraph(element: Node, schema: Schema): Fragment {
-  const parsed = ProseMirrorDOMParser.fromSchema(schema).parse(element)
+function cellParagraph(element: Node, schema: Schema, preserveWhitespace?: ParseOptions['preserveWhitespace']): Fragment {
+  const parsed = ProseMirrorDOMParser.fromSchema(schema).parse(element, { preserveWhitespace })
   const inline: ProseMirrorNode[] = []
   parsed.descendants((node) => {
     if (!node.isTextblock) return true
@@ -43,6 +44,45 @@ function cellParagraph(element: Node, schema: Schema): Fragment {
     return false
   })
   return Fragment.from(schema.nodes.paragraph.create(null, inline))
+}
+
+/**
+ * Clipboard content without a table, pasted or dropped in a cell, becomes lines of that cell.
+ * Parsed as blocks, ProseMirror would wrap each block in a cell of its own to fit the row, and
+ * the table paste would then write them over the cells from the caret on. Content with a table
+ * still fills cells.
+ */
+class TableClipboardParser extends ProseMirrorDOMParser {
+  override parseSlice(dom: Node, options: ParseOptions = {}): Slice {
+    if (!options.context || !inTableCell(options.context) || holdsTable(dom)) return super.parseSlice(dom, options)
+    return new Slice(cellParagraph(dom, this.schema, options.preserveWhitespace), 1, 1)
+  }
+}
+
+/**
+ * Whole paragraphs copied from an editor keep closed ends after parsing, so the paste would split
+ * the table around them; at a caret in a cell their lines join the caret's line instead.
+ */
+function pasteClosedParagraphInCell(view: EditorView, _event: ClipboardEvent, slice: Slice): boolean {
+  const { selection } = view.state
+  const closed = slice.openStart === 0 || slice.openEnd === 0
+  if (!closed || slice.content.childCount !== 1 || slice.content.firstChild?.type.name !== 'paragraph') return false
+  if (!(selection instanceof TextSelection) || !inTableCell(selection.$from)) return false
+  view.dispatch(view.state.tr.replaceSelection(new Slice(slice.content, 1, 1)).scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste'))
+  return true
+}
+
+function inTableCell($position: ResolvedPos): boolean {
+  for (let depth = $position.depth; depth > 0; depth -= 1) {
+    const role: unknown = $position.node(depth).type.spec.tableRole
+    if (role === 'cell' || role === 'header_cell') return true
+  }
+  return false
+}
+
+function holdsTable(dom: Node): boolean {
+  const tableTags = 'table, tr, td, th'
+  return dom instanceof Element && (dom.matches(tableTags) || dom.querySelector(tableTags) !== null)
 }
 
 const headerRowKey = new PluginKey('tableHeaderRow')
@@ -72,7 +112,9 @@ export const editorTableExtensions = [
   Table.extend({
     renderHTML: () => ['table', ['tbody', 0]],
     addProseMirrorPlugins() {
-      return [...(this.parent?.() ?? []), headerRowPlugin()]
+      const { schema } = this.editor
+      const clipboardParser = new TableClipboardParser(schema, ProseMirrorDOMParser.fromSchema(schema).rules)
+      return [...(this.parent?.() ?? []), headerRowPlugin(), new Plugin({ props: { clipboardParser, handlePaste: pasteClosedParagraphInCell } })]
     },
   }),
   TableRow,
