@@ -77,3 +77,18 @@ fn code_inside_bold_in_a_cell_keeps_only_its_code_mark() {
         json!([bold("Run "), code("a | b"), bold(" now")])
     );
 }
+
+#[test]
+fn a_line_break_at_the_edge_of_a_cell_reads_back_as_a_line_break() {
+    let br = || json!({"type":"hardBreak"});
+    for (cell_html, expected) in [
+        ("<br>alpha<br>", json!([br(), text("alpha"), br()])),
+        ("<br>", json!([br()])),
+        (
+            "alpha<br><br>beta",
+            json!([text("alpha"), br(), br(), text("beta")]),
+        ),
+    ] {
+        assert_eq!(body_cell(cell_html), expected, "{cell_html}");
+    }
+}
