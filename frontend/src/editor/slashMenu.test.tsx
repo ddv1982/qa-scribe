@@ -97,6 +97,32 @@ describe('slash menu', () => {
     expect(option('Heading 1')).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('keeps the listbox and its ARIA references while a new query loads', async () => {
+    const { editor } = await renderEditor('<p>Evidence</p><p></p>')
+    typeAt('', '/')
+    const listed = await options()
+    const listbox = screen.getByRole('listbox')
+    const changedAttributes: (string | null)[] = []
+    const collect = (records: MutationRecord[]) => {
+      changedAttributes.push(...records.map((record) => record.attributeName))
+    }
+    const observer = new MutationObserver(collect)
+    observer.observe(editor, { attributeFilter: ['aria-controls', 'aria-activedescendant', 'aria-autocomplete'] })
+    try {
+      typeAt('/', 'h')
+      expect(screen.queryByRole('listbox')).toBe(listbox)
+      expect(within(listbox).getAllByRole('option')).toEqual(listed)
+      await waitFor(() => expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(6))
+      expect(listbox).toBeInTheDocument()
+      expect(editor).toHaveAttribute('aria-controls', listbox.id)
+      expect(editor).toHaveAttribute('aria-activedescendant', listed[0].id)
+      collect(observer.takeRecords())
+      expect(changedAttributes).toEqual([])
+    } finally {
+      observer.disconnect()
+    }
+  })
+
   it('filters by the typed query and inserts the highlighted block with Enter', async () => {
     const { editor, html } = await renderEditor('<p>Gateway declined</p><p></p>')
     typeAt('', '/warn')

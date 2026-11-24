@@ -10,9 +10,6 @@ export type SlashMenuHandle = { onKeyDown: (event: KeyboardEvent) => boolean }
 
 export type SlashMenuListProps = SuggestionProps<SlashMenuItem, SlashMenuItem> & { ref?: Ref<SlashMenuHandle> }
 
-// The editor's own attributes are set through ProseMirror, which leaves these alone.
-const editorAttributes = ['aria-controls', 'aria-activedescendant', 'aria-autocomplete'] as const
-
 export function SlashMenuList({ editor, items, query, command, ref }: SlashMenuListProps) {
   const listId = useId()
   // The highlight starts at the first option again whenever the query changes.
@@ -20,6 +17,8 @@ export function SlashMenuList({ editor, items, query, command, ref }: SlashMenuL
   const index = highlight.query === query ? Math.min(highlight.index, items.length - 1) : 0
   const active = items[index]
   const optionId = (item: SlashMenuItem) => `${listId}-${item.id}`
+  const activeId = active ? optionId(active) : undefined
+  const hasItems = items.length > 0
 
   useImperativeHandle(ref, () => ({
     onKeyDown(event) {
@@ -38,19 +37,25 @@ export function SlashMenuList({ editor, items, query, command, ref }: SlashMenuL
   }))
 
   useEffect(() => {
+    if (!hasItems) return
     const dom = editor.view.dom
-    if (!active) return
     dom.setAttribute('aria-controls', listId)
-    dom.setAttribute('aria-activedescendant', optionId(active))
     dom.setAttribute('aria-autocomplete', 'list')
-    return () => editorAttributes.forEach((name) => dom.removeAttribute(name))
-  })
+    return () => {
+      dom.removeAttribute('aria-controls')
+      dom.removeAttribute('aria-autocomplete')
+    }
+  }, [editor, hasItems, listId])
 
   useEffect(() => {
-    if (active) document.getElementById(optionId(active))?.scrollIntoView?.({ block: 'nearest' })
-  })
+    if (!activeId) return
+    const dom = editor.view.dom
+    dom.setAttribute('aria-activedescendant', activeId)
+    document.getElementById(activeId)?.scrollIntoView?.({ block: 'nearest' })
+    return () => dom.removeAttribute('aria-activedescendant')
+  }, [editor, activeId])
 
-  if (items.length === 0) return null
+  if (!hasItems) return null
   return (
     <div id={listId} className="slash-menu" role="listbox" aria-label="Insert block">
       {items.map((item, itemIndex) => (

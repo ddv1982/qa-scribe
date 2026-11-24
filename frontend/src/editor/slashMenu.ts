@@ -12,18 +12,24 @@ import { SlashMenuList, type SlashMenuHandle, type SlashMenuListProps } from './
 function renderSlashMenu() {
   let component: ReactRenderer<SlashMenuHandle, SlashMenuListProps> | null = null
   let unmount: (() => void) | null = null
+  let items: SlashMenuItem[] = []
   return {
     onStart: (props: SuggestionProps<SlashMenuItem, SlashMenuItem>) => {
       component = new ReactRenderer(SlashMenuList, { props, editor: props.editor, className: 'slash-menu-popup' })
       unmount = props.mount(component.element)
     },
-    onUpdate: (props: SuggestionProps<SlashMenuItem, SlashMenuItem>) => component?.updateProps(props),
+    onUpdate: (props: SuggestionProps<SlashMenuItem, SlashMenuItem>) => {
+      // Keep the previous options visible until the new query resolves.
+      if (!props.loading) items = props.items
+      component?.updateProps({ ...props, items })
+    },
     onKeyDown: ({ event }: { event: KeyboardEvent }) => component?.ref?.onKeyDown(event) ?? false,
     onExit: () => {
       unmount?.()
       component?.destroy()
       component = null
       unmount = null
+      items = []
     },
   }
 }
