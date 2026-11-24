@@ -23,7 +23,8 @@ const RESULT_ORDER: [TestCaseResult; 4] = [
 #[derive(PartialEq, Eq)]
 pub struct TestRunChatSnapshot {
     pub report: String,
-    pub sources: BTreeMap<String, String>,
+    pub(super) sources: BTreeMap<String, String>,
+    pub(super) focused_case_id: Option<String>,
 }
 
 impl SessionService {
@@ -58,7 +59,11 @@ impl SessionService {
                 .into_iter()
                 .map(|case| (case.id, case.suggestion_fingerprint))
                 .collect();
-            Ok(TestRunChatSnapshot { report, sources })
+            Ok(TestRunChatSnapshot {
+                report,
+                sources,
+                focused_case_id: case_id.map(str::to_owned),
+            })
         })
     }
 }

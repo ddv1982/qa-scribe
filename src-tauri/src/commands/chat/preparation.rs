@@ -75,11 +75,12 @@ impl ChatPreparationSnapshot {
         // A test run conversation reads the run's current results on every turn, Retry included.
         let test_run = match &chat.owner {
             ConversationOwner::TestRun { session_id, run_id } => {
-                Some(service.test_run_chat_snapshot(
-                    session_id,
-                    run_id,
-                    request.focused_case_id.as_deref(),
-                )?)
+                let focus = if matches!(intent, ChatRequestIntent::Retry) {
+                    service.focused_test_run_case(chat.messages.last().ok_or_else(changed)?)?
+                } else {
+                    request.focused_case_id.clone()
+                };
+                Some(service.test_run_chat_snapshot(session_id, run_id, focus.as_deref())?)
             }
             _ => None,
         };
@@ -291,17 +292,13 @@ impl VerifiedChatPreparation {
         Ok(())
     }
 
-    pub fn verify_test_run_sources(
+    pub fn bind_test_run_snapshot(
         &self,
         service: &SessionService,
         user: &ChatMessage,
     ) -> Result<()> {
-        if let Some(snapshot) = &self.snapshot.test_run
-            && service.test_run_turn_sources(user)? != snapshot.sources
-        {
-            return Err(QaScribeError::Validation(
-                "The test run changed while Ask AI was preparing. Try again.".into(),
-            ));
+        if let Some(snapshot) = &self.snapshot.test_run {
+            service.bind_test_run_turn_snapshot(user, snapshot)?;
         }
         Ok(())
     }

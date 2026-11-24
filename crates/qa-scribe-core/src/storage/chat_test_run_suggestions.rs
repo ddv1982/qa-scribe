@@ -4,9 +4,11 @@ CREATE TABLE chat_test_run_sources (
   turn_id TEXT NOT NULL,
   case_id TEXT NOT NULL REFERENCES test_run_cases(id) ON DELETE CASCADE,
   fingerprint TEXT NOT NULL,
+  focused INTEGER NOT NULL DEFAULT 0 CHECK (focused IN (0, 1)),
   PRIMARY KEY (message_id, turn_id, case_id)
 );
 CREATE INDEX idx_chat_test_run_sources_case ON chat_test_run_sources(case_id);
+CREATE UNIQUE INDEX idx_chat_test_run_sources_focus ON chat_test_run_sources(message_id, turn_id) WHERE focused = 1;
 
 CREATE TABLE chat_test_run_suggestions (
   id TEXT PRIMARY KEY,

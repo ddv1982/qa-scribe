@@ -1,5 +1,4 @@
-//! A test run owns a read-only conversation: it reads the run's current report
-//! and never proposes or accepts a change.
+//! A test run conversation reads the saved report and can suggest Results and Result notes.
 
 use qa_scribe_core::{
     QaScribeError,
@@ -419,9 +418,14 @@ fn a_deleted_run_fails_a_new_turn_and_a_retry_cleanly() {
 #[test]
 fn the_focused_last_case_keeps_its_steps_when_the_rest_is_cut() {
     let f = fixture();
-    let cases = (1..=500)
+    let mut cases: Vec<_> = (1..=500)
         .map(|position| case(None, &format!("Case {position}: {}", "t".repeat(120))))
         .collect();
+    cases.last_mut().unwrap().body_json = json!({"type":"doc","content":[
+        {"type":"paragraph","content":[{"type":"text","text":"Step: Click Pay."}]},
+        {"type":"paragraph","content":[{"type":"text","text":"Expected result: Order is placed."}]}
+    ]})
+    .to_string();
     let run = f.service.start_test_run(&f.draft_id, cases).unwrap();
     let last = run.cases.last().unwrap();
     let report = f
@@ -433,7 +437,11 @@ fn the_focused_last_case_keeps_its_steps_when_the_rest_is_cut() {
         focused.contains(&format!("TC 500 [{}]", last.id)),
         "{focused}"
     );
-    assert!(focused.contains("Pay"), "{focused}");
+    assert!(focused.contains("Step: Click Pay."), "{focused}");
+    assert!(
+        focused.contains("Expected result: Order is placed."),
+        "{focused}"
+    );
     assert!(report.ends_with(TEST_RUN_REPORT_TRUNCATED_MARKER));
     assert!(report.len() <= MAX_CHAT_TEST_RUN_REPORT_BYTES);
 }

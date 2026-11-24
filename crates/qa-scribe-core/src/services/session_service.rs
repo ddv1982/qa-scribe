@@ -33,6 +33,7 @@ pub(crate) mod test_run_notes;
 pub use test_run_notes::PreparedTestCaseNotes;
 mod test_run_report;
 pub use test_run_report::TestRunChatSnapshot;
+mod test_run_suggestion_updates;
 mod test_run_suggestions;
 mod test_runs;
 

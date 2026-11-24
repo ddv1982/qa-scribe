@@ -1,7 +1,7 @@
 use std::{collections::BTreeSet, fs::File, path::Path};
 
 use rusqlite::{OptionalExtension, params};
-use serde_json::Value;
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::{SessionService, attachments, now, test_runs::update_case_on};
@@ -228,6 +228,42 @@ fn parse(body: &str) -> Result<Value> {
         return Err(validation("Result notes require an editor document"));
     }
     Ok(document)
+}
+
+pub(super) fn append_suggested_notes(case: &TestRunCase, addition: &str) -> Result<String> {
+    let mut document = match &case.notes {
+        Some(notes) => parse(&notes.body_json)?,
+        None => {
+            let content = case
+                .remark
+                .as_deref()
+                .map(str::trim)
+                .filter(|text| !text.is_empty())
+                .map(crate::chat::markdown::literal)
+                .unwrap_or_default();
+            json!({"schemaVersion": 1, "doc": {"type": "doc", "content": content}})
+        }
+    };
+    let doc = document["doc"]
+        .as_object_mut()
+        .expect("decoded editor document");
+    let content = doc
+        .entry("content")
+        .or_insert_with(|| json!([]))
+        .as_array_mut()
+        .ok_or_else(|| validation("Result notes contain invalid content"))?;
+    let mut addition = parse(addition)?;
+    let blocks = addition["doc"]["content"]
+        .as_array_mut()
+        .expect("validated suggestion blocks");
+    content.append(blocks);
+    let body_json = document.to_string();
+    if body_json.len() > MAX_DOCUMENT_BYTES {
+        return Err(validation(
+            "Result notes are too long to append this suggestion",
+        ));
+    }
+    Ok(body_json)
 }
 
 fn collect_images<'a>(node: &'a Value, ids: &mut BTreeSet<&'a str>) -> Result<()> {

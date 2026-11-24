@@ -224,3 +224,5 @@ fn a_schema_25_database_keeps_the_run_and_conversation_on_upgrade() {
     drop(service);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+mod updates;

@@ -27,7 +27,7 @@ export const commands = {
 	beginTestRunChat: (request: BeginTestRunChatRequest) => __TAURI_INVOKE<ChatState_Serialize>("begin_test_run_chat", { request }),
 	getConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState_Serialize>("get_conversation", { reference }),
 	activateConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState_Serialize>("activate_conversation", { reference }),
-	listChatHistory: (scope: ChatHistoryScope) => __TAURI_INVOKE<ChatHistoryEntry[]>("list_chat_history", { scope }),
+	listChatHistory: (scope: ChatHistoryScope) => __TAURI_INVOKE<ChatHistoryEntry_Serialize[]>("list_chat_history", { scope }),
 	resolveRefinement: (request: RefinementRequest) => __TAURI_INVOKE<ChatState_Serialize>("resolve_refinement", { request }),
 	applyRefinement: (request: ApplyRefinementRequest) => __TAURI_INVOKE<AppliedRefinement_Serialize>("apply_refinement", { request }),
 	reviewVisualRefinement: (reference: ChatRef, proposalId: string) => __TAURI_INVOKE<VisualReviewSources>("review_visual_refinement", { reference, proposalId }),
@@ -61,6 +61,9 @@ export const commands = {
 	listTestRuns: (sessionId: string) => __TAURI_INVOKE<TestRunSummary[]>("list_test_runs", { sessionId }),
 	setTestCaseResult: (caseId: string, result: TestCaseResult, remark: string | null) => __TAURI_INVOKE<TestRunCase>("set_test_case_result", { caseId, result, remark }),
 	saveTestCaseNotes: (caseId: string, bodyJson: string, images: TestCaseNoteImage[]) => __TAURI_INVOKE<TestRunCase>("save_test_case_notes", { caseId, bodyJson, images }),
+	applyTestRunSuggestion: (request: TestRunSuggestionRequest) => __TAURI_INVOKE<TestRunSuggestionOutcome>("apply_test_run_suggestion", { request }),
+	applyAllTestRunSuggestions: (request: TestRunSuggestionsRequest) => __TAURI_INVOKE<TestRunSuggestionOutcome[]>("apply_all_test_run_suggestions", { request }),
+	undoTestRunSuggestion: (request: TestRunSuggestionRequest) => __TAURI_INVOKE<TestRunSuggestionOutcome>("undo_test_run_suggestion", { request }),
 	linkTestCaseFinding: (caseId: string, findingId: string | null) => __TAURI_INVOKE<TestRunCase>("link_test_case_finding", { caseId, findingId }),
 	deleteTestRun: (runId: string) => __TAURI_INVOKE<null>("delete_test_run", { runId }),
 	startAiActionJob: (request: GenerateAiActionRequest, events: Channel<GenerationJobEvent_Deserialize>) => __TAURI_INVOKE<StartAiActionJobResult_Serialize>("start_ai_action_job", { request, events }),
@@ -221,7 +224,9 @@ export type ChatComposerRequest = {
 	mode: ChatMode,
 };
 
-export type ChatHistoryEntry = {
+export type ChatHistoryEntry = ChatHistoryEntry_Serialize | ChatHistoryEntry_Deserialize;
+
+export type ChatHistoryEntry_Deserialize = {
 	reference: ChatRef,
 	owner: ConversationOwner,
 	createdAt: string,
@@ -233,6 +238,22 @@ export type ChatHistoryEntry = {
 	hasContent: boolean,
 	lastTurnStatus: ChatTurnStatus | null,
 	unresolvedStages: StageOrigin[],
+	hasTestRunSuggestions?: boolean,
+};
+
+export type ChatHistoryEntry_Serialize = {
+	reference: ChatRef,
+	owner: ConversationOwner,
+	createdAt: string,
+	lastActiveAt: string,
+	lastActiveOrder: number,
+	preview: string,
+	archived: boolean,
+	submission: ChatSubmissionReceipt | null,
+	hasContent: boolean,
+	lastTurnStatus: ChatTurnStatus | null,
+	unresolvedStages: StageOrigin[],
+	hasTestRunSuggestions?: boolean,
 };
 
 export type ChatHistoryScope = { kind: "notes"; sessionId: string } | { kind: "record"; sessionId: string; record: ConversationRecord } | { kind: "session"; sessionId: string };
@@ -356,7 +377,7 @@ export type ChatResponseInfo_Serialize = {
 	warning: string | null,
 };
 
-export type ChatResponsePurpose = { kind: "conversation" } | { kind: "refinement"; recordKind: RefinementRecordKind } | { kind: "jira_drafting" };
+export type ChatResponsePurpose = { kind: "conversation" } | { kind: "test_run_recording" } | { kind: "refinement"; recordKind: RefinementRecordKind } | { kind: "jira_drafting" };
 
 export type ChatRestartRequest = {
 	scope: ChatRevision,
@@ -382,6 +403,7 @@ export type ChatState_Deserialize = {
 	lastActiveAt: string,
 	pendingResponse?: ChatResponsePurpose | null,
 	proposals?: RefinementProposal[],
+	testRunSuggestions?: TestRunSuggestion[],
 	sessionId: string,
 	draftId: string,
 	revision: number,
@@ -401,6 +423,7 @@ export type ChatState_Serialize = {
 	lastActiveAt: string,
 	pendingResponse?: ChatResponsePurpose | null,
 	proposals?: RefinementProposal[],
+	testRunSuggestions?: TestRunSuggestion[],
 	sessionId: string,
 	draftId: string,
 	revision: number,
@@ -447,7 +470,7 @@ export type CommitCreationSave = {
 };
 
 export type ConversationOwner = { kind: "notes"; sessionId: string } | { kind: "record"; sessionId: string; record: ConversationRecord } | 
-/**  A read-only conversation about one test run: it never proposes a change. */
+/**  A conversation about one test run that can suggest Results and Result notes. */
 { kind: "test_run"; sessionId: string; runId: string };
 
 export type ConversationRecord = { kind: "finding"; recordId: string } | { kind: "test_cases_draft"; recordId: string };
@@ -1085,6 +1108,7 @@ export type StartAiActionJobResult_Serialize = {
 export type StartChatJobRequest = {
 	intent: ChatSendIntent,
 	context?: ChatTarget,
+	focusedCaseId?: string | null,
 	scope: ChatRevision,
 	provider: AiProvider,
 	model: string,
@@ -1167,6 +1191,7 @@ export type TestRunCase = {
 	 */
 	findingTitle: string | null,
 	updatedAt: string,
+	suggestionFingerprint?: string,
 };
 
 /**  One test case to copy when a test run starts, as the frontend split it. */
@@ -1175,6 +1200,29 @@ export type TestRunCaseDraft = {
 	title: string,
 	/**  The case's content as a TipTap document JSON. */
 	bodyJson: string,
+};
+
+export type TestRunSuggestion = {
+	id: string,
+	assistantMessageId: string,
+	caseId: string,
+	result: TestCaseResult | null,
+	notesJson: string | null,
+	rationale: string,
+	baseFingerprint: string,
+	appliedFingerprint: string | null,
+};
+
+export type TestRunSuggestionOutcome = { kind: "saved"; testCase: TestRunCase; suggestion: TestRunSuggestion } | { kind: "out_of_date"; testCase: TestRunCase; suggestion: TestRunSuggestion } | { kind: "failed"; caseId: string; message: string };
+
+export type TestRunSuggestionRequest = {
+	reference: ChatRef,
+	suggestionId: string,
+};
+
+export type TestRunSuggestionsRequest = {
+	reference: ChatRef,
+	assistantMessageId: string,
 };
 
 /**  A test run without its cases, with how many cases have each Result. */

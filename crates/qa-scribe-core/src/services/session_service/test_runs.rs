@@ -210,7 +210,11 @@ pub(super) fn update_case_on(
         "UPDATE test_runs SET updated_at = ?1 WHERE id = ?2",
         params![now, run_id],
     )?;
-    Ok(tx.query_row(
+    test_run_case(tx, case_id)
+}
+
+pub(super) fn test_run_case(connection: &Connection, case_id: &str) -> Result<TestRunCase> {
+    Ok(connection.query_row(
         &format!("{CASE_SELECT} WHERE c.id = ?1"),
         [case_id],
         map_case,

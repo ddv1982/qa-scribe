@@ -1,5 +1,6 @@
 use qa_scribe_core::domain::{
-    TestCaseNoteImage, TestCaseResult, TestRun, TestRunCase, TestRunCaseDraft, TestRunSummary,
+    TestCaseNoteImage, TestCaseResult, TestRun, TestRunCase, TestRunCaseDraft,
+    TestRunSuggestionOutcome, TestRunSuggestionRequest, TestRunSuggestionsRequest, TestRunSummary,
 };
 use qa_scribe_core::services::PreparedTestCaseNotes;
 use tauri::{AppHandle, Manager, State};
@@ -90,4 +91,31 @@ pub async fn save_test_case_notes(
         result
     })
     .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn apply_test_run_suggestion(
+    state: State<'_, AppState>,
+    request: TestRunSuggestionRequest,
+) -> Result<TestRunSuggestionOutcome, CommandError> {
+    state.with_service(|service| service.apply_test_run_suggestion(request))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn apply_all_test_run_suggestions(
+    state: State<'_, AppState>,
+    request: TestRunSuggestionsRequest,
+) -> Result<Vec<TestRunSuggestionOutcome>, CommandError> {
+    state.with_service(|service| service.apply_all_test_run_suggestions(request))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn undo_test_run_suggestion(
+    state: State<'_, AppState>,
+    request: TestRunSuggestionRequest,
+) -> Result<TestRunSuggestionOutcome, CommandError> {
+    state.with_service(|service| service.undo_test_run_suggestion(request))
 }

@@ -195,3 +195,33 @@ fn a_deleted_run_fails_preparing_a_turn_and_a_retry_without_new_state() {
     );
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn retry_keeps_the_focused_case_and_reads_its_latest_result() {
+    let (service, chat, run, dir) = fixture();
+    let case = &run.cases[1];
+    let mut sent = request(&chat, ChatSendIntent::Composer);
+    sent.focused_case_id = Some(case.id.clone());
+    let first = lifecycle::prepare_with_images(&service, &sent, &dir).unwrap();
+    assert!(prompt(&first).contains("## Focused test case"));
+    let failed = service
+        .fail_chat_turn_with_ai_run(
+            ChatFailRequest {
+                scope: lifecycle::scope(&first.started.chat),
+                turn_id: first.started.turn_id,
+                kind: ChatFailureKind::Failed,
+                error_message: "Provider failed".into(),
+            },
+            &first.ai_run.id,
+        )
+        .unwrap();
+    service
+        .set_test_case_result(&case.id, TestCaseResult::Passed, None)
+        .unwrap();
+    let retry =
+        lifecycle::prepare_with_images(&service, &request(&failed, ChatSendIntent::Retry), &dir)
+            .unwrap();
+    let instructions = prompt(&retry);
+    assert!(instructions.contains("## Focused test case"));
+    assert!(instructions.contains(&format!("Passed: {} (TC 2 [{}])", case.title, case.id)));
+}

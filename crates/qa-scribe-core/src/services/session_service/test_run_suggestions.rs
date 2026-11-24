@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, Row, params};
 use sha2::{Digest, Sha256};
 
-use super::{SessionService, new_id};
+use super::{SessionService, TestRunChatSnapshot, new_id};
 use crate::{Result, chat::test_run::SuggestionDraft, domain::*, error::validation};
 
 pub(super) fn fingerprint(result: &str, notes_json: Option<&str>, remark: Option<&str>) -> String {
@@ -44,8 +44,31 @@ pub(super) fn capture_sources(
 }
 
 impl SessionService {
-    pub fn test_run_turn_sources(&self, user: &ChatMessage) -> Result<BTreeMap<String, String>> {
-        sources(self.database.connection(), user)
+    pub fn focused_test_run_case(&self, user: &ChatMessage) -> Result<Option<String>> {
+        Ok(self.database.connection().query_row(
+            "SELECT case_id FROM chat_test_run_sources WHERE message_id = ?1 AND turn_id = ?2 AND focused = 1",
+            params![user.id, user.turn_id],
+            |row| row.get(0),
+        ).optional()?)
+    }
+
+    pub fn bind_test_run_turn_snapshot(
+        &self,
+        user: &ChatMessage,
+        snapshot: &TestRunChatSnapshot,
+    ) -> Result<()> {
+        self.database.with_immediate_tx(|tx| {
+            if sources(tx, user)? != snapshot.sources {
+                return Err(validation("The test run changed while Ask AI was preparing. Try again."));
+            }
+            if let Some(case_id) = &snapshot.focused_case_id {
+                tx.execute(
+                    "UPDATE chat_test_run_sources SET focused = 1 WHERE message_id = ?1 AND turn_id = ?2 AND case_id = ?3",
+                    params![user.id, user.turn_id, case_id],
+                )?;
+            }
+            Ok(())
+        })
     }
 }
 
@@ -108,23 +131,34 @@ pub(super) fn insert(
     Ok(())
 }
 
+pub(super) const SUGGESTION_COLUMNS: &str = "s.id, s.assistant_message_id, s.case_id, s.result, s.notes_json, s.rationale, s.base_fingerprint, s.applied_fingerprint";
+
 pub(super) fn read(connection: &Connection, chat_id: &str) -> Result<Vec<TestRunSuggestion>> {
-    Ok(connection.prepare(
-        "SELECT s.id, s.assistant_message_id, s.case_id, s.result, s.notes_json, s.rationale, s.base_fingerprint, s.applied_fingerprint
+    Ok(connection
+        .prepare(&format!(
+            "SELECT {SUGGESTION_COLUMNS}
          FROM chat_messages a JOIN chat_test_run_suggestions s ON s.assistant_message_id = a.id
          JOIN test_run_cases c ON c.id = s.case_id
          WHERE a.draft_id = ?1 ORDER BY a.created_at, a.id, c.position"
-    )?.query_map([chat_id], |row| {
-        let result: Option<String> = row.get(3)?;
-        Ok(TestRunSuggestion {
-            id: row.get(0)?,
-            assistant_message_id: row.get(1)?,
-            case_id: row.get(2)?,
-            result: result.as_deref().map(TestCaseResult::from_stored).transpose().map_err(super::super::session_rows::to_sql_error)?,
-            notes_json: row.get(4)?,
-            rationale: row.get(5)?,
-            base_fingerprint: row.get(6)?,
-            applied_fingerprint: row.get(7)?,
-        })
-    })?.collect::<rusqlite::Result<_>>()?)
+        ))?
+        .query_map([chat_id], map_suggestion)?
+        .collect::<rusqlite::Result<_>>()?)
+}
+
+pub(super) fn map_suggestion(row: &Row<'_>) -> rusqlite::Result<TestRunSuggestion> {
+    let result: Option<String> = row.get(3)?;
+    Ok(TestRunSuggestion {
+        id: row.get(0)?,
+        assistant_message_id: row.get(1)?,
+        case_id: row.get(2)?,
+        result: result
+            .as_deref()
+            .map(TestCaseResult::from_stored)
+            .transpose()
+            .map_err(super::super::session_rows::to_sql_error)?,
+        notes_json: row.get(4)?,
+        rationale: row.get(5)?,
+        base_fingerprint: row.get(6)?,
+        applied_fingerprint: row.get(7)?,
+    })
 }

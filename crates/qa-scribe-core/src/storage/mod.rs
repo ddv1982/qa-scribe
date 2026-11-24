@@ -144,15 +144,7 @@ fn initialize(connection: &Connection) -> Result<()> {
         if found < 21 {
             acceptance_criteria::migrate(tx)?;
         }
-        if found < 22 {
-            tx.execute_batch(test_runs::SCHEMA)?;
-        }
-        if found < 25 {
-            test_runs::migrate_result_notes(tx)?;
-        }
-        if found < 26 {
-            tx.execute_batch(chat_test_run_suggestions::SCHEMA)?;
-        }
+        test_runs::migrate(tx, found)?;
         if migrations_run {
             assert_no_foreign_key_violations(tx)?;
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
