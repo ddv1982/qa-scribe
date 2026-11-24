@@ -166,21 +166,31 @@ fn a_code_block_in_a_checklist_item_keeps_its_trailing_blank_lines() {
     );
 }
 
-/// Images are blocks, so a managed image in a flattened table row splits the row's paragraph.
+/// Images are blocks and a cell holds one paragraph, so a managed image in a cell is never nested
+/// in the table: the cell keeps its alt text, and the rewrite keeps the image after the table.
 #[test]
 fn a_managed_image_in_a_table_cell_is_not_nested_in_a_paragraph() {
+    fn holds_image(node: &Value) -> bool {
+        node["type"] == "image"
+            || node["content"]
+                .as_array()
+                .is_some_and(|c| c.iter().any(holds_image))
+    }
     let image = json!({"type":"image","attrs":{"src":"qa-scribe-attachment://att-1","alt":"shot.png","attachmentId":"att-1"}});
-    let nodes = super::parse_with_images(
+    let mut nodes = super::parse_with_images(
         "| Step | Shot |\n| --- | --- |\n| Login | ![shot.png](qa-scribe-attachment://att-1) |",
         std::slice::from_ref(&image),
     )
     .unwrap();
-    for block in &nodes {
-        for child in block["content"].as_array().into_iter().flatten() {
-            assert_ne!(child["type"], "image", "{nodes:?}");
-        }
-    }
-    assert!(nodes.contains(&image), "{nodes:?}");
+    assert_eq!(nodes.len(), 1, "{nodes:?}");
+    assert!(!holds_image(&nodes[0]), "{nodes:?}");
+    assert_eq!(
+        nodes[0]["content"][1]["content"][1]["content"][0]["content"],
+        json!([text("shot.png")])
+    );
+    let base = json!({"type":"doc","content":[image.clone()]});
+    crate::chat::response::preserve_images(&base, &mut nodes, 0).unwrap();
+    assert_eq!(nodes[1], image);
 }
 
 #[test]
