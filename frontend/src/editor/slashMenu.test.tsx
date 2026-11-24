@@ -135,6 +135,12 @@ describe('slash menu', () => {
     expect(editor).not.toHaveAttribute('aria-controls')
   })
 
+  it('matches caution to the Error panel', async () => {
+    await renderEditor('<p>Evidence</p><p></p>')
+    typeAt('', '/caution')
+    expect((await options()).map((option) => option.textContent)).toEqual(['Error panel'])
+  })
+
   it('inserts with Tab, deleting the query, and matches keywords such as h2', async () => {
     const { editor, html } = await renderEditor('<p>Evidence</p><p></p>')
     typeAt('', '/h2')

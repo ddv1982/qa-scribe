@@ -41,7 +41,7 @@ export type SlashMenuItem = {
 
 const headingIcons = [Heading1, Heading2, Heading3, Heading4, Heading5, Heading6]
 const panelIcons: Record<PanelKind, LucideIcon> = { note: StickyNote, info: Info, success: CircleCheck, warning: TriangleAlert, error: CircleX }
-const panelKeywords: Record<PanelKind, string[]> = { note: [], info: ['important'], success: ['tip'], warning: ['caution'], error: ['danger'] }
+const panelKeywords: Record<PanelKind, string[]> = { note: [], info: ['important'], success: ['tip'], warning: [], error: ['caution', 'danger'] }
 
 const chain = (editor: Editor, range: Range) => editor.chain().focus().deleteRange(range)
 
