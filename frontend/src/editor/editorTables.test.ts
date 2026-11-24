@@ -1,4 +1,5 @@
 import { Editor, type JSONContent } from '@tiptap/core'
+import { CellSelection } from '@tiptap/pm/tables'
 import { afterEach, describe, expect, it } from 'vitest'
 import { richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
 import { richTextEditorExtensions } from './editorExtensions'
@@ -129,5 +130,17 @@ describe('pasting at a caret inside a cell', () => {
       row(header(text('X')), header(text('Y'))),
       row(cell(text('1')), cell(text('2'))),
     ))
+  })
+})
+
+describe('pasting into selected cells', () => {
+  // prosemirror-tables pastes each line of text into one of the selected cells.
+  it('puts each line of pasted text in the next selected cell', () => {
+    editor = new Editor({ extensions: richTextEditorExtensions(), content: '<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>' })
+    const cells: number[] = []
+    editor.state.doc.descendants((node, position) => void (node.type.name === 'tableCell' && cells.push(position)))
+    editor.view.dispatch(editor.state.tr.setSelection(CellSelection.create(editor.state.doc, cells[0], cells[1])))
+    editor.view.pasteText('Pass\nFail', new Event('paste') as ClipboardEvent)
+    expect(editor.getJSON().content?.[0]).toEqual(table(row(header(text('A')), header(text('B'))), row(cell(text('Pass')), cell(text('Fail')))))
   })
 })

@@ -7,7 +7,8 @@
 import { Extension, type JSONContent } from '@tiptap/core'
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table'
 import { DOMParser as ProseMirrorDOMParser, Fragment, Slice, type Node as ProseMirrorNode, type ParseOptions, type ResolvedPos, type Schema } from '@tiptap/pm/model'
-import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection, type Selection } from '@tiptap/pm/state'
+import { CellSelection } from '@tiptap/pm/tables'
 import type { EditorView } from '@tiptap/pm/view'
 import { keepInlineCodeSpaces } from './inlineCodeSpaces'
 
@@ -61,11 +62,16 @@ function cellParagraph(element: Node, schema: Schema, preserveWhitespace?: Parse
  * Clipboard content without a table, pasted or dropped in a cell, becomes lines of that cell.
  * Parsed as blocks, ProseMirror would wrap each block in a cell of its own to fit the row, and
  * the table paste would then write them over the cells from the caret on. Content with a table
- * still fills cells.
+ * still fills cells, and so do blocks pasted over selected cells, one block per cell, as
+ * prosemirror-tables pastes them.
  */
 class TableClipboardParser extends ProseMirrorDOMParser {
+  constructor(schema: Schema, private readonly selection: () => Selection) {
+    super(schema, ProseMirrorDOMParser.fromSchema(schema).rules)
+  }
+
   override parseSlice(dom: Node, options: ParseOptions = {}): Slice {
-    if (!options.context || !inTableCell(options.context) || holdsTable(dom)) return super.parseSlice(dom, options)
+    if (!options.context || !inTableCell(options.context) || holdsTable(dom) || this.selection() instanceof CellSelection) return super.parseSlice(dom, options)
     return new Slice(cellParagraph(dom, this.schema, options.preserveWhitespace), 1, 1)
   }
 }
@@ -129,8 +135,8 @@ export const editorTableExtensions = [
   Table.extend({
     renderHTML: () => ['table', ['tbody', 0]],
     addProseMirrorPlugins() {
-      const { schema } = this.editor
-      const clipboardParser = new TableClipboardParser(schema, ProseMirrorDOMParser.fromSchema(schema).rules)
+      const { editor } = this
+      const clipboardParser = new TableClipboardParser(editor.schema, () => editor.state.selection)
       return [...(this.parent?.() ?? []), headerRowPlugin(), new Plugin({ props: { clipboardParser, handlePaste: pasteClosedParagraphInCell } })]
     },
   }),
