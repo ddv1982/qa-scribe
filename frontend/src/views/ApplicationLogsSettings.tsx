@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ApplicationLogDiscovery } from './ApplicationLogDiscovery'
 import { ActionButton } from '../components/ActionButton'
 import { commands, type ApplicationLogAccess, type ApplicationLogSource } from '../bindings'
 import { formatError } from '../ui/format'
@@ -14,21 +15,26 @@ const accessMessages: Record<ApplicationLogAccess, string> = {
   timedOut: 'The Azure CLI access check timed out.',
 }
 
+const MAX_SOURCES = 20
+
 export function ApplicationLogsSettings({ sources, onChange }: {
   sources: ApplicationLogSource[]
   onChange: (sources: ApplicationLogSource[]) => void
 }) {
+  const atCapacity = sources.length >= MAX_SOURCES
   return (
     <section className="wide-setting" id="application-log-settings">
       <h2>Application logs</h2>
       <p className="settings-note">Configure Application Insights targets for test run evidence. Captures are stored locally. Copy report includes the target, UTC window, row count and a portal link containing the query.</p>
+      <ApplicationLogDiscovery sources={sources} disabled={atCapacity}
+        onAdd={(source) => onChange([...sources, source])} />
+      <ActionButton variant="secondary" disabled={atCapacity}
+        onClick={() => onChange([...sources, { label: '', resourceId: '' }])}>Enter resource ID manually</ActionButton>
       {sources.map((source, index) => (
         <SourceFields key={index} source={source} index={index}
           onChange={(next) => onChange(sources.map((previous, i) => i === index ? next : previous))}
           onRemove={() => onChange(sources.filter((_, i) => i !== index))} />
       ))}
-      <ActionButton variant="secondary" disabled={sources.length >= 20}
-        onClick={() => onChange([...sources, { label: '', resourceId: '' }])}>Add log source</ActionButton>
     </section>
   )
 }

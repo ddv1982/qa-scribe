@@ -56,6 +56,8 @@ export const commands = {
 	updateDraft: (id: string, patch: DraftPatch, guard: RecordWriteGuard) => __TAURI_INVOKE<RecordWriteOutcome<Draft>>("update_draft", { id, patch, guard }),
 	deleteDraft: (id: string) => __TAURI_INVOKE<null>("delete_draft", { id }),
 	deleteFinding: (id: string) => __TAURI_INVOKE<null>("delete_finding", { id }),
+	listAzureLogSubscriptions: (queryId: string) => __TAURI_INVOKE<AzureSubscription[]>("list_azure_log_subscriptions", { queryId }),
+	listApplicationInsightsComponents: (queryId: string, subscription: string) => __TAURI_INVOKE<ApplicationInsightsComponent[]>("list_application_insights_components", { queryId, subscription }),
 	checkApplicationLogAccess: (source: ApplicationLogSource) => __TAURI_INVOKE<ApplicationLogAccess>("check_application_log_access", { source }),
 	captureApplicationLogs: (caseId: string, queryId: string, query: ApplicationLogQuery) => __TAURI_INVOKE<LogEvidenceSummary>("capture_application_logs", { caseId, queryId, query }),
 	cancelApplicationLogQuery: (queryId: string) => __TAURI_INVOKE<null>("cancel_application_log_query", { queryId }),
@@ -146,6 +148,12 @@ export type AppSettings = {
 	applicationLogSources?: ApplicationLogSource[],
 };
 
+export type ApplicationInsightsComponent = {
+	name: string,
+	resourceGroup: string,
+	resourceId: string,
+};
+
 export type ApplicationLogAccess = "ready" | "unsupported" | "cliMissing" | "extensionMissing" | "signedOut" | "accessDenied" | "failed" | "timedOut";
 
 export type ApplicationLogQuery = {
@@ -217,6 +225,11 @@ export type Attachment = {
 /**  Durable deletion has succeeded; `None` means cleanup status is unavailable. */
 export type AttachmentCleanupStatus = {
 	pendingFiles: number | null,
+};
+
+export type AzureSubscription = {
+	id: string,
+	name: string,
 };
 
 export type BeginRecordChatRequest = {

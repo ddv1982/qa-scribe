@@ -34,6 +34,8 @@ fn main() {
         "update_draft",
         "delete_draft",
         "delete_finding",
+        "list_azure_log_subscriptions",
+        "list_application_insights_components",
         "check_application_log_access",
         "capture_application_logs",
         "cancel_application_log_query",

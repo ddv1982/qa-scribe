@@ -94,6 +94,8 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::generation::update_draft,
             commands::generation::delete_draft,
             commands::findings::delete_finding,
+            commands::application_logs::list_azure_log_subscriptions,
+            commands::application_logs::list_application_insights_components,
             commands::application_logs::check_application_log_access,
             commands::application_logs::capture_application_logs,
             commands::application_logs::cancel_application_log_query,

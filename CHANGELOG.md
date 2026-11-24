@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- In **Settings → Application logs**, use **Discover from Azure** to choose a subscription and Application Insights resource with your Azure CLI sign-in. You can also enter a resource ID manually. **Check access** runs a separate query against the target.
+
 - On Linux and macOS, use **Add log evidence** on a test run case to run KQL against a configured Azure Application Insights target with your Azure CLI sign-in. Captures stay local. Copy the query with its exact UTC bounds, copy the Azure portal link, or use **Copy report** to share the evidence reference.
 
 - Describe what happened in a test run and Ask AI can suggest Results and additions to Result notes for several cases. Review the suggestions, update cases individually or use Apply all, and undo each update while its case still matches.

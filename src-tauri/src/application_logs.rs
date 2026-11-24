@@ -18,6 +18,7 @@ use crate::{
     },
 };
 
+pub mod discovery;
 mod response;
 
 const RAW_OUTPUT_MAX: u64 = 4 * 1024 * 1024;
@@ -130,10 +131,31 @@ fn execute(
     let cwd = NeutralProviderCwd::new().map_err(failed)?;
     let mut kql = tempfile::NamedTempFile::new_in(cwd.path()).map_err(failed)?;
     kql.write_all(query.kql.as_bytes()).map_err(failed)?;
+    let out = run_cli(
+        az,
+        cwd.path(),
+        command_args(query, kql.path()),
+        cancelled,
+        timeout,
+    )?;
+    response::capture(query, &out)
+}
+
+fn run_cli(
+    az: &Path,
+    cwd: &Path,
+    args: impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>>,
+    cancelled: &AtomicBool,
+    timeout: Duration,
+) -> Result<Vec<u8>, LogQueryError> {
+    let failed = |_| LogQueryError::Access(ApplicationLogAccess::Failed);
+    if cancelled.load(Ordering::Acquire) {
+        return Err(LogQueryError::Cancelled);
+    }
     let mut command = Command::new(az);
     command
-        .args(command_args(query, kql.path()))
-        .current_dir(cwd.path())
+        .args(args)
+        .current_dir(cwd)
         .env("AZURE_EXTENSION_USE_DYNAMIC_INSTALL", "no")
         .env("AZURE_CORE_COLLECT_TELEMETRY", "no")
         .env("AZURE_LOGGING_ENABLE_LOG_FILE", "false")
@@ -201,7 +223,7 @@ fn execute(
     if err.len() as u64 > ERROR_OUTPUT_MAX || response::indicates_partial_response(&stderr) {
         return Err(LogQueryError::InvalidResponse);
     }
-    response::capture(query, &out)
+    Ok(out)
 }
 
 fn read_prefix(stream: impl Read, limit: u64) -> io::Result<Vec<u8>> {

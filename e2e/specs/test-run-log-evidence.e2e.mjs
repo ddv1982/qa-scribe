@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gunzipSync } from 'node:zlib'
 
@@ -9,7 +9,10 @@ const { AZURE_CONFIG_DIR: config, QA_SCRIBE_E2E_ARTIFACTS: artifacts,
   QA_SCRIBE_E2E_PROVIDER_PATH: providerBin } = process.env
 assert.ok(artifacts && fixture && config && providerBin)
 assert.ok(['capture', 'restart'].includes(phase))
-const target = '/subscriptions/11111111-1111-4111-8111-111111111111/resourceGroups/qa/providers/Microsoft.Insights/components/checkout'
+const subscription = '11111111-1111-4111-8111-111111111111'
+const emptySubscription = '22222222-2222-4222-8222-222222222222'
+const target = `/subscriptions/${subscription}/resourceGroups/qa/providers/Microsoft.Insights/components/checkout`
+const discoveryFile = join(config, 'discovery.jsonl')
 const label = 'Checkout acceptance'
 const kql = "traces | where message == 'checkout café'"
 const trace = 'fixture checkout trace'
@@ -22,6 +25,19 @@ async function click(selector, scope) {
   const element = scope ? await (await $(scope)).$(selector) : await $(selector)
   await element.waitForClickable()
   await element.click()
+}
+
+async function selectOption(selector, value) {
+  await $(selector).waitForDisplayed()
+  // The embedded WebDriver option click does not commit a controlled select.
+  assert.ok(await browser.execute((selector, value) => {
+    const select = document.querySelector(selector)
+    const option = Array.from(select.options).find((entry) => entry.value === value)
+    if (!option || option.disabled || select.disabled) return false
+    select.value = value
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    return true
+  }, selector, value))
 }
 
 async function clipboard(button, scope, expected) {
@@ -55,14 +71,29 @@ function verifyLink(link) {
   assert.equal(gunzipSync(Buffer.from(decodeURIComponent(encoded), 'base64')).toString(), kql)
 }
 
-describe('Manual Application Insights evidence in the built app', () => {
+describe('Application Insights discovery and evidence in the built app', () => {
   if (phase === 'capture') {
-    it('checks Azure access states and attaches bounded CLI results to TC 2', async () => {
+    it('discovers a target, checks access and attaches bounded CLI results to TC 2', async () => {
       await click('button=Settings')
-      await click('button=Add log source')
+      await click('button=Discover from Azure')
+      const subscriptions = `#application-log-settings select:has(option[value="${subscription}"])`
+      await selectOption(subscriptions, emptySubscription)
+      await $('p=No Application Insights resources were found in this subscription.').waitForDisplayed()
+      await selectOption(subscriptions, subscription)
+      const targetOption = `#application-log-settings option[value="${target}"]`
+      await $(targetOption).waitForExist()
+      assert.equal(await $(targetOption).getText(), 'checkout (qa)')
+      await selectOption(`#application-log-settings select:has(option[value="${target}"])`, target)
+      await click('button=Add discovered source')
       const fields = await $$('#application-log-settings input')
+      assert.equal(await fields[0].getValue(), 'checkout')
+      assert.equal(await fields[1].getValue(), target)
       await fields[0].setValue(label)
-      await fields[1].setValue(target)
+      const discovery = readFileSync(discoveryFile, 'utf8').trim().split('\n').map((line) => JSON.parse(line))
+      assert.deepEqual(discovery.map((argv) => [argv[0], argv[1], argv[5]]), [
+        ['account', 'list', 'json'], ['resource', 'list', emptySubscription], ['resource', 'list', subscription],
+      ])
+      assert.equal(existsSync(join(config, 'calls.jsonl')), false)
       const access = []
       async function check(message) {
         await click('button=Check access')
@@ -129,13 +160,14 @@ describe('Manual Application Insights evidence in the built app', () => {
         ['access-denied', 'print access = 1'], ['ready', 'print access = 1'],
       ])
       assert.deepEqual(calls.slice(4), [{ target, kql, start, end, mode: 'ready' }])
-      const proof = { access, runId: run.id, capture }
+      const proof = { discovery, access, runId: run.id, capture }
       for (const path of [receipt, join(artifacts, 'log-evidence.json')]) writeFileSync(path, JSON.stringify(proof, null, 2))
     })
   } else {
     it('reopens the same capture and copies its query, UTC bounds, portal link and report proof', async () => {
       const { runId, capture } = JSON.parse(readFileSync(receipt, 'utf8'))
       const originalCalls = readFileSync(join(config, 'calls.jsonl'), 'utf8')
+      const originalDiscovery = readFileSync(discoveryFile, 'utf8')
       await openSession()
       await click('.test-run-list-item')
       await click(`${caseSection} details summary`)
@@ -157,6 +189,7 @@ describe('Manual Application Insights evidence in the built app', () => {
       assert.ok(report.includes(`- Not run: TC 2\n  Application logs: ${label} · ${capture.start} to ${capture.end} · 1 row · ${capture.portalUrl}`))
       assert.ok(!report.includes(trace) && !report.includes(kql))
       assert.equal(readFileSync(join(config, 'calls.jsonl'), 'utf8'), originalCalls)
+      assert.equal(readFileSync(discoveryFile, 'utf8'), originalDiscovery)
 
       await click('button=Detach evidence', caseSection)
       await $(`${caseSection} details summary`).waitForExist({ reverse: true })

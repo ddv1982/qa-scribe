@@ -171,14 +171,15 @@ Acceptance: the E2E passes, and a Rust test rejects a row for a case of another 
 The tester selects one configured Application Insights query target, runs KQL and attaches the result to a test run case.
 
 - [x] Run local Azure CLI on macOS and Linux with fixed argv and no shell. Pass one full resource ID and a private `@file` for the KQL. Explicit UTC bounds cover at most seven days. The runner has a 60-second timeout, caps both output streams, and terminates the CLI process group on cancellation or app shutdown. Tests cover validated targets, exact arguments, malformed and flagged partial responses, genuinely empty results, and truncation. Captures store up to 500 rows and 256 KiB.
-- [x] Settings lists configured targets and checks each with a small query. The built-app fixture covers missing CLI, missing extension, signed out, access denied and ready. Tauri commands are explicitly registered and permitted.
+- [x] Settings discovers Application Insights targets through the signed-in Azure CLI. Choose a subscription and a resource by name and resource group, then save the populated settings. Already configured IDs are flagged and duplicate names receive unique labels. Manual resource ID entry is available. Discovery uses metadata-only projections and scopes resource listing to the selected subscription UUID. Rust validates returned resource IDs and rejects any outside the selected subscription. [Azure CLI account list](https://learn.microsoft.com/en-us/cli/azure/account#az-account-list) and [Azure CLI resource list](https://learn.microsoft.com/en-us/cli/azure/resource#az-resource-list).
+- [x] Settings lists configured targets and checks each with a separate small data-plane query. The built-app fixture covers missing CLI, missing extension, signed out, access denied and ready. Tauri commands are explicitly registered and permitted.
 - [x] Schema 27 stores local, immutable captures. Ownership triggers bind them to the recorded run and limit a case to ten attachments. Tests cover the v26 migration, cross-run ownership, payload immutability, detach, reopen and deletion.
 - [x] Case evidence expands into a read-only table. The default range is the last 15 minutes in UTC. The tester can reuse recent queries for that target in the Session, copy rows, copy KQL with the exact UTC range, copy the Azure portal link, or detach the evidence.
 - [x] Copy report includes target, UTC bounds, count, truncation and portal link under the owning case. Ask AI inputs exclude log evidence. A Rust test compares the Ask AI snapshot before and after attaching evidence.
-- [x] The default Linux and macOS native E2E plan runs `test-run-log-evidence.e2e.mjs` in two app processes with shared isolated test data and Azure configuration. The Linux run verified access messages, attachment to TC 2, CLI argv and KQL, portal-link decoding, restart persistence, copied proof and detach. The missing-CLI scenario removes the fixture and asserts the app cannot fall back to the host executable.
+- [x] The default Linux and macOS native E2E plan runs `test-run-log-evidence.e2e.mjs` in two app processes with shared isolated test data and Azure configuration. The Linux fixture verifies discovery and subscription scoping, access messages, attachment to TC 2, CLI argv and KQL, portal-link decoding, restart persistence, copied proof and detach. The missing-CLI scenario removes the fixture and asserts the app cannot fall back to the host executable.
 - [x] Document the Azure CLI and clipboard trust boundaries in the Tauri threat model.
 
-Live follow-up covers macOS, a denied query against an existing component, and whether the portal restores an absolute time range. The fixture proves the application workflow and runs without Azure credentials or network calls.
+Live follow-up covers discovery, macOS data-plane access, a denied query against an existing component, and whether the portal restores an absolute time range. The fixture proves the application workflow and runs without Azure credentials or network calls.
 
 ### Phase 6 Azure CLI verification
 
@@ -222,7 +223,7 @@ Acceptance: the E2E and the live runs pass for Claude Code and Codex.
 
 ## Not built
 
-Library switch; paid Tiptap template or UI components; image width and alignment, drag handle, bubble menu, expand/details, table of contents, colours, highlight, text alignment, columns, merged cells, mentions, comments, collaboration; syntax highlighting; a shell `az` from the app; the Azure MCP Server; Log Analytics workspace queries outside Application Insights; "Find in Azure" discovery; automatic redaction; a Session-wide test run list (D14); Windows support for the log features; Copilot for the AI log tool; a "Continue test run" or "In progress" state; renaming or comparing test runs.
+Library switch; paid Tiptap template or UI components; image width and alignment, drag handle, bubble menu, expand/details, table of contents, colours, highlight, text alignment, columns, merged cells, mentions, comments, collaboration; syntax highlighting; a shell `az` from the app; the Azure MCP Server; Log Analytics workspace queries outside Application Insights; automatic redaction; a Session-wide test run list (D14); Windows support for the log features; Copilot for the AI log tool; a "Continue test run" or "In progress" state; renaming or comparing test runs.
 
 ## Open questions for the user
 

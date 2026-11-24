@@ -27,7 +27,7 @@ impl ApplicationLogSource {
         {
             return Err(validation("Use a source label of 1 to 80 characters."));
         }
-        if !is_application_insights_id(&self.resource_id) {
+        if application_insights_id_parts(&self.resource_id).is_none() {
             return Err(validation(
                 "Enter the full Application Insights resource ID.",
             ));
@@ -60,7 +60,7 @@ pub(crate) fn validate_application_log_sources(
     Ok(sources)
 }
 
-fn is_application_insights_id(value: &str) -> bool {
+pub fn application_insights_id_parts(value: &str) -> Option<(uuid::Uuid, &str, &str)> {
     let parts: Vec<_> = value.split('/').collect();
     let [
         "",
@@ -74,7 +74,7 @@ fn is_application_insights_id(value: &str) -> bool {
         name,
     ] = parts.as_slice()
     else {
-        return false;
+        return None;
     };
     let is_name = |part: &str| {
         !part.is_empty()
@@ -84,15 +84,19 @@ fn is_application_insights_id(value: &str) -> bool {
                 ch.is_ascii_alphanumeric() || matches!(ch, b'_' | b'-' | b'.' | b'(' | b')')
             })
     };
-    subscriptions.eq_ignore_ascii_case("subscriptions")
+    if subscriptions.eq_ignore_ascii_case("subscriptions")
         && subscription.len() == 36
-        && uuid::Uuid::try_parse(subscription).is_ok()
         && groups.eq_ignore_ascii_case("resourceGroups")
         && is_name(group)
         && providers.eq_ignore_ascii_case("providers")
         && provider.eq_ignore_ascii_case("microsoft.insights")
         && components.eq_ignore_ascii_case("components")
         && is_name(name)
+    {
+        Some((uuid::Uuid::try_parse(subscription).ok()?, group, name))
+    } else {
+        None
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, specta::Type)]
@@ -119,7 +123,7 @@ impl ApplicationLogQuery {
         let target = configured
             .iter()
             .find(|source| source.resource_id.eq_ignore_ascii_case(&self.target_id))
-            .filter(|source| is_application_insights_id(&source.resource_id))
+            .filter(|source| application_insights_id_parts(&source.resource_id).is_some())
             .cloned()
             .ok_or_else(|| validation("Select a configured Application Insights query target."))?;
         // Knack expands the @file argument before parsing CLI options.

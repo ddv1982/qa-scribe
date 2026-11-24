@@ -13,7 +13,10 @@ use qa_scribe_core::domain::{
 use tauri::{AppHandle, Manager, State};
 
 use crate::{
-    application_logs::{self, ApplicationLogAccess},
+    application_logs::{
+        self, ApplicationLogAccess,
+        discovery::{self, ApplicationInsightsComponent, AzureSubscription},
+    },
     commands::CommandError,
     settings::AppState,
 };
@@ -136,6 +139,37 @@ fn lock_error<T>(_: std::sync::PoisonError<T>) -> CommandError {
 fn job_id(raw: &str) -> Result<uuid::Uuid, CommandError> {
     uuid::Uuid::try_parse(raw)
         .map_err(|_| CommandError::validation("Invalid application log query ID."))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_azure_log_subscriptions(
+    jobs: State<'_, ApplicationLogJobs>,
+    query_id: String,
+) -> Result<Vec<AzureSubscription>, CommandError> {
+    let job = jobs.register(job_id(&query_id)?)?;
+    tauri::async_runtime::spawn_blocking(move || discovery::subscriptions(&job.cancelled))
+        .await
+        .map_err(|_| CommandError::internal("Azure subscription discovery did not finish."))?
+        .map_err(|error| CommandError::validation(discovery::error_message(error)))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn list_application_insights_components(
+    jobs: State<'_, ApplicationLogJobs>,
+    query_id: String,
+    subscription: String,
+) -> Result<Vec<ApplicationInsightsComponent>, CommandError> {
+    let subscription = discovery::subscription_id(&subscription)
+        .ok_or_else(|| CommandError::validation("Select a valid Azure subscription."))?;
+    let job = jobs.register(job_id(&query_id)?)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        discovery::components(subscription, &job.cancelled)
+    })
+    .await
+    .map_err(|_| CommandError::internal("Application Insights discovery did not finish."))?
+    .map_err(|error| CommandError::validation(discovery::error_message(error)))
 }
 
 #[tauri::command]
