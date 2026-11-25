@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## v0.21.1 - 2026-11-25
+
+- Choose a provider, model, and reasoning level directly in **Summarize note**. The choices apply to that summary.
+- Switch providers and models from **Ask AI** on Notes, Findings, Test cases drafts, and saved test runs.
+- Use **Open test run** on a Test cases draft to reopen saved results. The run history stays visible if coverage details fail to load.
+
 ## v0.21.0 - 2026-11-24
 
 - In a test run, opt in to **Allow Ask AI to request application logs** for Claude Code or Codex. Approve each Application Insights query after reviewing its KQL, UTC window and sharing scope, then apply the suggested capture to the test case.
