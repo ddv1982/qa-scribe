@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.21.3 - 2026-11-25
+
+- In **Settings → Application logs → Discover from Azure**, choose **Sign in with Azure CLI** to open browser sign-in when your session needs to be refreshed. Discovery reloads your subscriptions afterward and keeps your selection if it’s still available. You can also cancel or copy `az login` to sign in from a terminal.
+
 ## v0.21.2 - 2026-11-25
 
 - Saved test runs now appear in evenly sized rows. The delete confirmation explains that results and result notes are removed and test cases stay.
