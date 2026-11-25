@@ -139,12 +139,13 @@ export function TestRunView({ open, draftRuns, error, askAi, editsBlocked = fals
       {confirmingDelete ? (
         <Dialog
           title="Delete this test run?"
-          description={<p>Its results and result notes are removed. The test cases stay.</p>}
+          className="test-run-delete-dialog"
+          description={<><p>Its results and result notes will be permanently removed.</p><p className="test-run-delete-retained">Your test cases will stay.</p></>}
           initialFocus={cancelRef}
           onCancel={() => { if (!deleting) setConfirmingDelete(false) }}
           actions={<>
             <ActionButton ref={cancelRef} disabled={deleting} onClick={() => setConfirmingDelete(false)}>Cancel</ActionButton>
-            <ActionButton variant="destructive-confirmation" loading={deleting} onClick={() => void confirmDelete()}>Delete test run</ActionButton>
+            <ActionButton variant="destructive-confirmation" icon={Trash2} loading={deleting} onClick={() => void confirmDelete()}>Delete test run</ActionButton>
           </>}
         />
       ) : null}

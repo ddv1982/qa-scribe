@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -89,4 +89,43 @@ it('offers manual entry after discovery fails and keeps access checking separate
   await user.click(screen.getByRole('button', { name: 'Check access' }))
   expect(check).toHaveBeenCalledWith(target)
   expect(await screen.findByText('Azure CLI can query this target.')).toBeInTheDocument()
+})
+
+it('replaces a configured resource through discovery and allows removing the final source', async () => {
+  const user = userEvent.setup()
+  const saved = component(first, 'qa')
+  const replacement = component(second, 'prod')
+  vi.spyOn(commands, 'listAzureLogSubscriptions').mockResolvedValue(accounts)
+  vi.spyOn(commands, 'listApplicationInsightsComponents').mockResolvedValue([replacement])
+  renderSettings([{ label: 'My logs', resourceId: saved.resourceId }])
+
+  await user.click(screen.getByRole('button', { name: 'Change resource' }))
+  await user.selectOptions(await screen.findByLabelText('Azure subscription'), second)
+  await user.selectOptions(await screen.findByLabelText('Application Insights resource'), replacement.resourceId)
+  await user.click(screen.getByRole('button', { name: 'Use resource' }))
+  expect(screen.getAllByLabelText('Application Insights resource ID')).toHaveLength(1)
+  expect(screen.getByLabelText('Application Insights resource ID')).toHaveValue(replacement.resourceId)
+  expect(screen.getByLabelText('Source label')).toHaveValue('My logs')
+  await user.click(screen.getByRole('button', { name: 'Remove source' }))
+  expect(screen.queryByLabelText('Application Insights resource ID')).not.toBeInTheDocument()
+})
+
+it('closes a replacement picker when its source is removed', async () => {
+  const user = userEvent.setup()
+  const removed = component(first, 'qa')
+  const retained = component(first, 'staging')
+  const replacement = component(second, 'prod')
+  vi.spyOn(commands, 'listAzureLogSubscriptions').mockResolvedValue(accounts)
+  vi.spyOn(commands, 'listApplicationInsightsComponents').mockResolvedValue([replacement])
+  renderSettings([{ label: 'Remove me', resourceId: removed.resourceId }, { label: 'Keep me', resourceId: retained.resourceId }])
+
+  const firstSource = within(screen.getByRole('group', { name: 'Source 1' }))
+  await user.click(firstSource.getByRole('button', { name: 'Change resource' }))
+  await user.selectOptions(await firstSource.findByLabelText('Azure subscription'), second)
+  await user.selectOptions(await firstSource.findByLabelText('Application Insights resource'), replacement.resourceId)
+  expect(firstSource.getByRole('button', { name: 'Use resource' })).toBeEnabled()
+  await user.click(firstSource.getByRole('button', { name: 'Remove source' }))
+
+  expect(screen.queryByRole('button', { name: 'Use resource' })).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Application Insights resource ID')).toHaveValue(retained.resourceId)
 })

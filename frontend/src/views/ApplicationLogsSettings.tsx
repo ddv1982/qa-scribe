@@ -23,19 +23,24 @@ export function ApplicationLogsSettings({ sources, onChange, askAiEnabled, onAsk
   onAskAiChange?: (enabled: boolean) => void
   onChange: (sources: ApplicationLogSource[]) => void
 }) {
+  const [sourceListVersion, setSourceListVersion] = useState(0)
   const atCapacity = sources.length >= MAX_SOURCES
   return (
     <section className="wide-setting" id="application-log-settings">
       <h2>Application logs</h2>
-      <p className="settings-note">Configure Application Insights targets for test run evidence. Captures are stored locally. Copy report includes the target, UTC window, row count and a portal link containing the query.</p>
+      <p className="settings-note">Optional: configure Application Insights targets for test run evidence. Remove all sources to leave application logs unconfigured. Captures are stored locally. Copy report includes the target, UTC window, row count and a portal link containing the query.</p>
       <ApplicationLogDiscovery sources={sources} disabled={atCapacity}
         onAdd={(source) => onChange([...sources, source])} />
       <ActionButton variant="secondary" disabled={atCapacity}
         onClick={() => onChange([...sources, { label: '', resourceId: '' }])}>Enter resource ID manually</ActionButton>
       {sources.map((source, index) => (
-        <SourceFields key={index} source={source} index={index}
+        <SourceFields key={`${sourceListVersion}:${index}`} source={source} sources={sources} index={index}
           onChange={(next) => onChange(sources.map((previous, i) => i === index ? next : previous))}
-          onRemove={() => onChange(sources.filter((_, i) => i !== index))} />
+          onRemove={() => {
+            // Close pending pickers before row indexes are reused.
+            setSourceListVersion((version) => version + 1)
+            onChange(sources.filter((_, i) => i !== index))
+          }} />
       ))}
       {onAskAiChange ? <label className="read-source-option">
         <input type="checkbox" checked={askAiEnabled ?? false} onChange={(event) => onAskAiChange(event.target.checked)} />
@@ -46,8 +51,9 @@ export function ApplicationLogsSettings({ sources, onChange, askAiEnabled, onAsk
   )
 }
 
-function SourceFields({ source, index, onChange, onRemove }: {
+function SourceFields({ source, sources, index, onChange, onRemove }: {
   source: ApplicationLogSource
+  sources: ApplicationLogSource[]
   index: number
   onChange: (source: ApplicationLogSource) => void
   onRemove: () => void
@@ -79,6 +85,8 @@ function SourceFields({ source, index, onChange, onRemove }: {
         <span>Application Insights resource ID</span>
         <input value={source.resourceId} onChange={(event) => onChange({ ...source, resourceId: event.target.value })} />
       </label>
+      <ApplicationLogDiscovery sources={sources} disabled={false} replacing
+        onAdd={(selected) => onChange({ label: source.label.trim() ? source.label : selected.label, resourceId: selected.resourceId })} />
       <ActionButton variant="secondary" loading={checking} disabled={!source.resourceId.trim() || !source.label.trim()}
         onClick={() => void check()}>Check access</ActionButton>
       <ActionButton variant="quiet" onClick={onRemove}>Remove source</ActionButton>

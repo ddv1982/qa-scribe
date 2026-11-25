@@ -196,7 +196,7 @@ describe('TestRunView', () => {
     const { onDelete } = renderRun()
     fireEvent.click(screen.getByRole('button', { name: 'Delete test run' }))
     const dialog = screen.getByRole('dialog', { name: 'Delete this test run?' })
-    expect(dialog).toHaveAccessibleDescription('Its results and result notes are removed. The test cases stay.')
+    expect(dialog).toHaveAccessibleDescription('Its results and result notes will be permanently removed. Your test cases will stay.')
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
