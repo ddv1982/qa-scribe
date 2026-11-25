@@ -36,6 +36,7 @@ fn main() {
         "delete_finding",
         "list_azure_log_subscriptions",
         "list_application_insights_components",
+        "sign_in_azure_cli",
         "check_application_log_access",
         "capture_application_logs",
         "cancel_application_log_query",

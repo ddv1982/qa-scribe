@@ -2,7 +2,7 @@ use std::{
     ffi::OsString,
     io::{self, Read, Write},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::{Child, Command, Stdio},
     sync::atomic::{AtomicBool, Ordering},
     thread,
     time::{Duration, Instant},
@@ -24,6 +24,7 @@ mod response;
 const RAW_OUTPUT_MAX: u64 = 4 * 1024 * 1024;
 const ERROR_OUTPUT_MAX: u64 = 16 * 1024;
 const QUERY_TIMEOUT: Duration = Duration::from_secs(60);
+const SIGN_IN_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -88,6 +89,55 @@ fn resolve_az() -> Result<PathBuf, LogQueryError> {
     }
     let path = provider_executable_path("az", ProviderPathMode::Fast).ok_or(missing)?;
     std::path::absolute(path).map_err(|_| LogQueryError::Access(ApplicationLogAccess::Failed))
+}
+
+pub fn sign_in(cancelled: &AtomicBool) -> Result<(), LogQueryError> {
+    let az = resolve_az()?;
+    let cwd = NeutralProviderCwd::new()
+        .map_err(|_| LogQueryError::Access(ApplicationLogAccess::Failed))?;
+    sign_in_cli(&az, cwd.path(), cancelled, SIGN_IN_TIMEOUT)
+}
+
+fn sign_in_cli(
+    az: &Path,
+    cwd: &Path,
+    cancelled: &AtomicBool,
+    timeout: Duration,
+) -> Result<(), LogQueryError> {
+    if cancelled.load(Ordering::Acquire) {
+        return Err(LogQueryError::Cancelled);
+    }
+    let failed = LogQueryError::Access(ApplicationLogAccess::Failed);
+    let mut child = spawn_cli(
+        azure_command(az, cwd)
+            .args(["login", "--output", "none"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null()),
+    )?;
+    let started = Instant::now();
+    let error = loop {
+        if cancelled.load(Ordering::Acquire) {
+            break LogQueryError::Cancelled;
+        }
+        if started.elapsed() >= timeout {
+            break LogQueryError::Access(ApplicationLogAccess::TimedOut);
+        }
+        match child.try_wait() {
+            // Leave the system browser running when Azure CLI exits normally.
+            Ok(Some(status)) => {
+                return if status.success() {
+                    Ok(())
+                } else {
+                    Err(failed)
+                };
+            }
+            Ok(None) => thread::sleep(Duration::from_millis(20)),
+            Err(_) => break failed,
+        }
+    };
+    kill_child_group(&mut child);
+    let _ = child.wait();
+    Err(error)
 }
 
 pub fn run(
@@ -182,26 +232,12 @@ fn run_cli(
     if cancelled() {
         return Err(LogQueryError::Cancelled);
     }
-    let mut command = Command::new(az);
-    command
-        .args(args)
-        .current_dir(cwd)
-        .env("AZURE_EXTENSION_USE_DYNAMIC_INSTALL", "no")
-        .env("AZURE_CORE_COLLECT_TELEMETRY", "no")
-        .env("AZURE_LOGGING_ENABLE_LOG_FILE", "false")
-        .env("PYTHONUTF8", "1")
-        .env("PYTHONIOENCODING", "utf-8")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    configure_process_group(&mut command);
-    let mut child = command.spawn().map_err(|error| {
-        LogQueryError::Access(if error.kind() == std::io::ErrorKind::NotFound {
-            ApplicationLogAccess::CliMissing
-        } else {
-            ApplicationLogAccess::Failed
-        })
-    })?;
+    let mut child = spawn_cli(
+        azure_command(az, cwd)
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    )?;
     let stdout = child.stdout.take().expect("piped Azure CLI stdout");
     let stderr = child.stderr.take().expect("piped Azure CLI stderr");
     let stdout_oversized = AtomicBool::new(false);
@@ -254,6 +290,35 @@ fn run_cli(
         return Err(LogQueryError::InvalidResponse);
     }
     Ok(out)
+}
+
+fn azure_command(az: &Path, cwd: &Path) -> Command {
+    let mut command = Command::new(az);
+    command
+        .current_dir(cwd)
+        .env("AZURE_EXTENSION_USE_DYNAMIC_INSTALL", "no")
+        .env("AZURE_CORE_COLLECT_TELEMETRY", "no")
+        .env("AZURE_LOGGING_ENABLE_LOG_FILE", "false")
+        .env("PYTHONUTF8", "1")
+        .env("PYTHONIOENCODING", "utf-8")
+        .stdin(Stdio::null());
+    if let Some(config) = std::env::var_os("AZURE_CONFIG_DIR").filter(|value| !value.is_empty())
+        && let Ok(path) = std::path::absolute(config)
+    {
+        command.env("AZURE_CONFIG_DIR", path);
+    }
+    command
+}
+
+fn spawn_cli(command: &mut Command) -> Result<Child, LogQueryError> {
+    configure_process_group(command);
+    command.spawn().map_err(|error| {
+        LogQueryError::Access(if error.kind() == io::ErrorKind::NotFound {
+            ApplicationLogAccess::CliMissing
+        } else {
+            ApplicationLogAccess::Failed
+        })
+    })
 }
 
 fn read_prefix(stream: impl Read, limit: u64) -> io::Result<Vec<u8>> {

@@ -74,12 +74,21 @@ function verifyLink(link) {
 describe('Application Insights discovery and evidence in the built app', () => {
   if (phase === 'capture') {
     it('discovers a target, checks access and attaches bounded CLI results to TC 2', async () => {
+      writeFileSync(join(config, 'require-login'), '')
       await click('button=Settings')
       await click('button=Discover from Azure')
       const subscriptions = `#application-log-settings select:has(option[value="${subscription}"])`
       await selectOption(subscriptions, emptySubscription)
       await $('p=No Application Insights resources were found in this subscription.').waitForDisplayed()
       await selectOption(subscriptions, subscription)
+      await $('p=Sign in to Azure CLI to continue discovery.').waitForDisplayed()
+      await browser.saveScreenshot(join(artifacts, 'azure-sign-in-required.png'))
+      await clipboard('button=Copy az login', '#application-log-settings', (text) => text === 'az login')
+      await click('button=Sign in with Azure CLI')
+      await $('p=Complete sign-in in your browser.').waitForDisplayed()
+      await browser.saveScreenshot(join(artifacts, 'azure-sign-in-pending.png'))
+      await browser.waitUntil(() => readFileSync(discoveryFile, 'utf8').includes('["login","--output","none"]'))
+      writeFileSync(join(config, 'complete-login'), '')
       const targetOption = `#application-log-settings option[value="${target}"]`
       await $(targetOption).waitForExist()
       assert.equal(await $(targetOption).getText(), 'checkout (qa)')
@@ -92,6 +101,7 @@ describe('Application Insights discovery and evidence in the built app', () => {
       const discovery = readFileSync(discoveryFile, 'utf8').trim().split('\n').map((line) => JSON.parse(line))
       assert.deepEqual(discovery.map((argv) => [argv[0], argv[1], argv[5]]), [
         ['account', 'list', 'json'], ['resource', 'list', emptySubscription], ['resource', 'list', subscription],
+        ['login', '--output', undefined], ['account', 'list', 'json'], ['resource', 'list', subscription],
       ])
       assert.equal(existsSync(join(config, 'calls.jsonl')), false)
       const access = []

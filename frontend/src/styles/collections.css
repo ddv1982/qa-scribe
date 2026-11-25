@@ -566,6 +566,10 @@
   margin: 0;
 }
 
+.application-log-discovery > p {
+  margin: 0;
+}
+
 .read-source-options {
   display: flex;
   flex-wrap: wrap;

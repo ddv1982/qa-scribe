@@ -44,6 +44,7 @@ permissions = [
   "allow-delete-test-run",
   "allow-list-azure-log-subscriptions",
   "allow-list-application-insights-components",
+  "allow-sign-in-azure-cli",
   "allow-check-application-log-access",
   "allow-capture-application-logs",
   "allow-cancel-application-log-query",
