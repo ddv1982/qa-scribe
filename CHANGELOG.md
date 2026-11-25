@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.21.4 - 2026-11-25
+
+- Save an Azure subscription in **Settings → Application logs** with the Application Insights resource left blank. When you choose **Add log evidence** in a test run, QA Scribe discovers resources in that subscription so you can choose which one to query.
+
 ## v0.21.3 - 2026-11-25
 
 - In **Settings → Application logs → Discover from Azure**, choose **Sign in with Azure CLI** to open browser sign-in when your session needs to be refreshed. Discovery reloads your subscriptions afterward and keeps your selection if it’s still available. You can also cancel or copy `az login` to sign in from a terminal.
