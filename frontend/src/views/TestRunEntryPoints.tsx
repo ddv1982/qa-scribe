@@ -4,6 +4,7 @@ import { ActionButton } from '../components/ActionButton'
 import { Badge } from '../components/Badge'
 import { testRunCasesFromDraft, testRunSummaryText } from '../testware/testRuns'
 import type { Draft, TestRunCaseDraft, TestRunSummary } from '../tauri'
+import { formatDateTime } from '../ui/format'
 
 /** Start test run on a saved draft that splits into test cases; nothing for one that cannot be run. */
 export function StartTestRunButton({ draft, starting, disabled, onStart }: {
@@ -31,13 +32,21 @@ export function TestRunList({ runs, onOpen }: {
   const [showAll, setShowAll] = useState(false)
   if (runs.length === 0) return null
   const shown = showAll ? runs : runs.slice(0, VISIBLE_TEST_RUNS)
+  const dateCounts = new Map<string, number>()
+  for (const run of runs) {
+    const date = formatDateTime(run.createdAt)
+    dateCounts.set(date, (dateCounts.get(date) ?? 0) + 1)
+  }
   return (
     <section className="test-run-list" aria-label="Test runs">
+      <h3>Test runs</h3>
       <ul>
         {shown.map((summary, index) => (
           <li key={summary.id}>
             <button type="button" className="test-run-list-item" onClick={() => onOpen(summary.id)}>
-              {testRunSummaryText(summary)}{index === 0 ? <Badge>Latest</Badge> : null}
+              <span className="test-run-open-label">Open test run</span>{' '}
+              <span>{(dateCounts.get(formatDateTime(summary.createdAt)) ?? 0) > 1 ? `Run ${runs.length - index} · ` : ''}{testRunSummaryText(summary)}</span>
+              {index === 0 ? <> <Badge>Latest</Badge></> : null}
             </button>
           </li>
         ))}

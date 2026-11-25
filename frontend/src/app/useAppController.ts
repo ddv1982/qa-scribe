@@ -81,7 +81,6 @@ export function useAppController() {
     modelWritePending,
     discoverProviderDefaults,
     discardSettingsDraft,
-    effectiveAiSelection,
     loadProviderStatus,
     loadSettings,
     refreshProviderStatus,
@@ -138,7 +137,7 @@ export function useAppController() {
   })
   const { sessionChat: baseSessionChat, sessionMode, setSessionMode, noteReadOnly, ...chatProtection } = useSessionChat({
     session: sessionWorkspace, noteRecovery, noteEligibility, sessionActions, generation: coordinatedGenerationWorkspace,
-    selection, provider: activeProvider, providerWarning: effectiveAiSelection?.warning ?? null,
+    selection: settingsView.chatExecution.selection, provider: settingsView.chatExecution.provider, providerWarning: settingsView.chatExecution.warning,
     feedback, jobs: generationJobs, refreshProviderStatus, captureContext: (sessionId, owner) => {
       if (sessionId !== sessionWorkspace.activeSessionIdRef.current) throw new Error('The active Session changed before sending.')
       // A test run conversation sends the run's report from storage, never a record snapshot.

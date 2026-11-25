@@ -1,18 +1,14 @@
 import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
-import { Field } from '../components/Field'
-import { ModelCombobox } from '../components/ModelSelector'
 import { htmlHasContent, stripHtml } from '../editor/editorHtml'
-import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
-import { effectiveSelection, executionReasoningOverride, reasoningEffortsFor } from '../settings/defaults'
-import { catalogSelectorEnabled } from '../settings/catalog'
 import { defaultTestwareGenerationPreferences } from '../testware/generationPreferences'
 import { GenerationSetup } from '../workflows/generationSetup'
+import { useGenerationSelection } from '../workflows/generationSelection'
 import { generationSetupBlocked } from '../workflows/generationReadiness'
 import { creationIsAuthored, type CreationIntent } from '../app/creationIntent'
 import type { AppController } from '../app/useAppController'
-import type { AiProvider, AppSettings, TestwareGenerationPreferences } from '../tauri'
+import type { TestwareGenerationPreferences } from '../tauri'
 import type { CreationGenerateMode } from './CreationComposer'
 
 /**
@@ -21,43 +17,30 @@ import type { CreationGenerateMode } from './CreationComposer'
  * apply only to this generation and last while the draft is open.
  */
 export function useCreationGenerate(intent: CreationIntent, c: AppController) {
-  const [selection, setSelection] = useState({ provider: c.selectedProvider, model: c.selectedModel, reasoning: c.selectedReasoningEffort })
   const [preferences, setPreferences] = useState<TestwareGenerationPreferences>(() => withDraftFormat(defaultTestwareGenerationPreferences, intent))
   const [confirming, setConfirming] = useState(false)
   const busy = confirming || intent.phase.state === 'generating' || intent.phase.state === 'cancelling'
 
+  const execution = useGenerationSelection(c.savedSettings, c.providerStatus, busy)
   function mode(): CreationGenerateMode | null {
-    const settings = c.settingsDraft
-    if (!settings) return null
-    const provider = c.providerStatus?.providers.find((candidate) => candidate.id === selection.provider) ?? null
-    const localSettings: AppSettings = { ...settings, selectedAiProvider: selection.provider,
-      selectedAiModelsByProvider: { ...settings.selectedAiModelsByProvider, [selection.provider]: selection.model === 'default' ? null : selection.model },
-      selectedAiReasoningEffortsByProvider: { ...settings.selectedAiReasoningEffortsByProvider, [selection.provider]: selection.reasoning } }
-    const execution = effectiveSelection(localSettings, provider)
-    const catalogChecked = catalogSelectorEnabled(provider, c.providerStatus?.catalogRollout ?? null)
-    const customAdvisory = customModelCatalogAdvisory(provider?.models ?? [], selection.model, catalogChecked && ['fresh', 'stale'].includes(provider?.catalogSnapshot.state ?? ''))
+    if (!execution) return null
     const source = intent.source?.entry.body ?? ''
     const sourceWarning = creationSourceWarning(intent, c)
     const ready = !sourceWarning
     const setup = {
       action: intent.kind, isBusy: busy, sessionTitle: c.sessionTitle,
-      activeProviderAvailable: Boolean(provider?.available), activeProviderLabel: provider?.label ?? selection.provider,
+      ...execution.details,
       noteWordCount: stripHtml(source).split(/\s+/).filter(Boolean).length,
       noteScreenshotCount: new DOMParser().parseFromString(source, 'text/html').querySelectorAll('img').length,
-      selectedModel: execution.model, selectedReasoning: execution.reasoning, modelOrigin: execution.modelOrigin, reasoningOrigin: execution.reasoningOrigin,
-      delegatesModel: execution.delegatesModel, delegatesReasoning: execution.delegatesReasoning, executionSummary: execution.runtimeSummary,
       sourceWarning,
-      selectionWarning: execution.warning ?? provider?.defaultSnapshot.warnings.find((warning) => warning.severity === 'blocking')?.message,
-      selectionAdvisories: [...execution.advisories.map((warning) => warning.message), ...(customAdvisory ? [customAdvisory] : [])],
     }
     const authored = creationIsAuthored(intent)
     const screenshots = `${setup.noteScreenshotCount} screenshot${setup.noteScreenshotCount === 1 ? '' : 's'}`
     const withCriteria = intent.kind === 'testware' && Boolean(sessionCriteria(intent, c))
-    function confirm() {
+    const confirm = () => {
       if (busy || !ready) return
       setConfirming(true)
-      void c.creation.generate({ selectedProvider: selection.provider, selectedModel: selection.model,
-        selectedReasoningEffort: executionReasoningOverride(localSettings, provider) }, intent.kind === 'testware' ? preferences : undefined)
+      void c.creation.generate(execution.selection, intent.kind === 'testware' ? preferences : undefined)
         .finally(() => setConfirming(false))
     }
     return {
@@ -67,12 +50,7 @@ export function useCreationGenerate(intent: CreationIntent, c: AppController) {
           ? ' What you wrote under Write is discarded when that succeeds, and kept if it fails or you cancel.' : ''}</p>
         <GenerationSetup {...setup} testwarePreferences={preferences} onTestwarePreferencesChange={setPreferences} modelSelectionControl={<>
           <p>These choices apply only to this generation. Settings defaults stay as saved.</p>
-          <Field label="Provider"><select disabled={busy} value={selection.provider} onChange={(event) => setSelection({ provider: event.target.value as AiProvider, model: 'default', reasoning: null })}>{c.providerStatus?.providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
-          <ModelCombobox disabled={busy} models={provider?.models ?? []} value={selection.model} onChange={(model) => setSelection({ ...selection, model })}
-            providerLabel={provider?.label} catalogChecked={catalogChecked} />
-          <Field label="Reasoning"><select disabled={busy} value={selection.reasoning ?? ''} onChange={(event) => setSelection({ ...selection, reasoning: event.target.value || null })}>
-            <option value="">CLI default</option><option value="model-recommended">Model recommendation</option>{reasoningEffortsFor(provider).map((effort) => <option key={effort} value={effort}>{effort}</option>)}
-          </select></Field>
+          {execution.controls}
           <ActionButton variant="quiet" disabled={busy} onClick={() => c.openSettingsSection('ai-execution-settings')}>Configure AI execution…</ActionButton>
         </>} />
       </>,

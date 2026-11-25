@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { createRequire } from 'node:module'
 import { click, createSession, database, directory, execution, finishChat, insertNote, journal, openSession,
   preference, read, refresh, settings } from './model-evidence-ui.mjs'
-import { configureCatalog, generation, historyText, menuGeometry, modelPreference, outputRoot,
+import { configureCatalog, generation, historyText, menuGeometry, modelPreference, outputRoot, pickProvider,
   quickInput, quickOptions, quickSection, send, switchProviderOnly, attachPickerDraftImage, openQuickPicker, pickerState, activeQuickOption, domModelKey } from './model-selection-ui.mjs'
 import { inspectLayout, layoutViewport, wideLayoutViewport, minimumLayoutViewport } from './chat-layout-geometry.mjs'
 import { nativeKeySender } from './preflight-native-keys.mjs'
@@ -325,22 +325,45 @@ describe('Built application native quick model selection M03', () => {
     return { sessionId, geometry, keyboard: evidence }
   })).timeout(45_000)
 
-  it('persists a quick Claude choice and launches the next Chat with the exact model', () => lane(2, 'claude-next', async () => {
-    const sessionId = await fresh('claude', 'M03 Claude next model')
-    await modelPreference('claude', 'claude-next-literal')
-    const current = await send(sessionId, 'claude', 'alias', 'M03-2')
-    assert.ok(current.argv.includes('--model'))
-    assert.equal(current.argv[current.argv.indexOf('--model') + 1], 'claude-next-literal')
-    assert.deepEqual(current.row.selection, recorded('claude-next-literal', { source: 'claudeAssistantMessage', id: 'claude-alias-resolved' }))
-    historical = { sessionId, title: 'M03 Claude next model', row: current.row }
-    return { sessionId, ...current }
+  it('switches the Ask AI provider and launches the next Chat with its saved model', () => lane(2, 'claude-next', async () => {
+    const sessionId = await fresh('codex', 'M03 Claude next model')
+    const options = await $('.ask-ai-panel--notes .chat-options')
+    const provider = await options.$('select')
+    await pickProvider(provider, 'claude_code')
+    try {
+      await modelPreference('claude', 'claude-next-literal')
+      const current = await send(sessionId, 'claude', 'alias', 'M03-2')
+      assert.equal((await read('get_settings')).selectedAiProvider, 'codex_cli')
+      assert.ok(current.argv.includes('--model'))
+      assert.equal(current.argv[current.argv.indexOf('--model') + 1], 'claude-next-literal')
+      assert.deepEqual(current.row.selection, recorded('claude-next-literal', { source: 'claudeAssistantMessage', id: 'claude-alias-resolved' }))
+      historical = { sessionId, title: 'M03 Claude next model', row: current.row }
+      return { sessionId, ...current }
+    } finally {
+      if (!await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
+      await pickProvider(provider, '')
+      await (await options.$('summary')).click()
+    }
   }))
 
-  it('launches the Codex generation selection displayed in preflight', () => lane(3, 'codex-next', async () => {
-    await preference('codex', null)
+  it('switches from Claude Code to Codex in preflight and launches the displayed model', () => lane(3, 'codex-next', async (output) => {
+    await preference('claude', null)
     const sessionId = await createSession('M03 Codex preflight model')
     await insertNote('Synthetic Codex preflight selection source.')
-    const current = await generation(sessionId, 'codex', 'codex-next-literal', 'M03-3')
+    await minimumLayoutViewport()
+    const evidence = {}
+    const key = nativeKeySender(evidence, () => {}, Key)
+    let current
+    try {
+      current = await generation(sessionId, 'codex', 'codex-next-literal', 'M03-3', (name) => key(Key[name]))
+    } finally {
+      const dialog = await $('dialog.generation-preflight[open]')
+      if (await dialog.isExisting()) {
+        await browser.saveScreenshot(join(output, 'minimum-viewport-preflight.png'))
+        await (await dialog.$('button=Cancel')).click()
+      }
+      await wideLayoutViewport()
+    }
     // Generate runs Codex without tools and turns off the fixture's MCP server.
     assert.deepEqual(current.argv, ['exec', '--skip-git-repo-check', '--json', '--model', 'codex-next-literal',
       '--ephemeral', '--sandbox', 'read-only', '-c', 'web_search="disabled"', '-c', 'features.shell_tool=false',
@@ -349,8 +372,8 @@ describe('Built application native quick model selection M03', () => {
       '-c', 'features.multi_agent_v2=false', '-c', 'features.view_image=false',
       '-c', 'mcp_servers.fixture_server.enabled=false', '-'])
     assert.deepEqual(current.row.selection, recorded('codex-next-literal'))
-    return current
-  }))
+    return { ...current, keyboard: evidence }
+  })).timeout(45_000)
 
   it('keeps Copilot Automatic distinct from a later explicit choice', () => lane(4, 'copilot-next', async () => {
     const sessionId = await fresh('copilot', 'M03 Copilot Automatic and explicit')
@@ -380,6 +403,7 @@ describe('Built application native quick model selection M03', () => {
     assert.equal(changed.aiRunId, initial.aiRunId)
     assert.deepEqual(changed.pendingPermission, initial.pendingPermission)
     assert.deepEqual(database(sessionId).runs.at(-1).selection.requested, { kind: 'explicit', id: 'active-first-literal' })
+    await $('.ask-ai-panel--notes .chat-options > summary').click()
     await browser.saveScreenshot(join(output, 'active-pending-permission.png'))
     await click('Approve this request')
     const first = await finishChat(sessionId)

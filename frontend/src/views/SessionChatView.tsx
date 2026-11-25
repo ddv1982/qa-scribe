@@ -347,7 +347,10 @@ export function SessionChatView(props: SessionChatViewProps) {
       <div className={`chat-composer${addedToNote ? ' chat-completion' : ''}`}>
         {!permissionAttention && (error || job?.errorMessage) ? <p className="chat-error" role="alert">{error || job?.errorMessage}</p> : null}
         {addedToNote && notes ? <ChatHandoff state={notes} onOpenNote={notes.onOpenNote} onSubmit={notes.onSubmit} /> : <>
-        <label htmlFor={`${id}-message`}>Message</label>
+        <div className="chat-composer-label">
+          <label htmlFor={`${id}-message`}>Message</label>
+          <span className="chat-help">Next turn · {props.providerLabel} · {props.modelLabel}</span>
+        </div>
         <ChatImages images={composerImages} disabled={locked || inputRecoveryPending} onRemove={onRemoveImage}
           unverifiedIds={imageFailures.flatMap(failure => failure.recovery?.images.map(image => image.attachmentId) ?? [])} />
         <ChatImageFailures failures={imageFailures} images={composerImages} disabled={locked || inputRecoveryPending}

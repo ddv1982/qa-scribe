@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { AppSettings } from '../bindings'
-import { entryFixture, generationStatusFixture, settingsFixture } from '../test/fixtures'
+import { entryFixture, generationStatusFixture, providerStatusFixture, settingsFixture } from '../test/fixtures'
 import { richEditorDocumentFromPlainText } from '../editor/editorDocument'
 import { chatFixture, chatJobFixture } from './useSessionChat.testSupport'
 import { cleanupControllerTest, deferred, getTauriMock, getTauriWindowMock, setupControllerTest, useAppController } from './useAppController.testHarness'
@@ -35,6 +35,26 @@ it('captures Chat selection before awaiting the composer save', async () => {
   await act(async () => { saved.resolve(chatFixture({ revision: 1, composer: 'Question', mode: 'chat' })); await sending })
   expect(api.startChatJob).toHaveBeenCalledWith(expect.objectContaining({ provider: 'codex_cli', model: 'default', reasoningEffort: null }), expect.any(Function))
   expect(result.current.selectedModel).toBe('next-model')
+})
+
+it('uses the Ask AI provider and its saved model while keeping the generation default', async () => {
+  const status = providerStatusFixture()
+  status.providers.push({ ...status.providers[0], id: 'claude_code', label: 'Claude Code' })
+  api.getProviderStatus.mockResolvedValue(status)
+  api.refreshProviderStatus.mockResolvedValue(status)
+  api.getSettings.mockResolvedValue(settingsFixture({
+    selectedAiModelsByProvider: { codex_cli: null, claude_code: 'claude-fixture', copilot_cli: null },
+  }))
+  api.getChat.mockResolvedValue(chatFixture({ mode: 'chat' }))
+  api.startChatJob.mockResolvedValue({ jobId: 'job-chat', turnId: 'turn-1', status: chatJobFixture(), chat: chatFixture({ revision: 2, mode: 'chat' }) })
+  const { result } = await ready()
+  await waitFor(() => expect(result.current.sessionChat.chat?.draftId).toBe('chat-1'))
+  act(() => result.current.chatExecution.setProviderChoice('claude_code'))
+  act(() => result.current.sessionChat.onSetComposer('Question'))
+  await act(async () => { await result.current.sessionChat.onSend() })
+  expect(api.startChatJob).toHaveBeenCalledWith(expect.objectContaining({ provider: 'claude_code', model: 'claude-fixture' }), expect.any(Function))
+  expect(result.current.selectedProvider).toBe('codex_cli')
+  expect(api.updateSettings).not.toHaveBeenCalled()
 })
 
 it('captures generation selection before awaiting Note persistence', async () => {

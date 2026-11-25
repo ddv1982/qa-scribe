@@ -1,6 +1,6 @@
 /* Test runs (views/TestRunView.tsx, views/TestRunEntryPoints.tsx). Layout only; the controls are shared. */
 
-/* The test runs under a draft title, and a failed case's linked Finding: quiet text buttons. */
+/* Test run history and a failed case's linked Finding. */
 .test-run-list-item,
 .test-run-list-more,
 .test-run-finding {
@@ -21,7 +21,9 @@
   display: grid;
   justify-items: start;
   gap: var(--space-1);
+  min-width: 0;
 }
+.test-run-list h3 { margin: 0; font-size: var(--font-size-sm); }
 /* The list sits in the sticky record header, so it scrolls within a bounded height instead of pushing the draft away. */
 .test-run-list ul {
   display: grid;
@@ -35,8 +37,13 @@
 .test-run-list-item {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
 }
+.test-run-open-label { color: var(--text-primary); font-weight: 600; }
 .test-run-list-more { text-decoration: underline; }
 /* Rows sit flush in a scroll container, so an outset ring would be clipped. */
 .test-run-list-item:focus-visible { outline-offset: -2px; }

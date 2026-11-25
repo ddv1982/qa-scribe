@@ -26,6 +26,7 @@ export function ModelCombobox({
   resolvedDefaultModel = null,
   resolvedDefaultOrigin = null,
   catalogChecked = false,
+  showCustomAdvisory = true,
   onChange,
 }: {
   disabled?: boolean
@@ -37,6 +38,7 @@ export function ModelCombobox({
   resolvedDefaultModel?: string | null
   resolvedDefaultOrigin?: string | null
   catalogChecked?: boolean
+  showCustomAdvisory?: boolean
   onChange: (value: string) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -118,12 +120,6 @@ export function ModelCombobox({
   }
 
   function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === 'Escape') {
-      setOpen(false)
-      setQuery('')
-      return
-    }
-
     if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       if (optionCount === 0) return
       event.preventDefault()
@@ -211,7 +207,13 @@ export function ModelCombobox({
   ) : null
 
   return (
-    <div ref={rootRef} className={`model-combobox model-combobox-${placement}`} onBlur={handleBlur}>
+    <div ref={rootRef} className={`model-combobox model-combobox-${placement}`} onBlur={handleBlur}
+      onKeyDown={event => {
+        if (event.key !== 'Escape' || !popoverOpen) return
+        event.preventDefault()
+        setOpen(false)
+        setQuery('')
+      }}>
       <label className="model-combobox-trigger">
         <span className="model-combobox-label">
           <span className="ai-choice-icon"><Cpu size={17} /></span>
@@ -235,6 +237,7 @@ export function ModelCombobox({
             placeholder={popoverOpen ? 'Search models…' : undefined}
             value={popoverOpen ? query : selectedLabel}
             onFocus={() => { if (!restoringChoiceFocusRef.current) openPicker() }}
+            onClick={() => { if (!popoverOpen) openPicker() }}
             onChange={(event) => updateQuery(event.target.value)}
             onKeyDown={handleInputKeyDown}
           />
@@ -249,7 +252,7 @@ export function ModelCombobox({
           </button>
         </span>
       </label>
-      {customSelectionAdvisory ? (
+      {showCustomAdvisory && customSelectionAdvisory ? (
         <p className="field-description" role="status">
           {customSelectionAdvisory}
         </p>

@@ -8,10 +8,18 @@ export const quickSection = '[aria-label="Next invocation model"]'
 export const quickInput = `${quickSection} [role="combobox"][aria-label="Model"]`
 export const outputRoot = process.env.QA_SCRIBE_E2E_MODEL_EVIDENCE ?? '/tmp/qa-models/M03'
 
+export async function pickProvider(select, value) {
+  await browser.execute((node, provider) => {
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(node, provider)
+    node.dispatchEvent(new Event('change', { bubbles: true }))
+  }, select, value)
+  assert.equal(await select.getValue(), value)
+}
+
 export async function modelPreference(provider, model) {
-  const section = await quickScope()
+  const section = quickSection
   const options = await $('.ask-ai-panel--notes .chat-options')
-  if (section === quickSection && await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
+  if (await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
   const input = await $(`${section} [role="combobox"][aria-label="Model"]`)
   await input.waitForEnabled()
   if (await input.getAttribute('aria-expanded') !== 'true') await $(`${section} [aria-label="Open model choices"]`).click()
@@ -52,13 +60,35 @@ export async function send(sessionId, provider, mode, marker) {
   return { ...terminal, observations, argv: starts[0].argv }
 }
 
-export async function generation(sessionId, provider, model, marker) {
+export async function generation(sessionId, provider, model, marker, key) {
   execution(provider, provider === 'codex' ? 'missing' : 'init', marker)
   await click('Summarize')
-  await $('dialog.generation-preflight[open]').waitForDisplayed()
+  const dialog = await $('dialog.generation-preflight[open]')
+  await dialog.waitForDisplayed()
+  const choices = await dialog.$('.preflight-generation-choices')
+  const providerSelect = await choices.$('select')
+  assert.equal(await providerSelect.getValue(), providerIds.claude)
+  const original = await read('get_settings')
+  const claudeInput = await choices.$('[role="combobox"]')
+  await claudeInput.click()
+  await claudeInput.setValue('claude-summary-alias')
+  await (await choices.$('[role="option"]')).click()
+  assert.equal(await claudeInput.getValue(), 'claude-summary-alias')
+  await pickProvider(providerSelect, providerIds.codex)
+  const input = await choices.$('[role="combobox"]')
+  await (await choices.$('[aria-label="Open model choices"]')).click()
+  assert.equal(await input.getAttribute('aria-expanded'), 'true')
+  await key('Escape')
+  assert.equal(await input.getAttribute('aria-expanded'), 'false')
+  assert.equal(await dialog.isDisplayed(), true)
+  await input.click()
+  await input.setValue(model)
+  await (await choices.$('[role="option"]')).waitForDisplayed()
+  await key('End')
+  await key('Enter')
+  assert.equal(await input.getValue(), model)
   const details = await $('dialog.generation-preflight .preflight-execution-details')
   if (!await browser.execute(node => node.open, details)) await (await details.$('summary')).click()
-  await modelPreference(provider, model)
   const summary = await $('.preflight-execution-summary').getText()
   const modelRow = await browser.execute(() => {
     const row = Array.from(document.querySelectorAll('dialog.generation-preflight[open] .preflight-list > div'))
@@ -76,6 +106,9 @@ export async function generation(sessionId, provider, model, marker) {
   await confirm.click()
   await browser.waitUntil(() => database(sessionId).runs.length > runCount && database(sessionId).runs.at(-1)?.status === 'completed', { timeout: 20_000 })
   await $('button=Summarize').waitForClickable()
+  const current = await read('get_settings')
+  assert.equal(current.selectedAiProvider, original.selectedAiProvider)
+  assert.deepEqual(current.selectedAiModelsByProvider, original.selectedAiModelsByProvider)
   const observations = journal().slice(before)
   const starts = observations.filter((entry) => entry.event === 'execution')
   assert.equal(starts.length, 1)
@@ -88,19 +121,14 @@ export async function historyText() {
   return texts
 }
 
-async function quickScope() {
-  const modal = `dialog.generation-preflight[open] ${quickSection}`
-  return await $(modal).isExisting() ? modal : quickSection
-}
-
 export async function quickOptions() {
-  const section = await quickScope()
+  const section = quickSection
   const id = await $(`${section} [role="combobox"][aria-label="Model"]`).getAttribute('aria-controls')
   return id ? $$(`[id="${id}"] [role="option"]`) : []
 }
 
 export async function menuGeometry() {
-  const section = await quickScope()
+  const section = quickSection
   const id = await $(`${section} [role="combobox"][aria-label="Model"]`).getAttribute('aria-controls')
   if (!id) return null
   const geometry = await browser.execute(inspectLayout, `[id="${id}"]`, '.model-combobox-popover')

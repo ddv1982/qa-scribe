@@ -5,9 +5,6 @@ import { referenceLabel, useCreationReference } from './creationReference'
 import { creationAiActive, shownCreationMode } from './creationMode'
 import { useCreationNoteVisible } from '../hooks/useCreationNoteVisible'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { catalogSelectorEnabled } from '../settings/catalog'
-import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
-import { NextModelSelection } from '../components/NextModelSelection'
 import { FindingsView } from '../views/FindingsView'
 import { SessionEditorView } from '../views/SessionEditorView'
 import { SessionSheetDialog } from '../views/SessionSheetDialog'
@@ -17,7 +14,7 @@ import type { SessionChatViewState } from './useSessionChat'
 import { SettingsView } from '../views/SettingsView'
 import { TestwareView } from '../views/TestwareView'
 import { OutputLibraryView } from '../views/OutputLibraryView'
-import { GenerationPreflight } from '../workflows/generationPreflight'
+import { SummaryPreflight } from './SummaryPreflight'
 import type { AppController } from './useAppController'
 import type { AskAiOwner } from './conversationPresentation'
 import { createCommandRegistry, type AppCommandId } from './commandRegistry'
@@ -33,14 +30,6 @@ export { DeleteConfirmationDialog } from './AppOverlays'
 
 export function AppShell(c: AppController) {
   const chatState: SessionChatViewState = c.sessionChat
-  const customModelAdvisory = customModelCatalogAdvisory(c.activeProvider?.models ?? [], c.selectedModel,
-    catalogSelectorEnabled(c.activeProvider, c.providerStatus?.catalogRollout ?? null)
-      && ['fresh', 'stale'].includes(c.activeProvider?.catalogSnapshot.state ?? ''))
-  const modelSelectionProps = { provider: c.activeProvider, value: c.selectedModel,
-    pending: c.settingsWritePending, disabled: !c.modelSelectionReady || !c.activeProvider,
-    catalogEnabled: catalogSelectorEnabled(c.activeProvider, c.providerStatus?.catalogRollout ?? null),
-    onChange: (model: string) => { void c.persistModelChoice(c.selectedProvider, model) } }
-  const modelSelectionControl = <NextModelSelection {...modelSelectionProps} />
   const [overlay, setOverlay] = useState<'commands' | 'help' | 'example' | 'session-sheet' | null>(null)
   const [noteActionsTarget, setNoteActionsTarget] = useState<HTMLDivElement | null>(null)
   const commands = createCommandRegistry(c, () => setOverlay('help'), () => setOverlay('session-sheet'))
@@ -146,7 +135,7 @@ export function AppShell(c: AppController) {
             onSetSessionMode={c.setSessionMode}
             noteHandoffContent={<ChatAddedToNote state={chatState} />}
             activeProviderReason={c.activeProvider?.reason ?? 'Loading provider status'}
-            activeProviderAvailable={Boolean(c.activeProvider?.available)}
+            activeProviderAvailable={Boolean(c.savedSettings && c.providerStatus?.providers.some(provider => provider.available))}
             activeSession={c.activeSession}
             busyAction={c.busyAction}
             canUndoLatestGeneration={Boolean(c.latestNoteGenerationUndo && c.noteEntry?.id === c.latestNoteGenerationUndo.entryId)}
@@ -290,7 +279,7 @@ export function AppShell(c: AppController) {
         ) : null}
         </div>
         {shownDraft && noteVisible ? <CreationNotePanel intent={shownDraft} records={referenceRecords} reference={reference} onReferenceChange={setReference} generating={generatingFromNote} noteReadOnly={c.noteReadOnly} onReadNote={() => void c.creation.reviewSource()} onClose={toggleNote} /> : null}
-        <AppChat c={c} recordVisible={askAiVisible} modelSelectionControl={modelSelectionControl} onConfigureAi={() => runCommand('ai.configure')} />
+        <AppChat c={c} recordVisible={askAiVisible} onConfigureAi={() => runCommand('ai.configure')} />
         </div>
       </section>
 
@@ -343,42 +332,10 @@ export function AppShell(c: AppController) {
       ) : null}
 
       {c.pendingGenerationAction ? (
-        <GenerationPreflight
-          action={c.pendingGenerationAction}
-          isBusy={c.isBusy}
-          sessionTitle={c.sessionTitle}
-          noteWordCount={c.noteWordCount}
-          noteScreenshotCount={c.noteScreenshotCount}
-          activeProviderLabel={c.activeProvider?.label ?? c.selectedProvider}
-          activeProviderAvailable={Boolean(c.activeProvider?.available)}
-          selectedModel={c.effectiveAiSelection?.model ?? 'CLI resolves at run time'}
-          selectedReasoning={c.effectiveAiSelection?.reasoning ?? null}
-          modelOrigin={c.effectiveAiSelection?.modelOrigin ?? null}
-          reasoningOrigin={c.effectiveAiSelection?.reasoningOrigin ?? null}
-          delegatesModel={c.effectiveAiSelection?.delegatesModel ?? true}
-          delegatesReasoning={c.effectiveAiSelection?.delegatesReasoning ?? true}
-          executionSummary={c.effectiveAiSelection?.runtimeSummary}
-          checkedAt={c.effectiveAiSelection?.checkedAt ?? null}
-          selectionWarning={c.effectiveAiSelection?.warning ?? c.activeProvider?.defaultSnapshot.warnings.find((warning) => warning.severity === 'blocking')?.message ?? null}
-          modelSelectionControl={modelSelectionControl}
-          modelSelectionPending={c.settingsWritePending}
-          selectionAdvisories={[...(c.effectiveAiSelection?.advisories.map((warning) => warning.message) ?? []),
-            ...(customModelAdvisory ? [customModelAdvisory] : [])]}
-          onConfigureAi={() => {
-            c.setPendingGenerationAction(null)
-            runCommand('ai.configure')
-          }}
-          onCancel={() => c.setPendingGenerationAction(null)}
-          onConfirm={(testwarePreferences) => {
-            const action = c.pendingGenerationAction
-            if (!action || c.settingsWritePending) return
-            c.setPendingGenerationAction(null)
-            void c.handleAiAction(action, testwarePreferences, {
-              selectedProvider: c.selectedProvider, selectedModel: c.selectedModel,
-              selectedReasoningEffort: c.selectedReasoningEffort,
-            })
-          }}
-        />
+        <SummaryPreflight c={c} action={c.pendingGenerationAction} onConfigureAi={() => {
+          c.setPendingGenerationAction(null)
+          runCommand('ai.configure')
+        }} />
       ) : null}
     </main>
   )

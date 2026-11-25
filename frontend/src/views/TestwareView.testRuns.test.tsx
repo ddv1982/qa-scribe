@@ -130,17 +130,20 @@ describe('Test run list', () => {
       summary({ createdAt: day(12) }),
     ])
     renderTestware([runnable, unrunnable])
-    const rows = within(await runList()).getAllByRole('button')
-    expect(rows.map((row) => row.textContent)).toEqual([
-      `${testRunSummaryText(summary({ createdAt: day(14), passed: 3, failed: 1, notRun: 1 }))}Latest`,
-      testRunSummaryText(summary({ createdAt: day(12) })),
-    ])
+    const list = within(await runList())
+    expect(list.getByRole('heading', { name: 'Test runs' })).toBeVisible()
+    const rows = list.getAllByRole('button', { name: /Open test run/ })
+    expect(rows[0]).toHaveAccessibleName(`Open test run ${testRunSummaryText(summary({ createdAt: day(14), passed: 3, failed: 1, notRun: 1 }))} Latest`)
+    expect(rows[1]).toHaveAccessibleName(`Open test run ${testRunSummaryText(summary({ createdAt: day(12) }))}`)
   })
 
   it('opens an older test run directly', async () => {
-    api.listTestRuns.mockResolvedValue([summary({ id: 'run-2', createdAt: day(14) }), summary({ createdAt: day(12) })])
+    api.listTestRuns.mockResolvedValue([summary({ id: 'run-2', createdAt: day(12) }), summary({ createdAt: day(12) })])
+    api.getTestRun.mockRejectedValueOnce(new Error('Coverage details unavailable'))
     renderTestware([runnable])
-    fireEvent.click(within(await runList()).getAllByRole('button')[1])
+    const list = within(await runList())
+    expect(list.getByRole('button', { name: /Open test run Run 2/ })).toBeVisible()
+    fireEvent.click(list.getByRole('button', { name: /Open test run Run 1/ }))
     await waitFor(() => expect(api.getTestRun).toHaveBeenCalledWith('run-1'))
     expect(await screen.findByRole('region', { name: 'Pay by card' })).toBeInTheDocument()
     expect(api.startTestRun).not.toHaveBeenCalled()

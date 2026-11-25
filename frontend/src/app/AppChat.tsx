@@ -1,6 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type Ref } from 'react'
 import { SlidersHorizontal, X } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
+import { NextModelSelection } from '../components/NextModelSelection'
+import { ProviderSelect } from '../components/ProviderSelect'
+import { catalogSelectorEnabled } from '../settings/catalog'
 import { SessionChatView } from '../views/SessionChatView'
 import { StartNewConversation } from '../views/StartNewConversation'
 import { noteReadOnlyReason, useNoteProposalControls } from './useNoteProposalControls'
@@ -9,11 +12,11 @@ import type { AppController } from './useAppController'
 import { deriveChatHandoff, handoffDuringRecordWrites, recoveredSummaryChoiceReason } from './sessionChat.presentation'
 import '../styles/ask-ai.css'
 
-export function AppChat({ c, recordVisible = c.askAi.visible, modelSelectionControl, onConfigureAi }: {
+export function AppChat({ c, recordVisible = c.askAi.visible, onConfigureAi }: {
   c: AppController
   /** Whether a record's Ask AI shows: never beside a new draft, where the Note takes its place. */
   recordVisible?: boolean
-  modelSelectionControl: SessionChatViewProps['modelSelectionControl']; onConfigureAi: () => void
+  onConfigureAi: () => void
 }) {
   const notesVisible = Boolean(c.activeSession && c.activeView === 'sessions' && c.sessionMode === 'chat')
   const notesAddedToNote = c.sessionChat.handoff.kind === 'added'
@@ -35,15 +38,16 @@ export function AppChat({ c, recordVisible = c.askAi.visible, modelSelectionCont
       document.querySelector<HTMLButtonElement>('.session-workspace .ask-ai-trigger')?.focus()
     }
   }, [notesVisible, c.sessionChat.chat?.draftId, notesAddedToNote])
+  const { provider, selection, warning } = c.chatExecution
   const common = {
-    providerLabel: c.activeProvider?.label ?? c.selectedProvider, modelLabel: c.selectedModel === 'default' ? 'CLI Default' : c.selectedModel,
-    modelSelectionPending: c.settingsWritePending, providerAvailable: Boolean(c.activeProvider?.available) && !c.effectiveAiSelection?.warning,
-    providerReason: c.effectiveAiSelection?.warning ?? c.activeProvider?.reason ?? 'Loading provider status', onConfigureAi,
+    providerLabel: provider?.label ?? selection.selectedProvider, modelLabel: selection.selectedModel === 'default' ? 'CLI default' : selection.selectedModel,
+    modelSelectionPending: c.settingsWritePending, providerAvailable: Boolean(provider?.available) && !warning,
+    providerReason: warning ?? provider?.reason ?? 'Loading provider status', onConfigureAi,
   }
   return <>
     <AskAiPanel panelRef={notesRef} id="notes-ask-ai" kind="notes" visible={notesVisible} label="Notes AI chat" eyebrow="Session note"
       actions={<ConversationOptions>
-          {notesVisible ? modelSelectionControl : null}
+          {notesVisible ? <ChatExecutionControls c={c} /> : null}
           <div className="chat-buttons"><ActionButton variant="secondary" type="button" onClick={onConfigureAi}>Configure AI</ActionButton>
             {notesAddedToNote ? null : <StartNewConversation state={c.sessionChat} />}</div>
           <p className="chat-counts">{notesMessages.length} / 128 messages · {(notesMessages.reduce((total, message) => total + new TextEncoder().encode(message.text).length, 0) / 1024).toFixed(1)} / 128 KiB transcript</p>
@@ -55,12 +59,11 @@ export function AppChat({ c, recordVisible = c.askAi.visible, modelSelectionCont
       <SessionChatView {...c.sessionChat} {...common} kind="notes" hidden={!notesVisible} proposalControls={noteControls}
         onOpenNote={() => { restoreNotesFocus.current = true; c.setSessionMode('write_note'); c.setActiveView('sessions') }} />
     </AskAiPanel>
-    {c.askAi.panel ? <RecordConversation key={c.activeSession?.id} c={c} visible={recordVisible} common={common} modelSelectionControl={modelSelectionControl} /> : null}
+    {c.askAi.panel ? <RecordConversation key={c.activeSession?.id} c={c} visible={recordVisible} common={common} /> : null}
   </>
 }
 
-function RecordConversation({ c, visible, common, modelSelectionControl }: {
-  modelSelectionControl: SessionChatViewProps['modelSelectionControl']
+function RecordConversation({ c, visible, common }: {
   c: AppController; visible: boolean; common: Pick<SessionChatViewProps, 'providerLabel' | 'modelLabel' | 'modelSelectionPending' | 'providerAvailable' | 'providerReason' | 'onConfigureAi'>
 }) {
   const ref = useRef<HTMLElement>(null)
@@ -81,11 +84,11 @@ function RecordConversation({ c, visible, common, modelSelectionControl }: {
   const noun = owner.kind === 'test_run' ? { eyebrow: 'Test run', missing: 'test run is' }
     : owner.record.kind === 'finding' ? { eyebrow: 'Finding', missing: 'finding is' } : { eyebrow: 'Test cases draft', missing: 'Test cases draft is' }
   return <AskAiPanel panelRef={ref} kind="record" visible={visible} label="Ask AI" eyebrow={noun.eyebrow}
-    actions={owner.kind === 'test_run' && visible ? <ConversationOptions>
-      {modelSelectionControl}
+    actions={visible ? <ConversationOptions>
+      <ChatExecutionControls c={c} />
       <div className="chat-buttons">
         <ActionButton variant="secondary" onClick={common.onConfigureAi}>Configure AI</ActionButton>
-        <StartNewConversation state={{ ...state, onRestart: c.askAi.newTestRunConversation }} retainHistory />
+        {owner.kind === 'test_run' ? <StartNewConversation state={{ ...state, onRestart: c.askAi.newTestRunConversation }} retainHistory /> : null}
       </div>
     </ConversationOptions> : null}
     onClose={() => void c.askAi.close()} source={<>
@@ -98,8 +101,8 @@ function RecordConversation({ c, visible, common, modelSelectionControl }: {
     {panel.closeError ? <p className="chat-error" role="alert">{panel.closeError}</p> : null}
     {panel.recoveryReason && c.askAi.recovery.some(item => item.reference.draftId === reference?.draftId) ? <p className="chat-recovery-reason" role="status">{panel.recoveryReason}</p> : null}
     {handle && reference ? <div className="conversation-presentation" key={reference.draftId}>
-      {panel.legacyOrigin ? <BoundNotes c={c} common={common} hidden={!visible} modelSelectionControl={null} /> : <SessionChatView {...state} {...common} kind="record" owner={owner} source={source} hidden={!visible}
-        modelSelectionControl={null} proposalControls={controls} shownTestRun={c.askAi.shownTestRun} activeTarget={c.askAi.context}
+      {panel.legacyOrigin ? <BoundNotes c={c} common={common} hidden={!visible} /> : <SessionChatView {...state} {...common} kind="record" owner={owner} source={source} hidden={!visible}
+        proposalControls={controls} shownTestRun={c.askAi.shownTestRun} activeTarget={c.askAi.context}
         onSetComposer={handle.setComposer} onSend={handle.send} onSuggestEdit={handle.suggestEdit} onAnswerQuestion={handle.answer} onRetry={handle.retry} onCancel={handle.cancel}
         onAttachImages={handle.attachImages} onPasteNativeImage={handle.pasteImage} onRemoveImage={handle.removeImage} onRetryImage={handle.retryImage} onDismissImageFailure={handle.dismissImage}
         onDecidePermission={handle.decidePermission} onRecheck={handle.recheck} />}
@@ -119,19 +122,33 @@ function AskAiPanel({ panelRef, id, kind, visible, label, eyebrow, source, actio
   </aside>
 }
 
-function BoundNotes({ c, common, hidden, modelSelectionControl }: {
+function BoundNotes({ c, common, hidden }: {
   c: AppController; common: Pick<SessionChatViewProps, 'providerLabel' | 'modelLabel' | 'modelSelectionPending' | 'providerAvailable' | 'providerReason' | 'onConfigureAi'>
-  hidden: boolean; modelSelectionControl: SessionChatViewProps['modelSelectionControl']
+  hidden: boolean
 }) {
   const handle = c.conversations.bind(c.askAi.reference!)
   const state = c.recordChat
-  return <SessionChatView {...state} {...common} kind="notes" recoveryPending={c.noteReadOnly} legacySource={c.askAi.panel?.legacyOrigin ? c.askAi.source ?? undefined : undefined} hidden={hidden} modelSelectionControl={modelSelectionControl}
+  return <SessionChatView {...state} {...common} kind="notes" recoveryPending={c.noteReadOnly} legacySource={c.askAi.panel?.legacyOrigin ? c.askAi.source ?? undefined : undefined} hidden={hidden}
     handoff={handoffDuringRecordWrites(deriveChatHandoff({ ...state, sessionId: state.chat?.sessionId ?? null, noteEntry: c.noteEntry, recoveryPending: c.noteReadOnly }), Boolean(c.sessionChat.recordWritesPending))}
     activeTarget={c.askAi.context} proposalControls={{ ...c.proposalControls, applyUnavailable: c.askAi.panel?.legacyOrigin && c.askAi.source?.kind !== 'available' ? 'The original source must be available before Apply or Undo.' : undefined, onAction: (id, action) => c.proposalControls.onAction(id, action, handle.reference) }}
     onSetComposer={handle.setComposer} onSend={handle.send} onRetry={handle.retry} onCancel={handle.cancel} onSubmit={handle.submit} onRestart={handle.restart} captureRestart={handle.captureRestart}
     onOpenNote={() => { c.setSessionMode('write_note'); c.setActiveView('sessions') }} onAttachImages={handle.attachImages} onPasteNativeImage={handle.pasteImage}
     onRemoveImage={handle.removeImage} onRetryImage={handle.retryImage} onDismissImageFailure={handle.dismissImage} onAnswerQuestion={handle.answer} onSuggestEdit={handle.suggestEdit}
     onPrepareAction={handle.prepareAction} onDecidePermission={handle.decidePermission} onRecheck={handle.recheck} />
+}
+
+function ChatExecutionControls({ c }: { c: AppController }) {
+  const { provider, providerChoice, setProviderChoice, selection } = c.chatExecution
+  return <>
+    <ProviderSelect providers={c.providerStatus?.providers ?? []} value={providerChoice}
+      settingsDefault={c.activeProvider?.label ?? c.selectedProvider}
+      disabled={!c.modelSelectionReady || c.settingsWritePending} onChange={setProviderChoice} />
+    <p className="chat-help">Applies to Ask AI until you change it or close QA Scribe.</p>
+    <NextModelSelection key={selection.selectedProvider} provider={provider} value={selection.selectedModel}
+      pending={c.settingsWritePending} disabled={!c.modelSelectionReady || !provider?.available}
+      catalogEnabled={catalogSelectorEnabled(provider, c.providerStatus?.catalogRollout ?? null)}
+      onChange={(model) => { void c.persistModelChoice(selection.selectedProvider, model) }} />
+  </>
 }
 
 /** One header icon for model choice, AI setup and restart. It closes on Escape or a press outside, so it never covers the conversation. */
@@ -146,7 +163,7 @@ function ConversationOptions({ children }: { children: ReactNode }) {
       // The model menu renders its choices into document.body; they still belong to these options.
       const inside = event.target instanceof Element && (options.contains(event.target) || Boolean(event.target.closest('.model-combobox-popover')))
       // Captured before the combobox handles it: an open model menu closes first.
-      const menuOpen = event.target instanceof Element && Boolean(event.target.closest('[role="combobox"][aria-expanded="true"]'))
+      const menuOpen = event.target instanceof Element && Boolean(event.target.closest('.model-combobox')?.querySelector('[role="combobox"][aria-expanded="true"]'))
       if (event instanceof KeyboardEvent ? event.key === 'Escape' && !menuOpen : !inside) {
         options.open = false
         if (event instanceof KeyboardEvent) options.querySelector('summary')?.focus()
