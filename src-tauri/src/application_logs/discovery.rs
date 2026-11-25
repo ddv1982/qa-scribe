@@ -1,7 +1,7 @@
 use std::{collections::HashSet, sync::atomic::AtomicBool};
 
-use qa_scribe_core::domain::application_insights_id_parts;
-use serde::{Deserialize, Serialize};
+use qa_scribe_core::domain::{AzureSubscription, application_insights_id_parts};
+use serde::Serialize;
 use uuid::Uuid;
 
 use super::{
@@ -33,12 +33,6 @@ fn resource_args(subscription: &str) -> [&str; 10] {
 }
 
 #[derive(Serialize, specta::Type)]
-pub struct AzureSubscription {
-    pub id: String,
-    pub name: String,
-}
-
-#[derive(Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInsightsComponent {
     pub name: String,
@@ -46,37 +40,14 @@ pub struct ApplicationInsightsComponent {
     pub resource_id: String,
 }
 
-#[derive(Deserialize)]
-struct Account {
-    id: String,
-    name: String,
-}
-
-pub fn subscription_id(value: &str) -> Option<Uuid> {
-    let id = Uuid::try_parse(value).ok()?;
-    id.hyphenated()
-        .to_string()
-        .eq_ignore_ascii_case(value)
-        .then_some(id)
-}
-
 pub fn subscriptions(cancelled: &AtomicBool) -> Result<Vec<AzureSubscription>, LogQueryError> {
     let bytes = metadata(ACCOUNT_ARGS, cancelled)?;
-    let accounts: Vec<Account> = parse(&bytes)?;
+    let accounts: Vec<AzureSubscription> = parse(&bytes)?;
     let mut seen = HashSet::new();
     Ok(accounts
         .into_iter()
-        .filter_map(|account| {
-            let id = subscription_id(&account.id)?;
-            let name = account.name.trim();
-            if name.is_empty() || name.chars().any(char::is_control) || !seen.insert(id) {
-                return None;
-            }
-            Some(AzureSubscription {
-                id: id.to_string(),
-                name: name.to_owned(),
-            })
-        })
+        .filter_map(|account| account.validated().ok())
+        .filter(|account| seen.insert(account.id.clone()))
         .collect())
 }
 
@@ -152,12 +123,13 @@ pub fn error_message(error: LogQueryError) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use qa_scribe_core::domain::azure_subscription_id;
 
     #[test]
     fn discovery_requires_a_hyphenated_subscription_uuid() {
         let id = "11111111-1111-4111-8111-11111111ABCD";
         assert_eq!(
-            subscription_id(id).unwrap().to_string(),
+            azure_subscription_id(id).unwrap().to_string(),
             id.to_ascii_lowercase()
         );
         for invalid in [
@@ -165,13 +137,13 @@ mod tests {
             "1111111111114111811111111111ABCD",
             " 11111111-1111-4111-8111-11111111ABCD",
         ] {
-            assert!(subscription_id(invalid).is_none());
+            assert!(azure_subscription_id(invalid).is_none());
         }
     }
 
     #[test]
     fn discovery_keeps_only_distinct_valid_components_in_the_selected_subscription() {
-        let subscription = subscription_id("11111111-1111-4111-8111-111111111111").unwrap();
+        let subscription = azure_subscription_id("11111111-1111-4111-8111-111111111111").unwrap();
         let prefix = format!("/subscriptions/{subscription}/resourceGroups");
         let first = format!("{prefix}/qa/providers/Microsoft.Insights/components/checkout");
         let second =

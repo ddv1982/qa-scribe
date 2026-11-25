@@ -1,4 +1,5 @@
 import { ArrowLeft, BrainCircuit, ChevronRight, Cpu, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
+import { useState } from 'react'
 import { ActionButton } from '../components/ActionButton'
 import { SaveSettingsButton } from '../components/Common'
 import { ModelCombobox, ProviderGlyph } from '../components/ModelSelector'
@@ -70,6 +71,7 @@ export function SettingsView({
   onRefreshProviderStatus: () => Promise<void>
   onBack: () => void
 }) {
+  const [applicationLogsVersion, setApplicationLogsVersion] = useState(0)
   const providerOptions = providerStatus?.providers ?? []
   const providerStatusLoaded = providerStatus !== null
   const availableProviderOptions = providerOptions.filter((provider) => provider.available)
@@ -138,7 +140,10 @@ export function SettingsView({
         </div>
         <div className="settings-header-actions">
           {settingsDirty ? (
-            <ActionButton variant="destructive-quiet" icon={RotateCcw} disabled={busyAction !== null || settingsWritePending} onClick={onDiscardSettings}>
+            <ActionButton variant="destructive-quiet" icon={RotateCcw} disabled={busyAction !== null || settingsWritePending} onClick={() => {
+              setApplicationLogsVersion((version) => version + 1)
+              onDiscardSettings()
+            }}>
               Discard changes
             </ActionButton>
           ) : null}
@@ -368,7 +373,9 @@ export function SettingsView({
 
         {settingsDraft ? <GenerationReadSourcesSetting settingsDraft={settingsDraft} updateSettingsDraft={updateSettingsDraft} codexAvailable={providerOptions.some((provider) => provider.id === 'codex_cli' && provider.available)} /> : null}
 
-        {settingsDraft ? <ApplicationLogsSettings sources={settingsDraft.applicationLogSources ?? []}
+        {settingsDraft ? <ApplicationLogsSettings key={applicationLogsVersion} sources={settingsDraft.applicationLogSources ?? []}
+          subscription={settingsDraft.applicationLogSubscription}
+          onSubscriptionChange={(applicationLogSubscription) => updateSettingsDraft({ applicationLogSubscription })}
           askAiEnabled={settingsDraft.askAiApplicationLogs}
           onAskAiChange={(askAiApplicationLogs) => updateSettingsDraft({ askAiApplicationLogs })}
           onChange={(applicationLogSources) => updateSettingsDraft({ applicationLogSources })} /> : null}

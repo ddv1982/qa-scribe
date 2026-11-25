@@ -13,6 +13,38 @@ const MAX_SOURCES: usize = 20;
 const MAX_KQL_BYTES: usize = 16 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+pub struct AzureSubscription {
+    pub id: String,
+    pub name: String,
+}
+
+impl AzureSubscription {
+    pub fn validated(mut self) -> Result<Self> {
+        self.id = azure_subscription_id(&self.id)
+            .ok_or_else(|| validation("Select a valid Azure subscription."))?
+            .to_string();
+        self.name = self.name.trim().to_owned();
+        if self.name.is_empty()
+            || self.name.chars().count() > 256
+            || self.name.chars().any(char::is_control)
+        {
+            return Err(validation(
+                "Use an Azure subscription name of 1 to 256 characters.",
+            ));
+        }
+        Ok(self)
+    }
+}
+
+pub fn azure_subscription_id(value: &str) -> Option<uuid::Uuid> {
+    let id = uuid::Uuid::try_parse(value).ok()?;
+    id.hyphenated()
+        .to_string()
+        .eq_ignore_ascii_case(value)
+        .then_some(id)
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationLogSource {
     pub label: String,
