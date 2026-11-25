@@ -1,13 +1,14 @@
 import { ActionButton } from '../components/ActionButton'
 import { Dialog } from '../components/Dialog'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { GenerateAiActionKind, TestwareGenerationPreferences } from '../tauri'
 import { defaultTestwareGenerationPreferences } from '../testware/generationPreferences'
 import { GenerationSetup, type GenerationSetupProps } from './generationSetup'
 import { generationSetupBlocked } from './generationReadiness'
 
 /** The generation setup as a modal dialog, opened from the Note (Summarize). A new draft shows the same setup inline. */
-export function GenerationPreflight({ onConfigureAi, onCancel, onConfirm, ...setup }: Omit<GenerationSetupProps, 'testwarePreferences' | 'onTestwarePreferencesChange'> & {
+export function GenerationPreflight({ executionControls, onConfigureAi, onCancel, onConfirm, ...setup }: Omit<GenerationSetupProps, 'testwarePreferences' | 'onTestwarePreferencesChange'> & {
+  executionControls?: ReactNode
   onConfigureAi?: () => void
   onCancel: () => void
   onConfirm: (testwarePreferences?: TestwareGenerationPreferences) => void
@@ -65,6 +66,7 @@ export function GenerationPreflight({ onConfigureAi, onCancel, onConfirm, ...set
       }}
     >
       <div className="preflight-body" ref={bodyRef}>
+        {executionControls}
         <GenerationSetup {...setup} testwarePreferences={testwarePreferences} onTestwarePreferencesChange={setTestwarePreferences} />
       </div>
     </Dialog>

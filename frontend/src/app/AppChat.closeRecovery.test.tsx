@@ -15,7 +15,7 @@ beforeEach(setupControllerTest)
 afterEach(() => { vi.restoreAllMocks(); cleanupControllerTest() })
 
 function chat(c: ReturnType<typeof useAppController>) {
-  return <AppChat c={c} modelSelectionControl={null} onConfigureAi={() => {}} />
+  return <AppChat c={c} onConfigureAi={() => {}} />
 }
 
 async function openRecord() {

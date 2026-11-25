@@ -48,7 +48,7 @@ it.each(['finding', 'test_cases_draft'] as const)('%s delayed Save settles A whi
     }
   }
   await select(bRef, b)
-  const view = () => createElement(AppChat, { c: result.current, modelSelectionControl: null, onConfigureAi: () => {} })
+  const view = () => createElement(AppChat, { c: result.current, onConfigureAi: () => {} })
   const rendered = render(view())
   expect(result.current.askAi.reference).toEqual(bRef)
   expect(result.current.recordChat.chat?.owner).toEqual({ kind: 'record', sessionId: b.sessionId, record: { kind, recordId: b.id } })

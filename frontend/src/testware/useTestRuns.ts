@@ -148,12 +148,13 @@ export function useTestRuns(sessionId: string | null) {
     const request = ++summariesRequestRef.current
     try {
       const next = await listTestRuns(session)
-      const latest = await Promise.all(latestTestRunIds(next).map((runId) => getTestRun(runId)))
       if (request !== summariesRequestRef.current || sessionRef.current !== session) return
       setSummaries(next)
+      const latest = await Promise.all(latestTestRunIds(next).map((runId) => getTestRun(runId)))
+      if (request !== summariesRequestRef.current || sessionRef.current !== session) return
       setLatestRuns(latest)
     } catch {
-      // The Last test run line and the coverage line are hints; a failed refresh keeps the previous ones.
+      // Keep the previous values for reads that failed. Run history can load independently of coverage.
     }
   }, [])
 
