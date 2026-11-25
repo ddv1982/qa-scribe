@@ -8,14 +8,15 @@ use std::{
 
 use chrono::{TimeDelta, Utc};
 use qa_scribe_core::domain::{
-    ApplicationLogQuery, ApplicationLogSource, LogEvidenceDetails, LogEvidenceSummary,
+    AppSettings, ApplicationLogQuery, ApplicationLogSource, AzureSubscription, LogEvidenceDetails,
+    LogEvidenceSummary, application_insights_id_parts, azure_subscription_id,
 };
 use tauri::{AppHandle, Manager, State};
 
 use crate::{
     application_logs::{
         self, ApplicationLogAccess, LogQueryError,
-        discovery::{self, ApplicationInsightsComponent, AzureSubscription},
+        discovery::{self, ApplicationInsightsComponent},
     },
     commands::CommandError,
     settings::AppState,
@@ -193,7 +194,7 @@ pub async fn list_application_insights_components(
     query_id: String,
     subscription: String,
 ) -> Result<Vec<ApplicationInsightsComponent>, CommandError> {
-    let subscription = discovery::subscription_id(&subscription)
+    let subscription = azure_subscription_id(&subscription)
         .ok_or_else(|| CommandError::validation("Select a valid Azure subscription."))?;
     let job = jobs.register(job_id(&query_id)?)?;
     tauri::async_runtime::spawn_blocking(move || {
@@ -263,19 +264,52 @@ pub async fn capture_application_logs(
     let job = jobs.register(id)?;
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
-        let query = state.with_service(|service| {
+        let settings = state.with_service(|service| {
             service.require_log_evidence_capacity(&case_id)?;
-            query.validate(&service.get_settings()?.application_log_sources)
+            service.get_settings()
         })?;
-        let output = application_logs::run(&query, &job.cancelled)
-            .map_err(|error| CommandError::validation(error.message()))?;
+        let subscription = discovery_scope(&settings, &query.target_id);
+        let query = if let Some(subscription) = subscription {
+            // Validate the input locally before resolving the target through Azure.
+            let candidate = ApplicationLogSource {
+                label: String::new(),
+                resource_id: query.target_id.clone(),
+            };
+            let mut query = query.validate(&[candidate])?;
+            let target_id = query.target.resource_id.to_lowercase();
+            let components =
+                discovery::components(subscription, &job.cancelled).map_err(discovery_error)?;
+            let target = components
+                .into_iter()
+                .find(|component| component.resource_id.to_lowercase() == target_id)
+                .ok_or_else(|| {
+                    CommandError::validation(
+                        "This resource is no longer available. Select Refresh resources to look again.",
+                    )
+                })?;
+            query.target = ApplicationLogSource {
+                label: format!("{} ({})", target.name, target.resource_group),
+                resource_id: target.resource_id,
+            };
+            query
+        } else {
+            query.validate(&settings.application_log_sources)?
+        };
+        let output = application_logs::run(&query, &job.cancelled).map_err(|error| {
+            if error == LogQueryError::Access(ApplicationLogAccess::SignedOut) {
+                CommandError::azure_cli_signed_out(error.message())
+            } else {
+                CommandError::validation(error.message())
+            }
+        })?;
         job.commit(|| {
             state.with_service(|service| {
-                if !service
-                    .get_settings()?
-                    .application_log_sources
-                    .contains(&query.target)
-                {
+                let settings = service.get_settings()?;
+                let still_available = match subscription {
+                    Some(id) => saved_subscription_id(&settings) == Some(id),
+                    None => settings.application_log_sources.contains(&query.target),
+                };
+                if !still_available {
                     return Err(qa_scribe_core::QaScribeError::Validation(
                         "The Application Insights query target changed. Run the query again."
                             .into(),
@@ -287,6 +321,23 @@ pub async fn capture_application_logs(
     })
     .await
     .map_err(|_| CommandError::internal("The application log query did not finish."))?
+}
+
+fn saved_subscription_id(settings: &AppSettings) -> Option<uuid::Uuid> {
+    azure_subscription_id(&settings.application_log_subscription.as_ref()?.id)
+}
+
+fn discovery_scope(settings: &AppSettings, target_id: &str) -> Option<uuid::Uuid> {
+    let normalized_target = target_id.to_lowercase();
+    if settings
+        .application_log_sources
+        .iter()
+        .any(|source| source.resource_id.to_lowercase() == normalized_target)
+    {
+        return None;
+    }
+    let (owner, _, _) = application_insights_id_parts(target_id)?;
+    (saved_subscription_id(settings) == Some(owner)).then_some(owner)
 }
 
 #[tauri::command]
@@ -331,6 +382,33 @@ pub fn recent_application_log_queries(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn discovery_only_applies_to_unsaved_targets_in_the_saved_subscription() {
+        let id = "11111111-1111-4111-8111-111111111111";
+        let target = format!(
+            "/subscriptions/{id}/resourceGroups/qa/providers/Microsoft.Insights/components/checkout"
+        );
+        let mut settings = AppSettings {
+            application_log_subscription: Some(AzureSubscription {
+                id: id.into(),
+                name: "Acceptance".into(),
+            }),
+            ..Default::default()
+        };
+        assert_eq!(
+            discovery_scope(&settings, &target),
+            azure_subscription_id(id)
+        );
+        let elsewhere = target.replace(id, "22222222-2222-4222-8222-222222222222");
+        assert_eq!(discovery_scope(&settings, &elsewhere), None);
+        assert_eq!(discovery_scope(&settings, "--debug"), None);
+        settings.application_log_sources.push(ApplicationLogSource {
+            label: "Checkout".into(),
+            resource_id: target.to_ascii_uppercase(),
+        });
+        assert_eq!(discovery_scope(&settings, &target), None);
+    }
 
     #[test]
     fn cancellation_can_arrive_before_capture_registration() {

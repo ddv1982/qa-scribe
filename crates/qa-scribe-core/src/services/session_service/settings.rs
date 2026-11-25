@@ -134,6 +134,10 @@ impl SessionService {
             crate::domain::validate_application_log_sources(settings.application_log_sources)?;
         let next = AppSettings {
             application_log_sources,
+            application_log_subscription: settings
+                .application_log_subscription
+                .map(crate::domain::AzureSubscription::validated)
+                .transpose()?,
             generation_read_sources,
             generation_system_prompt: prompt,
             selected_ai_model: model,
@@ -164,7 +168,57 @@ mod tests {
     use serde_json::json;
 
     use super::{SessionService, normalize_loaded_settings};
-    use crate::domain::{AiProvider, AppSettings, GenerationReadSource};
+    use crate::domain::{AiProvider, AppSettings, AzureSubscription, GenerationReadSource};
+
+    #[test]
+    fn saves_and_clears_a_subscription_without_any_log_sources() {
+        let service = SessionService::in_memory().unwrap();
+        let mut settings = service.get_settings().unwrap();
+        let mut legacy = serde_json::to_value(&settings).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("applicationLogSubscription");
+        let legacy: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert!(legacy.application_log_subscription.is_none());
+
+        settings.application_log_subscription = Some(AzureSubscription {
+            id: "11111111-1111-4111-8111-11111111ABCD".into(),
+            name: " Acceptance ".into(),
+        });
+        service.update_settings(settings).unwrap();
+        let mut saved = service.get_settings().unwrap();
+        assert!(saved.application_log_sources.is_empty());
+        assert_eq!(
+            saved.application_log_subscription.as_ref().unwrap(),
+            &AzureSubscription {
+                id: "11111111-1111-4111-8111-11111111abcd".into(),
+                name: "Acceptance".into(),
+            }
+        );
+        for (id, name) in [
+            ("--debug", "Acceptance".to_owned()),
+            ("11111111-1111-4111-8111-11111111abcd", "a".repeat(257)),
+        ] {
+            let invalid = AppSettings {
+                application_log_subscription: Some(AzureSubscription {
+                    id: id.into(),
+                    name,
+                }),
+                ..saved.clone()
+            };
+            assert!(service.update_settings(invalid).is_err());
+        }
+        saved.application_log_subscription = None;
+        service.update_settings(saved).unwrap();
+        assert!(
+            service
+                .get_settings()
+                .unwrap()
+                .application_log_subscription
+                .is_none()
+        );
+    }
 
     #[test]
     fn generation_read_sources_default_off_and_save_sorted_without_duplicates() {

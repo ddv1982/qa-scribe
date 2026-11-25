@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ApplicationLogDiscovery } from './ApplicationLogDiscovery'
 import { ActionButton } from '../components/ActionButton'
-import { commands, type ApplicationLogAccess, type ApplicationLogSource } from '../bindings'
+import { commands, type ApplicationLogAccess, type ApplicationLogSource, type AzureSubscription } from '../bindings'
 import { formatError } from '../ui/format'
 
 const accessMessages: Record<ApplicationLogAccess, string> = {
@@ -17,8 +17,10 @@ const accessMessages: Record<ApplicationLogAccess, string> = {
 
 const MAX_SOURCES = 20
 
-export function ApplicationLogsSettings({ sources, onChange, askAiEnabled, onAskAiChange }: {
+export function ApplicationLogsSettings({ sources, onChange, subscription, onSubscriptionChange, askAiEnabled, onAskAiChange }: {
   sources: ApplicationLogSource[]
+  subscription?: AzureSubscription | null
+  onSubscriptionChange?: (subscription: AzureSubscription | null) => void
   askAiEnabled?: boolean
   onAskAiChange?: (enabled: boolean) => void
   onChange: (sources: ApplicationLogSource[]) => void
@@ -28,8 +30,9 @@ export function ApplicationLogsSettings({ sources, onChange, askAiEnabled, onAsk
   return (
     <section className="wide-setting" id="application-log-settings">
       <h2>Application logs</h2>
-      <p className="settings-note">Optional: configure Application Insights targets for test run evidence. Remove all sources to leave application logs unconfigured. Captures are stored locally. Copy report includes the target, UTC window, row count and a portal link containing the query.</p>
+      <p className="settings-note">Save a subscription or specific Application Insights sources to add log evidence to test runs. Captures are stored locally. Copy report includes the target, UTC window, row count and a portal link containing the query.</p>
       <ApplicationLogDiscovery sources={sources} disabled={atCapacity}
+        savedSubscription={subscription} onSubscriptionChange={onSubscriptionChange}
         onAdd={(source) => onChange([...sources, source])} />
       <ActionButton variant="secondary" disabled={atCapacity}
         onClick={() => onChange([...sources, { label: '', resourceId: '' }])}>Enter resource ID manually</ActionButton>
@@ -45,7 +48,7 @@ export function ApplicationLogsSettings({ sources, onChange, askAiEnabled, onAsk
       {onAskAiChange ? <label className="read-source-option">
         <input type="checkbox" checked={askAiEnabled ?? false} onChange={(event) => onAskAiChange(event.target.checked)} />
         <span>Allow Ask AI to request application logs</span>
-        <span className="settings-note">Claude Code and Codex can request log queries during test runs on macOS and Linux. Each query requires your approval before results are shared with the provider.</span>
+        <span className="settings-note">Claude Code and Codex can request queries against saved Application Insights sources during test runs on macOS and Linux. Each query requires your approval before results are shared with the provider.</span>
       </label> : null}
     </section>
   )

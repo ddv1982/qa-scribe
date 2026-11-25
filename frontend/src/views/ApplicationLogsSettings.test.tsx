@@ -3,7 +3,7 @@ import { act, cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { commands, type ApplicationInsightsComponent, type ApplicationLogSource } from '../bindings'
+import { commands, type ApplicationInsightsComponent, type ApplicationLogSource, type AzureSubscription } from '../bindings'
 import { ApplicationLogsSettings } from './ApplicationLogsSettings'
 
 const first = '11111111-1111-4111-8111-111111111111'
@@ -29,6 +29,49 @@ function renderSettings(initial: ApplicationLogSource[] = []) {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+})
+
+it('updates the subscription draft independently of resource discovery', async () => {
+  const user = userEvent.setup()
+  vi.spyOn(commands, 'listAzureLogSubscriptions').mockResolvedValue(accounts)
+  vi.spyOn(commands, 'listApplicationInsightsComponents').mockResolvedValueOnce([])
+    .mockResolvedValueOnce([component(second, 'prod')])
+  const onChange = vi.fn()
+  function Settings() {
+    const [subscription, setSubscription] = useState<AzureSubscription | null>(null)
+    return <ApplicationLogsSettings sources={[]} onChange={onChange}
+      subscription={subscription} onSubscriptionChange={setSubscription} />
+  }
+  render(<Settings />)
+  await user.click(screen.getByRole('button', { name: 'Discover from Azure' }))
+  const subscriptions = await screen.findByLabelText('Azure subscription')
+  await user.selectOptions(subscriptions, first)
+  await screen.findByText('No Application Insights resources were found in this subscription.')
+  await user.selectOptions(subscriptions, second)
+  expect(await screen.findByLabelText('Application Insights resource (optional)')).toHaveValue('')
+  expect(onChange).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Close discovery' }))
+  expect(screen.getByText(`Azure subscription: Production (${second})`)).toBeVisible()
+  await user.click(screen.getByRole('button', { name: 'Clear subscription' }))
+  expect(screen.queryByText(`Azure subscription: Production (${second})`)).not.toBeInTheDocument()
+})
+
+it.each([false, true])('reloads the subscription list when retrying discovery (initial list empty: %s)', async (empty) => {
+  const user = userEvent.setup()
+  const listSubscriptions = vi.spyOn(commands, 'listAzureLogSubscriptions')
+  if (empty) listSubscriptions.mockResolvedValueOnce([])
+  else listSubscriptions.mockRejectedValueOnce({ kind: 'validation', message: 'Azure discovery timed out.' })
+  listSubscriptions.mockResolvedValueOnce(accounts)
+  const listResources = vi.spyOn(commands, 'listApplicationInsightsComponents')
+    .mockResolvedValue([component(first, 'qa')])
+  render(<ApplicationLogsSettings sources={[]} onChange={vi.fn()} subscription={accounts[0]}
+    onSubscriptionChange={vi.fn()} />)
+  await user.click(screen.getByRole('button', { name: 'Discover from Azure' }))
+  await user.click(await screen.findByRole('button', { name: 'Retry discovery' }))
+  expect(await screen.findByLabelText('Azure subscription')).toHaveValue(first)
+  expect(await screen.findByLabelText('Application Insights resource (optional)')).toHaveValue('')
+  expect(listSubscriptions).toHaveBeenCalledTimes(2)
+  expect(listResources).toHaveBeenCalledExactlyOnceWith(expect.any(String), first)
 })
 
 it('keeps the latest subscription results when an older request finishes later', async () => {

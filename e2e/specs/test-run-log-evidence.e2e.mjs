@@ -13,7 +13,7 @@ const subscription = '11111111-1111-4111-8111-111111111111'
 const emptySubscription = '22222222-2222-4222-8222-222222222222'
 const target = `/subscriptions/${subscription}/resourceGroups/qa/providers/Microsoft.Insights/components/checkout`
 const discoveryFile = join(config, 'discovery.jsonl')
-const label = 'Checkout acceptance'
+const label = 'checkout (qa)'
 const kql = "traces | where message == 'checkout café'"
 const trace = 'fixture checkout trace'
 const sessionTitle = 'E2E Application log evidence'
@@ -73,7 +73,7 @@ function verifyLink(link) {
 
 describe('Application Insights discovery and evidence in the built app', () => {
   if (phase === 'capture') {
-    it('discovers a target, checks access and attaches bounded CLI results to TC 2', async () => {
+    it('saves only a subscription, checks access and attaches results from a discovered target to TC 2', async () => {
       writeFileSync(join(config, 'require-login'), '')
       await click('button=Settings')
       await click('button=Discover from Azure')
@@ -92,18 +92,32 @@ describe('Application Insights discovery and evidence in the built app', () => {
       const targetOption = `#application-log-settings option[value="${target}"]`
       await $(targetOption).waitForExist()
       assert.equal(await $(targetOption).getText(), 'checkout (qa)')
-      await selectOption(`#application-log-settings select:has(option[value="${target}"])`, target)
-      await click('button=Add discovered source')
-      const fields = await $$('#application-log-settings input')
-      assert.equal(await fields[0].getValue(), 'checkout')
-      assert.equal(await fields[1].getValue(), target)
-      await fields[0].setValue(label)
+      const resources = `#application-log-settings select:has(option[value="${target}"])`
+      assert.equal(await $(resources).getValue(), '')
+      await browser.saveScreenshot(join(artifacts, 'azure-subscription-only-settings.png'))
+      await click('button=Save settings')
+      await browser.waitUntil(async () => (await native('get_settings')).applicationLogSubscription?.id === subscription)
+      assert.deepEqual((await native('get_settings')).applicationLogSources, [])
       const discovery = readFileSync(discoveryFile, 'utf8').trim().split('\n').map((line) => JSON.parse(line))
       assert.deepEqual(discovery.map((argv) => [argv[0], argv[1], argv[5]]), [
         ['account', 'list', 'json'], ['resource', 'list', emptySubscription], ['resource', 'list', subscription],
         ['login', '--output', undefined], ['account', 'list', 'json'], ['resource', 'list', subscription],
       ])
       assert.equal(existsSync(join(config, 'calls.jsonl')), false)
+      await click('.settings-back-button')
+      await click('button=Settings')
+      await $(`p=Azure subscription: Acceptance (${subscription})`).waitForDisplayed()
+      await click('button=Discover from Azure')
+      await $(targetOption).waitForExist()
+      assert.equal(await $(subscriptions).getValue(), subscription)
+      await selectOption(subscriptions, emptySubscription)
+      await click('button=Discard changes')
+      await $(subscriptions).waitForExist({ reverse: true })
+      await $(`p=Azure subscription: Acceptance (${subscription})`).waitForDisplayed()
+      await click('button=Discover from Azure')
+      await $(targetOption).waitForExist()
+      await selectOption(resources, target)
+      await click('button=Add discovered source')
       const access = []
       async function check(message) {
         await click('button=Check access')
@@ -130,8 +144,7 @@ describe('Application Insights discovery and evidence in the built app', () => {
         writeFileSync(join(config, 'mode'), mode)
         await check(message)
       }
-      await click('button=Save settings')
-      await browser.waitUntil(async () => (await native('get_settings')).applicationLogSources?.[0]?.resourceId === target)
+      await click('button=Discard changes')
       await click('.settings-back-button')
 
       const session = await native('create_session', { draft: { title: sessionTitle } })
@@ -147,17 +160,33 @@ describe('Application Insights discovery and evidence in the built app', () => {
       await click('button=Add log evidence', caseSection)
       const dialog = await $('dialog[open]')
       await dialog.waitForDisplayed()
-      assert.equal(await (await dialog.$('select')).getValue(), target)
+      const targetSelect = 'dialog[open] select'
+      await $(`dialog[open] option[value="${target}"]`).waitForExist()
+      assert.equal(await $(targetSelect).getValue(), '')
+      await selectOption(targetSelect, target)
       const [start, end] = await browser.execute(() =>
         Array.from(document.querySelectorAll('dialog[open] input[type="datetime-local"]'),
           (field) => new Date(field.value + 'Z').toISOString().replace('.000Z', 'Z')))
       assert.equal(Date.parse(end) - Date.parse(start), 15 * 60_000)
       await (await dialog.$('textarea')).setValue(kql)
+      await browser.saveScreenshot(join(artifacts, 'azure-discovered-query-target.png'))
+      const [run] = await native('list_test_runs', { sessionId: session.id })
+      const caseId = (await native('get_test_run', { runId: run.id })).cases[1].id
+      const listedBeforeInvalidQuery = readFileSync(discoveryFile, 'utf8')
+      for (const [targetId, message, query] of [
+        [target, 'Enter a KQL query of at most 16 KiB.', '@invalid.kql'],
+        [target.replace(subscription, emptySubscription), 'Select a configured Application Insights query target.'],
+        [target.replace('/checkout', '/unlisted'), 'This resource is no longer available. Select Refresh resources to look again.'],
+      ]) {
+        await assert.rejects(() => native('capture_application_logs', {
+          caseId, queryId: globalThis.crypto.randomUUID(), query: { targetId, kql: query ?? kql, start, end },
+        }), (error) => (error?.message ?? JSON.stringify(error)).includes(message))
+        if (query) assert.equal(readFileSync(discoveryFile, 'utf8'), listedBeforeInvalidQuery)
+      }
       await click('button=Run query and attach')
       await $(`${caseSection} details summary`).waitForDisplayed()
       assert.equal(await $('section[aria-label="TC 1"] .test-run-log-evidence summary').isExisting(), false)
 
-      const [run] = await native('list_test_runs', { sessionId: session.id })
       const stored = await native('get_test_run', { runId: run.id })
       assert.equal(stored.logEvidence.length, 1)
       const [capture] = stored.logEvidence

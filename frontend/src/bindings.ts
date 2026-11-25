@@ -147,6 +147,7 @@ export type AppSettings = {
 	 */
 	generationReadSources?: GenerationReadSource[],
 	applicationLogSources?: ApplicationLogSource[],
+	applicationLogSubscription?: AzureSubscription | null,
 	askAiApplicationLogs?: boolean,
 };
 
