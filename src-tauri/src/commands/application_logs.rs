@@ -14,7 +14,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::{
     application_logs::{
-        self, ApplicationLogAccess,
+        self, ApplicationLogAccess, LogQueryError,
         discovery::{self, ApplicationInsightsComponent, AzureSubscription},
     },
     commands::CommandError,
@@ -24,6 +24,7 @@ use crate::{
 #[derive(Default)]
 struct Jobs {
     active: HashMap<uuid::Uuid, Arc<AtomicBool>>,
+    sign_in: Option<uuid::Uuid>,
     cancelled_before_start: VecDeque<uuid::Uuid>,
     shutting_down: bool,
 }
@@ -45,6 +46,14 @@ pub(crate) struct LogJob {
 
 impl ApplicationLogJobs {
     pub(crate) fn register(&self, id: uuid::Uuid) -> Result<LogJob, CommandError> {
+        self.register_job(id, false)
+    }
+
+    fn register_sign_in(&self, id: uuid::Uuid) -> Result<LogJob, CommandError> {
+        self.register_job(id, true)
+    }
+
+    fn register_job(&self, id: uuid::Uuid, sign_in: bool) -> Result<LogJob, CommandError> {
         let mut jobs = self.0.jobs.lock().map_err(lock_error)?;
         if jobs.shutting_down || jobs.active.contains_key(&id) || jobs.active.len() >= 4 {
             return Err(CommandError::validation(
@@ -58,6 +67,14 @@ impl ApplicationLogJobs {
         {
             jobs.cancelled_before_start.remove(index);
             return Err(cancelled_error());
+        }
+        if sign_in {
+            if jobs.sign_in.is_some() {
+                return Err(CommandError::validation(
+                    "An Azure CLI sign-in is already running.",
+                ));
+            }
+            jobs.sign_in = Some(id);
         }
         let cancelled = Arc::new(AtomicBool::new(false));
         jobs.active.insert(id, Arc::clone(&cancelled));
@@ -129,6 +146,9 @@ impl Drop for LogJob {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         jobs.active.remove(&self.id);
+        if jobs.sign_in == Some(self.id) {
+            jobs.sign_in = None;
+        }
         self.jobs.0.finished.notify_all();
     }
 }
@@ -146,6 +166,13 @@ fn job_id(raw: &str) -> Result<uuid::Uuid, CommandError> {
         .map_err(|_| CommandError::validation("Invalid application log query ID."))
 }
 
+fn discovery_error(error: LogQueryError) -> CommandError {
+    if error == LogQueryError::Access(ApplicationLogAccess::SignedOut) {
+        return CommandError::azure_cli_signed_out("Sign in to Azure CLI to continue discovery.");
+    }
+    CommandError::validation(discovery::error_message(error))
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn list_azure_log_subscriptions(
@@ -156,7 +183,7 @@ pub async fn list_azure_log_subscriptions(
     tauri::async_runtime::spawn_blocking(move || discovery::subscriptions(&job.cancelled))
         .await
         .map_err(|_| CommandError::internal("Azure subscription discovery did not finish."))?
-        .map_err(|error| CommandError::validation(discovery::error_message(error)))
+        .map_err(discovery_error)
 }
 
 #[tauri::command]
@@ -174,7 +201,31 @@ pub async fn list_application_insights_components(
     })
     .await
     .map_err(|_| CommandError::internal("Application Insights discovery did not finish."))?
-    .map_err(|error| CommandError::validation(discovery::error_message(error)))
+    .map_err(discovery_error)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn sign_in_azure_cli(
+    jobs: State<'_, ApplicationLogJobs>,
+    query_id: String,
+) -> Result<(), CommandError> {
+    let job = jobs.register_sign_in(job_id(&query_id)?)?;
+    tauri::async_runtime::spawn_blocking(move || application_logs::sign_in(&job.cancelled))
+        .await
+        .map_err(|_| CommandError::internal("Azure CLI sign-in did not finish."))?
+        .map_err(|error| {
+            CommandError::validation(match error {
+                LogQueryError::Access(ApplicationLogAccess::TimedOut) => {
+                    "Azure CLI sign-in timed out."
+                }
+                LogQueryError::Access(
+                    ApplicationLogAccess::Unsupported | ApplicationLogAccess::CliMissing,
+                ) => error.message(),
+                LogQueryError::Cancelled => "Azure CLI sign-in was cancelled.",
+                _ => "Azure CLI sign-in did not complete.",
+            })
+        })
 }
 
 #[tauri::command]
@@ -288,6 +339,22 @@ mod tests {
         jobs.cancel(id).unwrap();
         assert!(jobs.register(id).is_err());
         assert!(jobs.register(uuid::Uuid::new_v4()).is_ok());
+    }
+
+    #[test]
+    fn sign_in_is_exclusive_until_cleanup_and_honors_early_cancellation() {
+        let jobs = ApplicationLogJobs::default();
+        let id = uuid::Uuid::new_v4();
+        let job = jobs.register_sign_in(id).unwrap();
+        let next = uuid::Uuid::new_v4();
+        assert!(jobs.register_sign_in(next).is_err());
+        jobs.cancel(id).unwrap();
+        assert!(job.cancelled.load(Ordering::Acquire));
+        assert!(jobs.register_sign_in(next).is_err());
+        drop(job);
+        jobs.cancel(next).unwrap();
+        assert!(jobs.register_sign_in(next).is_err());
+        assert!(jobs.register_sign_in(uuid::Uuid::new_v4()).is_ok());
     }
 
     #[test]

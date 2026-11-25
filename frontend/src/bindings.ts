@@ -58,6 +58,7 @@ export const commands = {
 	deleteFinding: (id: string) => __TAURI_INVOKE<null>("delete_finding", { id }),
 	listAzureLogSubscriptions: (queryId: string) => __TAURI_INVOKE<AzureSubscription[]>("list_azure_log_subscriptions", { queryId }),
 	listApplicationInsightsComponents: (queryId: string, subscription: string) => __TAURI_INVOKE<ApplicationInsightsComponent[]>("list_application_insights_components", { queryId, subscription }),
+	signInAzureCli: (queryId: string) => __TAURI_INVOKE<null>("sign_in_azure_cli", { queryId }),
 	checkApplicationLogAccess: (source: ApplicationLogSource) => __TAURI_INVOKE<ApplicationLogAccess>("check_application_log_access", { source }),
 	captureApplicationLogs: (caseId: string, queryId: string, query: ApplicationLogQuery) => __TAURI_INVOKE<LogEvidenceSummary>("capture_application_logs", { caseId, queryId, query }),
 	cancelApplicationLogQuery: (queryId: string) => __TAURI_INVOKE<null>("cancel_application_log_query", { queryId }),
@@ -519,7 +520,7 @@ export type CommandError = {
 	message: string,
 };
 
-export type CommandErrorKind = "validation" | "notFound" | "internal";
+export type CommandErrorKind = "validation" | "azureCliSignedOut" | "notFound" | "internal";
 
 export type CommitCreationSave = {
 	attemptId: string,

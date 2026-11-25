@@ -145,7 +145,15 @@ fn signed_out_and_denied_can_both_exit_one() {
         ApplicationLogAccess::SignedOut
     );
     assert_eq!(
-        response::classify_error("ERROR: (AuthorizationFailed) Access denied."),
+        response::classify_error(
+            "ERROR: Can't find token from MSAL cache.\nTo re-authenticate, please run:\n  az login"
+        ),
+        ApplicationLogAccess::SignedOut
+    );
+    assert_eq!(
+        response::classify_error(
+            "ERROR: (AuthorizationFailed) Access denied. Run 'az login' with another account."
+        ),
         ApplicationLogAccess::AccessDenied
     );
     assert_eq!(
@@ -157,6 +165,32 @@ fn signed_out_and_denied_can_both_exit_one() {
     assert_eq!(
         response::classify_error("ERROR: Invalid query syntax."),
         ApplicationLogAccess::Failed
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn sign_in_uses_fixed_arguments_with_closed_input_and_terminates_on_timeout() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let cwd = tempfile::tempdir().unwrap();
+    let az = cwd.path().join("az");
+    std::fs::write(&az, "#!/bin/sh\nset -eu\n[ \"$#\" -eq 3 ] && [ \"$*\" = 'login --output none' ] || exit 1\nif read -r line; then exit 1; fi\necho sensitive-output\necho sensitive-error >&2\n").unwrap();
+    std::fs::set_permissions(&az, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let cancelled = AtomicBool::new(false);
+    assert_eq!(
+        sign_in_cli(&az, cwd.path(), &cancelled, Duration::from_secs(3)),
+        Ok(())
+    );
+    std::fs::write(&az, "#!/bin/sh\nsleep 30 &\nwait\n").unwrap();
+    assert_eq!(
+        sign_in_cli(&az, cwd.path(), &cancelled, Duration::from_millis(60)),
+        Err(LogQueryError::Access(ApplicationLogAccess::TimedOut))
+    );
+    cancelled.store(true, Ordering::Release);
+    assert_eq!(
+        sign_in_cli(&az, cwd.path(), &cancelled, Duration::from_secs(3)),
+        Err(LogQueryError::Cancelled)
     );
 }
 

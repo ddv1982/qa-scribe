@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sign-in-azure-cli"
+description = "Enables the sign_in_azure_cli command without any pre-configured scope."
+commands.allow = ["sign_in_azure_cli"]
+
+[[permission]]
+identifier = "deny-sign-in-azure-cli"
+description = "Denies the sign_in_azure_cli command without any pre-configured scope."
+commands.deny = ["sign_in_azure_cli"]

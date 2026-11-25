@@ -16,6 +16,7 @@ use crate::jobs::JobStoreError;
 #[serde(rename_all = "camelCase")]
 pub enum CommandErrorKind {
     Validation,
+    AzureCliSignedOut,
     NotFound,
     Internal,
 }
@@ -27,6 +28,13 @@ pub struct CommandError {
 }
 
 impl CommandError {
+    pub fn azure_cli_signed_out(message: impl Into<String>) -> Self {
+        Self {
+            kind: CommandErrorKind::AzureCliSignedOut,
+            message: message.into(),
+        }
+    }
+
     pub fn validation(message: impl Into<String>) -> Self {
         Self {
             kind: CommandErrorKind::Validation,

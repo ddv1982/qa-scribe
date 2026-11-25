@@ -19,8 +19,6 @@ pub(super) fn classify_error(stderr: &str) -> ApplicationLogAccess {
             || message.contains("not in the"))
     {
         ApplicationLogAccess::ExtensionMissing
-    } else if message.contains("az login") || message.contains("interaction_required") {
-        ApplicationLogAccess::SignedOut
     } else if [
         "authorizationfailed",
         "insufficientaccesserror",
@@ -32,6 +30,20 @@ pub(super) fn classify_error(stderr: &str) -> ApplicationLogAccess {
     .any(|part| message.contains(part))
     {
         ApplicationLogAccess::AccessDenied
+    } else if [
+        "run 'az login",
+        "run `az login",
+        "run az login",
+        "interaction_required",
+    ]
+    .iter()
+    .any(|part| message.contains(part))
+        || message
+            .lines()
+            .map(str::trim)
+            .any(|line| line == "az login" || line.starts_with("az login "))
+    {
+        ApplicationLogAccess::SignedOut
     } else {
         ApplicationLogAccess::Failed
     }
