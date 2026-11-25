@@ -156,3 +156,18 @@ it('does not let an earlier saved-status timer erase a later Save failure', asyn
   expect(result.current.settingsSaveState).toBe('error')
   expect(result.current.settingsSaveError).toBe('Something went wrong: New Save failure')
 })
+
+it('saves a replacement logging resource and saves again with logging unconfigured', async () => {
+  const { result } = mount()
+  const initial = settingsFixture({ applicationLogSources: [{ label: 'My logs', resourceId: 'old-resource' }] })
+  act(() => result.current.loadSettings(initial))
+  bridge.updateSettings.mockImplementation((settings: AppSettings) => Promise.resolve(settings))
+  for (const sources of [[{ label: 'My logs', resourceId: 'new-resource' }], []]) {
+    act(() => result.current.updateSettingsDraft({ applicationLogSources: sources }))
+    expect(result.current.settingsDirty).toBe(true)
+    await act(async () => { expect(await result.current.handleSaveSettings()).toBe(true) })
+    expect(bridge.updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ applicationLogSources: sources }))
+    expect(result.current.settings?.applicationLogSources).toEqual(sources)
+    expect(result.current.settingsDirty).toBe(false)
+  }
+})

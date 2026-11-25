@@ -19,30 +19,35 @@
 
 .test-run-list {
   display: grid;
-  justify-items: start;
   gap: var(--space-1);
   min-width: 0;
 }
 .test-run-list h3 { margin: 0; font-size: var(--font-size-sm); }
 /* The list sits in the sticky record header, so it scrolls within a bounded height instead of pushing the draft away. */
+.test-run-list-scroll { max-height: 12rem; max-width: 44rem; overflow-y: auto; }
 .test-run-list ul {
   display: grid;
+  grid-auto-rows: 1fr;
+  width: 100%;
   gap: var(--space-1);
-  max-height: 10rem;
   margin: 0;
   padding: 0;
-  overflow-y: auto;
   list-style: none;
 }
 .test-run-list-item {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
+  gap: var(--space-3);
+  width: 100%;
+  height: 100%;
+  min-height: 56px;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
 }
+.test-run-list-content { display: grid; gap: var(--space-1); overflow-wrap: anywhere; }
+.test-run-list-item > .badge { justify-self: end; }
 .test-run-open-label { color: var(--text-primary); font-weight: 600; }
 .test-run-list-more { text-decoration: underline; }
 /* Rows sit flush in a scroll container, so an outset ring would be clipped. */
@@ -242,3 +247,10 @@
   text-align: start;
   overflow-wrap: anywhere;
 }
+
+/* Keep this destructive confirmation scoped to test runs. */
+.test-run-delete-dialog { padding: var(--space-6); gap: var(--space-6); }
+.test-run-delete-dialog h2 { margin: 0 0 var(--space-3); font-size: var(--font-size-xl); }
+.test-run-delete-dialog p { margin: 0; color: var(--text-secondary); line-height: var(--leading-relaxed); }
+.test-run-delete-dialog p.test-run-delete-retained { margin-top: var(--space-2); color: var(--text-primary); line-height: var(--leading-relaxed); }
+.test-run-delete-dialog .confirmation-actions { padding-top: var(--space-4); border-top: 1px solid var(--border-subtle); }

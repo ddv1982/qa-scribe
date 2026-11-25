@@ -20,8 +20,9 @@ function uniqueLabel(component: ApplicationInsightsComponent, sources: Applicati
   return label
 }
 
-export function ApplicationLogDiscovery({ sources, disabled, onAdd }: {
+export function ApplicationLogDiscovery({ sources, disabled, onAdd, replacing = false }: {
   sources: ApplicationLogSource[]
+  replacing?: boolean
   disabled: boolean
   onAdd: (source: ApplicationLogSource) => void
 }) {
@@ -85,7 +86,7 @@ export function ApplicationLogDiscovery({ sources, disabled, onAdd }: {
   const selected = components?.find((component) => component.resourceId === resourceId)
   const canAdd = selected && !disabled && !configured.has(normalized(selected.resourceId))
 
-  if (!open) return <ActionButton variant="primary" disabled={disabled} onClick={discover}>Discover from Azure</ActionButton>
+  if (!open) return <ActionButton variant={replacing ? "secondary" : "primary"} disabled={disabled} onClick={discover}>{replacing ? 'Change resource' : 'Discover from Azure'}</ActionButton>
 
   return <fieldset className="read-source-fieldset">
     <legend>Discover from Azure</legend>
@@ -112,11 +113,11 @@ export function ApplicationLogDiscovery({ sources, disabled, onAdd }: {
     {components?.length === 0 ? <p role="status">No Application Insights resources were found in this subscription.</p> : null}
     {error ? <p className="field-error" role="alert">{error}</p> : null}
     <div className="read-source-options">
-      {components?.length ? <ActionButton variant="primary" disabled={!canAdd} onClick={() => {
+      {components?.length ? <ActionButton variant={replacing ? "secondary" : "primary"} disabled={!canAdd} onClick={() => {
         if (!canAdd) return
         onAdd({ label: uniqueLabel(selected, sources), resourceId: selected.resourceId })
         close()
-      }}>Add discovered source</ActionButton> : null}
+      }}>{replacing ? 'Use resource' : 'Add discovered source'}</ActionButton> : null}
       {error || subscriptions?.length === 0 ? <ActionButton onClick={() => {
         if (subscription) selectSubscription(subscription)
         else discover()

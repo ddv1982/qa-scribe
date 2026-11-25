@@ -40,17 +40,21 @@ export function TestRunList({ runs, onOpen }: {
   return (
     <section className="test-run-list" aria-label="Test runs">
       <h3>Test runs</h3>
-      <ul>
-        {shown.map((summary, index) => (
-          <li key={summary.id}>
-            <button type="button" className="test-run-list-item" onClick={() => onOpen(summary.id)}>
-              <span className="test-run-open-label">Open test run</span>{' '}
-              <span>{(dateCounts.get(formatDateTime(summary.createdAt)) ?? 0) > 1 ? `Run ${runs.length - index} · ` : ''}{testRunSummaryText(summary)}</span>
-              {index === 0 ? <> <Badge>Latest</Badge></> : null}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="test-run-list-scroll">
+        <ul>
+          {shown.map((summary, index) => (
+            <li key={summary.id}>
+              <button type="button" className="test-run-list-item" onClick={() => onOpen(summary.id)}>
+                <span className="test-run-list-content">
+                  <span className="test-run-open-label">Open test run</span>{' '}
+                  <span>{(dateCounts.get(formatDateTime(summary.createdAt)) ?? 0) > 1 ? `Run ${runs.length - index} · ` : ''}{testRunSummaryText(summary)}</span>
+                </span>
+                {index === 0 ? <> <Badge>Latest</Badge></> : null}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
       {runs.length > VISIBLE_TEST_RUNS ? (
         <button type="button" className="test-run-list-more" aria-expanded={showAll} onClick={() => setShowAll((value) => !value)}>
           {showAll ? 'Show fewer' : `Show all (${runs.length})`}
