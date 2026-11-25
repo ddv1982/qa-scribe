@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.21.2 - 2026-11-25
+
+- Saved test runs now appear in evenly sized rows. The delete confirmation explains that results and result notes are removed and test cases stay.
+- In **Settings → Application logs**, use **Change resource** to replace a saved Application Insights resource and keep its label. Remove all sources and save to leave logging unconfigured.
+
 ## Unreleased
 
 ## v0.21.1 - 2026-11-25
